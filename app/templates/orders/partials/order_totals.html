@@ -1,0 +1,54 @@
+<div class="bg-gray-50 rounded-lg p-4 space-y-2">
+    <div class="flex justify-between text-sm">
+        <span class="text-gray-600">Subtotal:</span>
+        <span class="font-medium">${{ "%.2f"|format(order.subtotal) }}</span>
+    </div>
+    
+    {% if order.discount_amount > 0 %}
+    <div class="flex justify-between text-sm">
+        <span class="text-gray-600">Discount ({{ order.discount_type }}):</span>
+        <span class="font-medium text-green-600">-${{ "%.2f"|format(order.discount_amount) }}</span>
+    </div>
+    {% endif %}
+    
+    <div class="flex justify-between text-sm">
+        <span class="text-gray-600">Tax ({{ "%.2f"|format(order.tax_rate * 100) }}%):</span>
+        <span class="font-medium">${{ "%.2f"|format(order.tax_amount) }}</span>
+    </div>
+    
+    {% if order.service_charge > 0 %}
+    <div class="flex justify-between text-sm">
+        <span class="text-gray-600">Service Charge:</span>
+        <span class="font-medium">${{ "%.2f"|format(order.service_charge) }}</span>
+    </div>
+    {% endif %}
+    
+    <div class="border-t pt-2">
+        <div class="flex justify-between">
+            <span class="font-semibold">Total:</span>
+            <span class="font-bold text-lg">${{ "%.2f"|format(order.total) }}</span>
+        </div>
+    </div>
+    
+    {% if order.payments %}
+    <div class="border-t pt-2 space-y-1">
+        <div class="text-sm font-semibold text-gray-700">Payments:</div>
+        {% for payment in order.payments %}
+        <div class="flex justify-between text-sm">
+            <span class="text-gray-600 capitalize">{{ payment.method.value }}:</span>
+            <span class="font-medium">${{ "%.2f"|format(payment.amount) }}</span>
+        </div>
+        {% endfor %}
+        <div class="flex justify-between text-sm font-semibold pt-1 border-t">
+            <span>Paid:</span>
+            <span class="text-green-600">${{ "%.2f"|format(order.get_total_paid()) }}</span>
+        </div>
+        <div class="flex justify-between text-sm font-semibold">
+            <span>Balance Due:</span>
+            <span class="{% if order.get_balance_due() > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                ${{ "%.2f"|format(order.get_balance_due()) }}
+            </span>
+        </div>
+    </div>
+    {% endif %}
+</div>

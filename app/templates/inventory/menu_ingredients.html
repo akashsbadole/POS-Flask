@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Menu Ingredients{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Menu Ingredients</h1>
+        <p class="text-gray-600">Manage ingredients used in menu items</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Menu Item
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Category
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ingredients
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Availability
+                        </th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for menu_item in menu_items %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                {% if menu_item.image_url %}
+                                <img class="h-10 w-10 rounded-full object-cover" src="{{ menu_item.image_url }}" alt="{{ menu_item.name }}">
+                                {% else %}
+                                <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                    <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                    </svg>
+                                </div>
+                                {% endif %}
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">{{ menu_item.name }}</div>
+                                    <div class="text-sm text-gray-500">${{ "%.2f"|format(menu_item.price) }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                {{ menu_item.category.name if menu_item.category else 'Uncategorized' }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if menu_item.menu_item_ingredients %}
+                            <div class="space-y-1">
+                                {% for item_ingredient in menu_item.menu_item_ingredients %}
+                                <div class="text-sm text-gray-900">
+                                    {{ item_ingredient.quantity_required }} {{ item_ingredient.ingredient.unit }} {{ item_ingredient.ingredient.name }}
+                                    <span class="text-gray-500">
+                                        ({{ item_ingredient.ingredient.current_stock }} available)
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <span class="text-sm text-gray-500">No ingredients assigned</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% set can_make = 999 %}
+                            {% set limiting_ingredients = [] %}
+                            {% for item_ingredient in menu_item.menu_item_ingredients %}
+                                {% set available_quantity = (item_ingredient.ingredient.current_stock / item_ingredient.quantity_required)|int %}
+                                {% if available_quantity < can_make %}
+                                    {% set can_make = available_quantity %}
+                                    {% set limiting_ingredients = limiting_ingredients + [item_ingredient.ingredient.name] %}
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if can_make == 0 %}
+                            <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+                                Out of Stock
+                            </span>
+                            {% elif can_make <= 5 %}
+                            <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+                                Can make {{ can_make }}
+                            </span>
+                            {% else %}
+                            <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                                Available
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="{{ url_for('inventory.manage_menu_item_ingredients', menu_item_id=menu_item.id) }}" 
+                               class="text-blue-600 hover:text-blue-900">
+                                Manage Ingredients
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">
+                            No menu items found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800">About Menu Ingredients</h3>
+                <div class="mt-2 text-sm text-blue-700">
+                    <p>Assign ingredients to menu items to track inventory usage and availability.</p>
+                    <p class="mt-1">When orders are placed, ingredients will be automatically deducted from stock.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

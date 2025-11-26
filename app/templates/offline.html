@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - Restaurant POS</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        .offline-animation {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: .5;
+            }
+        }
+    </style>
+</head>
+<body class="h-full bg-gray-50 flex items-center justify-center">
+    <div class="max-w-md w-full mx-auto p-4">
+        <div class="bg-white rounded-lg shadow-lg p-8 text-center">
+            <!-- Offline Icon -->
+            <div class="offline-animation mb-6">
+                <i class="fas fa-wifi-slash text-6xl text-gray-400"></i>
+            </div>
+            
+            <!-- Offline Message -->
+            <h1 class="text-2xl font-bold text-gray-900 mb-2">You're Offline</h1>
+            <p class="text-gray-600 mb-6">
+                It looks like you've lost your internet connection. Some features may not be available until you're back online.
+            </p>
+            
+            <!-- Available Features -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h2 class="text-lg font-semibold text-blue-800 mb-3">Available Offline</h2>
+                <div class="space-y-2 text-left">
+                    <div class="flex items-center text-blue-700">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span>View cached menu items</span>
+                    </div>
+                    <div class="flex items-center text-blue-700">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span>Add items to cart (local storage)</span>
+                    </div>
+                    <div class="flex items-center text-blue-700">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span>View current cart</span>
+                    </div>
+                    <div class="flex items-center text-blue-700">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span>Access cached orders</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Limited Features -->
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <h2 class="text-lg font-semibold text-yellow-800 mb-3">Limited Offline</h2>
+                <div class="space-y-2 text-left">
+                    <div class="flex items-center text-yellow-700">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <span>New orders (will queue)</span>
+                    </div>
+                    <div class="flex items-center text-yellow-700">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <span>Payment processing</span>
+                    </div>
+                    <div class="flex items-center text-yellow-700">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <span>Kitchen display updates</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Unavailable Features -->
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <h2 class="text-lg font-semibold text-red-800 mb-3">Unavailable Offline</h2>
+                <div class="space-y-2 text-left">
+                    <div class="flex items-center text-red-700">
+                        <i class="fas fa-times-circle mr-2"></i>
+                        <span>Real-time inventory updates</span>
+                    </div>
+                    <div class="flex items-center text-red-700">
+                        <i class="fas fa-times-circle mr-2"></i>
+                        <span>Live kitchen sync</span>
+                    </div>
+                    <div class="flex items-center text-red-700">
+                        <i class="fas fa-times-circle mr-2"></i>
+                        <span>Report generation</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="space-y-3">
+                <button onclick="window.location.reload()" 
+                        class="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 font-medium">
+                    <i class="fas fa-sync-alt mr-2"></i>
+                    Try Again
+                </button>
+                
+                <button onclick="window.history.back()" 
+                        class="w-full bg-gray-600 text-white py-3 px-4 rounded-md hover:bg-gray-700 font-medium">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Go Back
+                </button>
+            </div>
+            
+            <!-- Auto Retry -->
+            <div class="mt-6 text-sm text-gray-500">
+                <p>This page will automatically retry to reconnect every 30 seconds.</p>
+                <div class="mt-2">
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div id="retry-progress" class="bg-blue-600 h-2 rounded-full transition-all duration-1000 ease-linear" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Auto retry every 30 seconds
+        let retryCount = 0;
+        const maxRetries = 10;
+        
+        function updateProgress() {
+            const progress = document.getElementById('retry-progress');
+            if (progress) {
+                retryCount++;
+                const percentage = (retryCount / maxRetries) * 100;
+                progress.style.width = percentage + '%';
+                
+                if (retryCount >= maxRetries) {
+                    // Stop auto-retry after max attempts
+                    clearInterval(window.retryInterval);
+                    progress.classList.add('bg-red-600');
+                    progress.classList.remove('bg-blue-600');
+                }
+            }
+        }
+        
+        // Start retry interval
+        window.retryInterval = setInterval(() => {
+            updateProgress();
+            
+            // Try to fetch a small resource to check connection
+            fetch('/api/cart/count', { 
+                method: 'HEAD',
+                cache: 'no-cache'
+            })
+            .then(() => {
+                // If successful, reload the page
+                window.location.reload();
+            })
+            .catch(() => {
+                // Still offline, continue retrying
+                console.log('Still offline, retrying...');
+            });
+        }, 30000); // 30 seconds
+        
+        // Initial progress update
+        updateProgress();
+        
+        // Listen for online event
+        window.addEventListener('online', () => {
+            console.log('Connection restored, reloading...');
+            window.location.reload();
+        });
+    </script>
+</body>
+</html>

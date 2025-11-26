@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+
+{% block title %}Cashier Dashboard - Restaurant POS{% endblock %}
+
+{% block content %}
+<div x-data="cashierDashboard()" x-init="initDashboard()">
+    <div class="h-full flex">
+        <!-- Left Panel - Menu -->
+        <div class="w-2/3 pr-4 overflow-y-auto custom-scrollbar">
+            <!-- Category Tabs -->
+            <div class="mb-4 bg-white rounded-lg shadow p-4">
+                <div class="flex space-x-2 overflow-x-auto">
+                    <template x-for="category in categories" :key="category.id">
+                        <button @click="selectedCategory = category.id"
+                                :class="selectedCategory === category.id ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'"
+                                class="px-4 py-2 rounded-lg whitespace-nowrap font-medium"
+                                x-text="category.name">
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Menu Items Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <template x-for="item in filteredMenuItems" :key="item.id">
+                    <div @click="openItemModal(item)"
+                         class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer p-4">
+                        <div class="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
+                            <img x-show="item.image_url" 
+                                 :src="item.image_url" 
+                                 :alt="item.name"
+                                 class="w-full h-full object-cover rounded-lg">
+                            <i x-show="!item.image_url" 
+                               class="fas fa-utensils text-gray-400 text-3xl"></i>
+                        </div>
+                        <h3 class="font-semibold text-gray-900" x-text="item.name"></h3>
+                        <p class="text-lg font-bold text-blue-600" x-text="'$' + item.price.toFixed(2)"></p>
+                        <p x-show="!item.is_available" class="text-sm text-red-500">Sold Out</p>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Right Panel - Cart -->
+        <div class="w-1/3 pl-4">
+            <div class="bg-white rounded-lg shadow h-full flex flex-col">
+                <!-- Cart Header -->
+                <div class="p-4 border-b">
+                    <h2 class="text-xl font-bold text-gray-900">Order Cart</h2>
+                    <div class="flex items-center justify-between mt-2">
+                        <span class="text-sm text-gray-600">Items:</span>
+                        <span class="font-semibold" x-text="cart.items.length"></span>
+                    </div>
+                </div>
+
+                <!-- Cart Items -->
+                <div class="flex-1 overflow-y-auto p-4">
+                    <template x-for="(item, index) in cart.items" :key="index">
+                        <div class="mb-3 pb-3 border-b">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <h4 class="font-semibold" x-text="item.name"></h4>
+                                    <p x-show="item.variant" class="text-sm text-gray-600" x-text="item.variant"></p>
+                                    <p x-show="item.notes" class="text-sm text-gray-600" x-text="item.notes"></p>
+                                    <div x-show="item.add_ons && item.add_ons.length > 0" class="mt-1">
+                                        <template x-for="addon in item.add_ons" :key="addon.id">
+                                            <span class="text-xs bg-gray-100 px-2 py-1 rounded" x-text="addon.name"></span>
+                                        </template>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-semibold" x-text="'$' + item.total_price.toFixed(2)"></p>
+                                    <div class="flex items-center space-x-2 mt-1">
+                                        <button @click="updateQuantity(index, item.quantity - 1)"
+                                                class="w-6 h-6 bg-red-500 text-white rounded text-xs hover:bg-red-600">
+                                            -
+                                        </button>
+                                        <span class="w-8 text-center text-sm" x-text="item.quantity"></span>
+                                        <button @click="updateQuantity(index, item.quantity + 1)"
+                                                class="w-6 h-6 bg-green-500 text-white rounded text-xs hover:bg-green-600">
+                                            +
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div x-show="cart.items.length === 0" class="text-center py-8 text-gray-500">
+                        <i class="fas fa-shopping-cart text-4xl mb-3"></i>
+                        <p>Cart is empty</p>
+                        <p class="text-sm">Add items from the menu to get started</p>
+                    </div>
+                </div>
+
+                <!-- Cart Summary -->
+                <div class="p-4 border-t bg-gray-50">
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span>Subtotal:</span>
+                            <span x-text="'$' + cart.subtotal.toFixed(2)"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Tax (8.75%):</span>
+                            <span x-text="'$' + cart.tax.toFixed(2)"></span>
+                        </div>
+                        <div class="flex justify-between text-lg font-bold">
+                            <span>Total:</span>
+                            <span x-text="'$' + cart.total.toFixed(2)"></span>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="mt-4 space-y-2">
+                        <button @click="showTableSelection = true"
+                                x-show="cart.items.length > 0"
+                                class="w-full bg-gray-600 text-white py-2 px-4 rounded hover:bg-gray-700">
+                            <i class="fas fa-table mr-2"></i>
+                            Assign Table
+                        </button>
+                        <button @click="showPaymentModal = true"
+                                x-show="cart.items.length > 0"
+                                class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
+                            <i class="fas fa-credit-card mr-2"></i>
+                            Checkout
+                        </button>
+                        <button @click="clearCart()"
+                                x-show="cart.items.length > 0"
+                                class="w-full bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700">
+                            <i class="fas fa-trash mr-2"></i>
+                            Clear Cart
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Item Selection Modal -->
+    <div x-show="showItemModal" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         style="display: none;">
+        
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-screen overflow-y-auto">
+            <div x-show="selectedItem">
+                <h3 class="text-xl font-bold mb-4" x-text="selectedItem.name"></h3>
+                <p x-show="selectedItem.description" class="text-gray-600 mb-4" x-text="selectedItem.description"></p>
+                
+                <!-- Variants -->
+                <div x-show="selectedItem.variants && selectedItem.variants.length > 0" class="mb-4">
+                    <h4 class="font-semibold mb-2">Choose Option:</h4>
+                    <div class="space-y-2">
+                        <template x-for="variant in selectedItem.variants" :key="variant.id">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="radio" :value="variant.id" x-model="selectedVariant" 
+                                       class="form-radio text-blue-600">
+                                <span x-text="variant.name"></span>
+                                <span class="text-gray-600" x-text="'+$' + variant.price_modifier.toFixed(2)"></span>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Add-ons -->
+                <div x-show="selectedItem.add_ons && selectedItem.add_ons.length > 0" class="mb-4">
+                    <h4 class="font-semibold mb-2">Add-ons:</h4>
+                    <div class="space-y-2">
+                        <template x-for="addon in selectedItem.add_ons" :key="addon.id">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" :value="addon.id" x-model="selectedAddOns" 
+                                       class="form-checkbox text-blue-600">
+                                <span x-text="addon.name"></span>
+                                <span class="text-gray-600" x-text="'+$' + addon.price.toFixed(2)"></span>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Quantity -->
+                <div class="mb-4">
+                    <h4 class="font-semibold mb-2">Quantity:</h4>
+                    <div class="flex items-center space-x-2">
+                        <button @click="quantity > 1 ? quantity-- : null" 
+                                class="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300">-</button>
+                        <span class="w-12 text-center" x-text="quantity"></span>
+                        <button @click="quantity++" 
+                                class="w-8 h-8 bg-gray-200 rounded hover:bg-gray-300">+</button>
+                    </div>
+                </div>
+                
+                <!-- Notes -->
+                <div class="mb-4">
+                    <h4 class="font-semibold mb-2">Special Instructions:</h4>
+                    <textarea x-model="notes" rows="3" 
+                              class="w-full border rounded px-3 py-2"
+                              placeholder="Any special requests..."></textarea>
+                </div>
+                
+                <!-- Price Display -->
+                <div class="border-t pt-4 mb-4">
+                    <div class="flex justify-between items-center">
+                        <span class="font-semibold">Total:</span>
+                        <span class="text-xl font-bold" x-text="'$' + calculateItemTotal().toFixed(2)"></span>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex space-x-2">
+                    <button @click="addToCart()" 
+                            class="flex-1 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
+                        Add to Cart
+                    </button>
+                    <button @click="closeItemModal()" 
+                            class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-400">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function cashierDashboard() {
+    return {
+        categories: [],
+        menuItems: [],
+        selectedCategory: null,
+        selectedItem: null,
+        selectedVariant: null,
+        selectedAddOns: [],
+        quantity: 1,
+        notes: '',
+        showItemModal: false,
+        showTableSelection: false,
+        showPaymentModal: false,
+        cart: {
+            items: [],
+            subtotal: 0,
+            tax: 0,
+            total: 0
+        },
+        
+        async initDashboard() {
+            await this.loadCategories();
+            await this.loadMenuItems();
+            this.loadCart();
+        },
+        
+        async loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                this.categories = await response.json();
+                if (this.categories.length > 0) {
+                    this.selectedCategory = this.categories[0].id;
+                }
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        },
+        
+        async loadMenuItems() {
+            try {
+                const response = await fetch('/api/menu/items');
+                this.menuItems = await response.json();
+            } catch (error) {
+                console.error('Error loading menu items:', error);
+            }
+        },
+        
+        get filteredMenuItems() {
+            if (!this.selectedCategory) return this.menuItems;
+            return this.menuItems.filter(item => item.category_id === this.selectedCategory);
+        },
+        
+        openItemModal(item) {
+            this.selectedItem = item;
+            this.selectedVariant = item.variants && item.variants.length > 0 ? item.variants[0].id : null;
+            this.selectedAddOns = [];
+            this.quantity = 1;
+            this.notes = '';
+            this.showItemModal = true;
+        },
+        
+        closeItemModal() {
+            this.showItemModal = false;
+            this.selectedItem = null;
+        },
+        
+        calculateItemTotal() {
+            if (!this.selectedItem) return 0;
+            
+            let total = this.selectedItem.price;
+            
+            if (this.selectedVariant) {
+                const variant = this.selectedItem.variants.find(v => v.id === this.selectedVariant);
+                if (variant) total += variant.price_modifier;
+            }
+            
+            this.selectedAddOns.forEach(addonId => {
+                const addon = this.selectedItem.add_ons.find(a => a.id === addonId);
+                if (addon) total += addon.price;
+            });
+            
+            return total * this.quantity;
+        },
+        
+        async addToCart() {
+            const cartItem = {
+                id: this.selectedItem.id,
+                name: this.selectedItem.name,
+                price: this.selectedItem.price,
+                quantity: this.quantity,
+                variant: this.selectedVariant ? this.selectedItem.variants.find(v => v.id === this.selectedVariant) : null,
+                add_ons: this.selectedAddOns.map(id => this.selectedItem.add_ons.find(a => a.id === id)).filter(Boolean),
+                notes: this.notes,
+                total_price: this.calculateItemTotal()
+            };
+            
+            try {
+                const response = await fetch('/cart/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'HX-Request': 'true'
+                    },
+                    body: JSON.stringify(cartItem)
+                });
+                
+                if (response.ok) {
+                    this.loadCart();
+                    this.closeItemModal();
+                    this.showNotification('Item added to cart', 'success');
+                }
+            } catch (error) {
+                console.error('Error adding to cart:', error);
+                this.showNotification('Error adding item to cart', 'error');
+            }
+        },
+        
+        async loadCart() {
+            try {
+                const response = await fetch('/api/cart');
+                this.cart = await response.json();
+            } catch (error) {
+                console.error('Error loading cart:', error);
+            }
+        },
+        
+        async clearCart() {
+            try {
+                const response = await fetch('/cart/clear', {
+                    method: 'POST',
+                    headers: { 'HX-Request': 'true' }
+                });
+                
+                if (response.ok) {
+                    this.loadCart();
+                    this.showNotification('Cart cleared', 'info');
+                }
+            } catch (error) {
+                console.error('Error clearing cart:', error);
+            }
+        },
+        
+        showNotification(message, type = 'info') {
+            // Dispatch event for global notification system
+            window.dispatchEvent(new CustomEvent('showNotification', {
+                detail: { message, type }
+            }));
+        }
+    }
+}
+</script>
+{% endblock %}

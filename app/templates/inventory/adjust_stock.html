@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Adjust Stock - {{ ingredient.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-6">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Adjust Stock</h1>
+        <p class="text-gray-600">Update stock level for {{ ingredient.name }}</p>
+    </div>
+
+    <!-- Current Stock Information -->
+    <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">Current Stock Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <p class="text-sm font-medium text-gray-600">Current Stock</p>
+                <p class="text-2xl font-bold text-gray-900">
+                    {{ ingredient.current_stock }} {{ ingredient.unit }}
+                </p>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-600">Minimum Stock</p>
+                <p class="text-2xl font-bold text-gray-900">
+                    {{ ingredient.minimum_stock }} {{ ingredient.unit }}
+                </p>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-600">Status</p>
+                <p class="text-2xl font-bold">
+                    {% if ingredient.current_stock == 0 %}
+                    <span class="text-red-600">Out of Stock</span>
+                    {% elif ingredient.is_low_stock() %}
+                    <span class="text-yellow-600">Low Stock</span>
+                    {% else %}
+                    <span class="text-green-600">In Stock</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Adjustment Form -->
+    <div class="bg-white rounded-lg shadow-sm border">
+        <form method="POST" class="p-6">
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Adjustment Quantity *</label>
+                    <div class="relative">
+                        <input type="number" 
+                               name="quantity" 
+                               step="0.001"
+                               required
+                               placeholder="Use positive number to add stock, negative to remove"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                            <span class="text-gray-500 text-sm">{{ ingredient.unit }}</span>
+                        </div>
+                    </div>
+                    <p class="mt-1 text-sm text-gray-500">
+                        Enter a positive number to add stock, or a negative number to remove stock
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Reason for Adjustment</label>
+                    <textarea name="reason" 
+                              rows="3"
+                              placeholder="e.g., New delivery, spoilage, inventory count, etc."
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+
+                <!-- Quick Actions -->
+                <div>
+                    <p class="text-sm font-medium text-gray-700 mb-3">Quick Actions</p>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <button type="button" 
+                                onclick="document.querySelector('input[name=quantity]').value = '10'; document.querySelector('textarea[name=reason]').value = 'Stock addition';"
+                                class="px-3 py-2 bg-green-100 text-green-800 rounded-md hover:bg-green-200 text-sm font-medium">
+                            +10 {{ ingredient.unit }}
+                        </button>
+                        <button type="button" 
+                                onclick="document.querySelector('input[name=quantity]').value = '50'; document.querySelector('textarea[name=reason]').value = 'Stock addition';"
+                                class="px-3 py-2 bg-green-100 text-green-800 rounded-md hover:bg-green-200 text-sm font-medium">
+                            +50 {{ ingredient.unit }}
+                        </button>
+                        <button type="button" 
+                                onclick="document.querySelector('input[name=quantity]').value = '-5'; document.querySelector('textarea[name=reason]').value = 'Spoilage/Waste';"
+                                class="px-3 py-2 bg-red-100 text-red-800 rounded-md hover:bg-red-200 text-sm font-medium">
+                            -5 {{ ingredient.unit }}
+                        </button>
+                        <button type="button" 
+                                onclick="document.querySelector('input[name=quantity]').value = '-10'; document.querySelector('textarea[name=reason]').value = 'Spoilage/Waste';"
+                                class="px-3 py-2 bg-red-100 text-red-800 rounded-md hover:bg-red-200 text-sm font-medium">
+                            -10 {{ ingredient.unit }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Preview of New Stock -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-sm font-medium text-gray-700 mb-2">Preview</p>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-gray-600">Current Stock:</span>
+                            <span class="font-medium ml-2">{{ ingredient.current_stock }} {{ ingredient.unit }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Adjustment:</span>
+                            <span class="font-medium ml-2" id="adjustment-preview">0 {{ ingredient.unit }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">New Stock:</span>
+                            <span class="font-medium ml-2" id="new-stock-preview">{{ ingredient.current_stock }} {{ ingredient.unit }}</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">New Status:</span>
+                            <span class="font-medium ml-2" id="new-status-preview">
+                                {% if ingredient.is_low_stock() %}
+                                <span class="text-yellow-600">Low Stock</span>
+                                {% else %}
+                                <span class="text-green-600">In Stock</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end space-x-3">
+                <a href="{{ url_for('inventory.ingredients') }}" 
+                   class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Adjust Stock
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const quantityInput = document.querySelector('input[name=quantity]');
+    const adjustmentPreview = document.getElementById('adjustment-preview');
+    const newStockPreview = document.getElementById('new-stock-preview');
+    const newStatusPreview = document.getElementById('new-status-preview');
+    const currentStock = {{ ingredient.current_stock }};
+    const minimumStock = {{ ingredient.minimum_stock }};
+    const unit = '{{ ingredient.unit }}';
+
+    function updatePreview() {
+        const quantity = parseFloat(quantityInput.value) || 0;
+        const newStock = currentStock + quantity;
+        
+        adjustmentPreview.textContent = `${quantity > 0 ? '+' : ''}${quantity} ${unit}`;
+        newStockPreview.textContent = `${newStock.toFixed(3)} ${unit}`;
+        
+        if (newStock <= 0) {
+            newStatusPreview.innerHTML = '<span class="text-red-600">Out of Stock</span>';
+        } else if (newStock <= minimumStock) {
+            newStatusPreview.innerHTML = '<span class="text-yellow-600">Low Stock</span>';
+        } else {
+            newStatusPreview.innerHTML = '<span class="text-green-600">In Stock</span>';
+        }
+    }
+
+    quantityInput.addEventListener('input', updatePreview);
+    updatePreview();
+});
+</script>
+{% endblock %}

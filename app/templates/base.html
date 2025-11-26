@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Restaurant POS{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        /* Custom animations and transitions */
+        .htmx-indicator {
+            opacity: 0;
+            transition: opacity 200ms ease-in-out;
+        }
+        .htmx-request .htmx-indicator {
+            opacity: 1;
+        }
+        .htmx-request.htmx-indicator {
+            display: inline-block;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Restaurant POS">
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/static/sw.js')
+                    .then(function(registration) {
+                        console.log('ServiceWorker registered with scope:', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('ServiceWorker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="h-full bg-gray-50" x-data="{ 
+    sidebarOpen: false,
+    notifications: [],
+    cartCount: 0,
+    init() {
+        // Initialize cart count from session
+        this.updateCartCount();
+        
+        // Listen for cart updates
+        this.$el.addEventListener('cartUpdated', () => {
+            this.updateCartCount();
+        });
+    },
+    updateCartCount() {
+        fetch('/api/cart/count')
+            .then(response => response.json())
+            .then(data => {
+                this.cartCount = data.count;
+            })
+            .catch(error => console.error('Error updating cart count:', error));
+    },
+    toggleSidebar() {
+        this.sidebarOpen = !this.sidebarOpen;
+    },
+    addNotification(message, type = 'info') {
+        this.notifications.push({
+            id: Date.now(),
+            message: message,
+            type: type,
+            timestamp: new Date()
+        });
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            this.notifications = this.notifications.filter(n => n.id !== this.notifications[this.notifications.length - 1].id);
+        }, 5000);
+    }
+}">
+    
+    <!-- Main Application Container -->
+    <div class="flex h-full">
+        
+        <!-- Sidebar Navigation -->
+        {% if current_user.is_authenticated %}
+        <div x-show="sidebarOpen" 
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="-translate-x-full"
+             x-transition:enter-end="translate-x-0"
+             x-transition:leave="transition ease-in duration-300"
+             x-transition:leave-start="translate-x-0"
+             x-transition:leave-end="-translate-x-full"
+             class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform lg:translate-x-0 lg:static lg:inset-0">
+            
+            <div class="flex flex-col h-full">
+                <!-- Logo -->
+                <div class="flex items-center justify-between h-16 px-4 border-b">
+                    <div class="flex items-center">
+                        <i class="fas fa-utensils text-blue-600 text-xl mr-2"></i>
+                        <span class="font-bold text-xl">Restaurant POS</span>
+                    </div>
+                    <button @click="toggleSidebar()" class="lg:hidden">
+                        <i class="fas fa-times text-gray-500"></i>
+                    </button>
+                </div>
+                
+                <!-- Navigation -->
+                <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
+                    {% if current_user.role == 'cashier' %}
+                    <a href="{{ url_for('cashier.dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
+                        <i class="fas fa-cash-register w-5 mr-3"></i>
+                        Point of Sale
+                    </a>
+                    {% endif %}
+                    
+                    {% if current_user.role == 'kitchen' %}
+                    <a href="{{ url_for('kitchen.display') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
+                        <i class="fas fa-kitchen-set w-5 mr-3"></i>
+                        Kitchen Display
+                    </a>
+                    {% endif %}
+                    
+                    {% if current_user.can_access_manager_features() %}
+                    <a href="{{ url_for('manager.dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
+                        <i class="fas fa-chart-line w-5 mr-3"></i>
+                        Manager Dashboard
+                    </a>
+                    
+                    <a href="{{ url_for('menu.list_categories') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
+                        <i class="fas fa-book-open w-5 mr-3"></i>
+                        Menu Management
+                    </a>
+                    
+                    <a href="{{ url_for('tables.floor_plan') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
+                        <i class="fas fa-th w-5 mr-3"></i>
+                        Table Management
+                    </a>
+                    
+                    <a href="{{ url_for('reports.dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
+                        <i class="fas fa-chart-bar w-5 mr-3"></i>
+                        Reports
+                    </a>
+                    
+                    <a href="{{ url_for('inventory.dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
+                        <i class="fas fa-boxes w-5 mr-3"></i>
+                        Inventory
+                    </a>
+                    {% endif %}
+                    
+                    {% if current_user.can_access_admin_features() %}
+                    <a href="{{ url_for('main.system_status') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
+                        <i class="fas fa-cog w-5 mr-3"></i>
+                        System Settings
+                    </a>
+                    {% endif %}
+                </nav>
+                
+                <!-- User Menu -->
+                <div class="border-t px-4 py-4">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white">
+                                {{ current_user.name[0].upper() }}
+                            </div>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <p class="text-sm font-medium text-gray-900">{{ current_user.name }}</p>
+                            <p class="text-xs text-gray-500">{{ current_user.role.title() }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3 space-y-1">
+                        <a href="{{ url_for('auth.profile') }}" class="block px-3 py-2 text-sm text-gray-700 rounded hover:bg-gray-100">
+                            <i class="fas fa-user mr-2"></i> Profile
+                        </a>
+                        <a href="{{ url_for('auth.logout') }}" class="block px-3 py-2 text-sm text-red-600 rounded hover:bg-red-50">
+                            <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Top Navigation Bar -->
+            {% if current_user.is_authenticated %}
+            <header class="bg-white shadow-sm border-b">
+                <div class="flex items-center justify-between h-16 px-4">
+                    <button @click="toggleSidebar()" class="lg:hidden">
+                        <i class="fas fa-bars text-gray-500"></i>
+                    </button>
+                    
+                    <div class="flex items-center space-x-4">
+                        <!-- Cart Indicator -->
+                        {% if current_user.role == 'cashier' %}
+                        <div class="relative">
+                            <button class="p-2 text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-shopping-cart"></i>
+                                <span x-show="cartCount > 0" 
+                                      x-text="cartCount" 
+                                      class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                </span>
+                            </button>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Notifications -->
+                        <div class="relative">
+                            <button @click="notifications = []" class="p-2 text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-bell"></i>
+                                <span x-show="notifications.length > 0" 
+                                      x-text="notifications.length" 
+                                      class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                </span>
+                            </button>
+                        </div>
+                        
+                        <!-- Current Time -->
+                        <div class="text-sm text-gray-600">
+                            <i class="far fa-clock mr-1"></i>
+                            <span x-text="new Date().toLocaleTimeString()"></span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            {% endif %}
+            
+            <!-- Page Content -->
+            <main class="flex-1 overflow-auto">
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="fixed top-4 right-4 z-50 space-y-2">
+                            {% for category, message in messages %}
+                                <div x-data="{ show: true }"
+                                     x-show="show"
+                                     x-transition:enter="transition ease-out duration-300"
+                                     x-transition:enter-start="opacity-0 transform translate-x-full"
+                                     x-transition:enter-end="opacity-100 transform translate-x-0"
+                                     x-transition:leave="transition ease-in duration-300"
+                                     x-transition:leave-start="opacity-100 transform translate-x-0"
+                                     x-transition:leave-end="opacity-0 transform translate-x-full"
+                                     @click="show = false"
+                                     class="p-4 rounded-lg shadow-lg cursor-pointer
+                                            {% if category == 'error' %}bg-red-500 text-white
+                                            {% elif category == 'warning' %}bg-yellow-500 text-white
+                                            {% elif category == 'success' %}bg-green-500 text-white
+                                            {% else %}bg-blue-500 text-white{% endif %}">
+                                    <div class="flex items-center">
+                                        <i class="fas 
+                                            {% if category == 'error' %}fa-exclamation-circle
+                                            {% elif category == 'warning' %}fa-exclamation-triangle
+                                            {% elif category == 'success' %}fa-check-circle
+                                            {% else %}fa-info-circle{% endif %} mr-2">
+                                        </i>
+                                        <span>{{ message }}</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+                
+                <!-- Dynamic Content -->
+                <div class="p-4">
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Notifications Container -->
+    <div class="fixed top-4 right-4 z-50 space-y-2">
+        <template x-for="notification in notifications" :key="notification.id">
+            <div x-data="{ show: true }"
+                 x-show="show"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 transform translate-x-full"
+                 x-transition:enter-end="opacity-100 transform translate-x-0"
+                 x-transition:leave="transition ease-in duration-300"
+                 x-transition:leave-start="opacity-100 transform translate-x-0"
+                 x-transition:leave-end="opacity-0 transform translate-x-full"
+                 @click="show = false"
+                 class="p-4 rounded-lg shadow-lg cursor-pointer max-w-sm
+                        {% if notification.type == 'error' %}bg-red-500 text-white
+                        {% elif notification.type == 'warning' %}bg-yellow-500 text-white
+                        {% elif notification.type == 'success' %}bg-green-500 text-white
+                        {% else %}bg-blue-500 text-white{% endif %}">
+                <div class="flex items-center">
+                    <i class="fas 
+                        {% if notification.type == 'error' %}fa-exclamation-circle
+                        {% elif notification.type == 'warning' %}fa-exclamation-triangle
+                        {% elif notification.type == 'success' %}fa-check-circle
+                        {% else %}fa-info-circle{% endif %} mr-2">
+                    </i>
+                    <div>
+                        <p x-text="notification.message"></p>
+                        <p class="text-xs opacity-75" x-text="notification.timestamp.toLocaleTimeString()"></p>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+    
+    <!-- Loading Indicator -->
+    <div class="htmx-indicator fixed bottom-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg">
+        <div class="flex items-center">
+            <div class="spinner mr-2"></div>
+            <span>Loading...</span>
+        </div>
+    </div>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>
