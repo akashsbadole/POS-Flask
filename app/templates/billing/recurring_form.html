@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}{% if recurring_invoice %}Edit Recurring Invoice{% else %}Create Recurring Invoice{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">
+            {% if recurring_invoice %}Edit Recurring Invoice{% else %}Create Recurring Invoice{% endif %}
+        </h1>
+        <a href="{{ url_for('billing.recurring') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+            Cancel
+        </a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow">
+        <form method="POST">
+            <!-- Customer Information -->
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Customer Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Customer Name *</label>
+                        <input type="text" name="customer_name" value="{{ recurring_invoice.customer_name if recurring_invoice else '' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" name="customer_email" value="{{ recurring_invoice.customer_email if recurring_invoice else '' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Invoice Details -->
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Invoice Details</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                        <textarea name="description" rows="3" required
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">{{ recurring_invoice.description if recurring_invoice else '' }}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Amount *</label>
+                        <input type="number" name="amount" step="0.01" min="0" value="{{ recurring_invoice.amount if recurring_invoice else '' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedule Settings -->
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Schedule Settings</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Frequency *</label>
+                        <select name="frequency" required
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">Select Frequency</option>
+                            <option value="daily" {% if recurring_invoice and recurring_invoice.frequency == 'daily' %}selected{% endif %}>Daily</option>
+                            <option value="weekly" {% if recurring_invoice and recurring_invoice.frequency == 'weekly' %}selected{% endif %}>Weekly</option>
+                            <option value="monthly" {% if recurring_invoice and recurring_invoice.frequency == 'monthly' %}selected{% endif %}>Monthly</option>
+                            <option value="quarterly" {% if recurring_invoice and recurring_invoice.frequency == 'quarterly' %}selected{% endif %}>Quarterly</option>
+                            <option value="yearly" {% if recurring_invoice and recurring_invoice.frequency == 'yearly' %}selected{% endif %}>Yearly</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Interval Count</label>
+                        <input type="number" name="interval_count" min="1" value="{{ recurring_invoice.interval_count if recurring_invoice else 1 }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-sm text-gray-500 mt-1">How often to repeat (e.g., 2 for every 2 weeks)</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
+                        <input type="date" name="start_date" 
+                               value="{{ recurring_invoice.start_date.strftime('%Y-%m-%d') if recurring_invoice else '' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">End Date (Optional)</label>
+                        <input type="date" name="end_date" 
+                               value="{{ recurring_invoice.end_date.strftime('%Y-%m-%d') if recurring_invoice and recurring_invoice.end_date else '' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-sm text-gray-500 mt-1">Leave blank for no end date</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview -->
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Schedule Preview</h2>
+                <div id="schedule-preview" class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-sm text-gray-600">Select frequency and dates to see preview</p>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-2">
+                <a href="{{ url_for('billing.recurring') }}" class="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400">
+                    Cancel
+                </a>
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                    {% if recurring_invoice %}Update Recurring Invoice{% else %}Create Recurring Invoice{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function updateSchedulePreview() {
+    const frequency = document.querySelector('select[name="frequency"]').value;
+    const intervalCount = document.querySelector('input[name="interval_count"]').value || 1;
+    const startDate = document.querySelector('input[name="start_date"]').value;
+    const endDate = document.querySelector('input[name="end_date"]').value;
+    const amount = document.querySelector('input[name="amount"]').value || 0;
+    
+    if (!frequency || !startDate) {
+        document.getElementById('schedule-preview').innerHTML = '<p class="text-sm text-gray-600">Select frequency and dates to see preview</p>';
+        return;
+    }
+    
+    const start = new Date(startDate);
+    const end = endDate ? new Date(endDate) : null;
+    
+    let frequencyText = frequency;
+    if (intervalCount > 1) {
+        frequencyText = `Every ${intervalCount} ${frequency}s`;
+    } else {
+        frequencyText = frequency.charAt(0).toUpperCase() + frequency.slice(1);
+        if (frequency.endsWith('ly')) {
+            frequencyText = frequencyText.slice(0, -2);
+        }
+    }
+    
+    let preview = `
+        <div class="space-y-2">
+            <p class="text-sm font-medium text-gray-800">
+                <strong>Schedule:</strong> ${frequencyText}
+            </p>
+            <p class="text-sm text-gray-600">
+                <strong>Start Date:</strong> ${start.toLocaleDateString()}
+            </p>
+            ${endDate ? `<p class="text-sm text-gray-600"><strong>End Date:</strong> ${end.toLocaleDateString()}</p>` : '<p class="text-sm text-gray-600"><strong>End Date:</strong> No end date</p>'}
+            <p class="text-sm text-gray-600">
+                <strong>Invoice Amount:</strong> ₹${parseFloat(amount).toFixed(2)}
+            </p>
+    `;
+    
+    // Calculate next few dates
+    const nextDates = [];
+    let currentDate = new Date(start);
+    
+    for (let i = 0; i < 5; i++) {
+        if (end && currentDate > end) break;
+        
+        nextDates.push(new Date(currentDate));
+        
+        // Add interval based on frequency
+        switch (frequency) {
+            case 'daily':
+                currentDate.setDate(currentDate.getDate() + parseInt(intervalCount));
+                break;
+            case 'weekly':
+                currentDate.setDate(currentDate.getDate() + (7 * parseInt(intervalCount)));
+                break;
+            case 'monthly':
+                currentDate.setMonth(currentDate.getMonth() + parseInt(intervalCount));
+                break;
+            case 'quarterly':
+                currentDate.setMonth(currentDate.getMonth() + (3 * parseInt(intervalCount)));
+                break;
+            case 'yearly':
+                currentDate.setFullYear(currentDate.getFullYear() + parseInt(intervalCount));
+                break;
+        }
+    }
+    
+    if (nextDates.length > 0) {
+        preview += '<p class="text-sm font-medium text-gray-800 mt-3"><strong>Next Invoice Dates:</strong></p>';
+        preview += '<ul class="list-disc list-inside text-sm text-gray-600">';
+        nextDates.forEach(date => {
+            preview += `<li>${date.toLocaleDateString()}</li>`;
+        });
+        preview += '</ul>';
+    }
+    
+    preview += '</div>';
+    document.getElementById('schedule-preview').innerHTML = preview;
+}
+
+// Add event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelector('select[name="frequency"]').addEventListener('change', updateSchedulePreview);
+    document.querySelector('input[name="interval_count"]').addEventListener('input', updateSchedulePreview);
+    document.querySelector('input[name="start_date"]').addEventListener('change', updateSchedulePreview);
+    document.querySelector('input[name="end_date"]').addEventListener('change', updateSchedulePreview);
+    document.querySelector('input[name="amount"]').addEventListener('input', updateSchedulePreview);
+    
+    // Initialize preview
+    updateSchedulePreview();
+});
+</script>
+{% endblock %}

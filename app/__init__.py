@@ -59,10 +59,33 @@ def create_app(config_name=None):
     app.register_blueprint(reports_bp, url_prefix='/reports')
     
     from app.api import bp as api_bp
+    from app.api.offline import bp as offline_bp
     app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(offline_bp, url_prefix='/api/offline')
     
     from app.inventory import bp as inventory_bp
     app.register_blueprint(inventory_bp, url_prefix='/inventory')
+    
+    from app.recipes import bp as recipes_bp
+    app.register_blueprint(recipes_bp, url_prefix='/recipes')
+    
+    from app.billing import bp as billing_bp
+    app.register_blueprint(billing_bp, url_prefix='/billing')
+    
+    from app.subscription import bp as subscription_bp
+    app.register_blueprint(subscription_bp, url_prefix='/subscription')
+    
+    from app.license import bp as license_bp
+    app.register_blueprint(license_bp, url_prefix='/license')
+    
+    from app.error import bp as error_bp
+    app.register_blueprint(error_bp, url_prefix='/error')
+    
+    from app.support import bp as support_bp
+    app.register_blueprint(support_bp, url_prefix='/support')
+    
+    from app.purchase import bp as purchase_bp
+    app.register_blueprint(purchase_bp, url_prefix='/purchase')
     
     # User loader for Flask-Login
     @login_manager.user_loader

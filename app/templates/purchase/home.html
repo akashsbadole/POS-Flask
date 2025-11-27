@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Plans & Licenses{% endblock %}
+
+{% block extra_css %}
+<style>
+.purchase-hero {
+    @apply bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-16 px-4;
+}
+
+.purchase-card {
+    @apply bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-shadow duration-300;
+}
+
+.purchase-header {
+    @apply bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-b border-gray-200;
+}
+
+.purchase-body {
+    @apply p-6;
+}
+
+.price-tag {
+    @apply text-3xl font-bold text-blue-600;
+}
+
+.feature-list {
+    @apply space-y-3;
+}
+
+.feature-item {
+    @apply flex items-start;
+}
+
+.feature-icon {
+    @apply w-5 h-5 text-green-500 mr-3 mt-0.5 flex-shrink-0;
+}
+
+.plan-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+}
+
+.plan-popular {
+    @apply bg-gradient-to-r from-blue-500 to-indigo-500 text-white;
+}
+
+.plan-enterprise {
+    @apply bg-purple-100 text-purple-800;
+}
+
+.cta-button {
+    @apply w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-200;
+}
+
+.cta-secondary {
+    @apply w-full bg-gray-100 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-200 transition-colors duration-200;
+}
+
+.trial-badge {
+    @apply bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full;
+}
+
+.comparison-table {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden;
+}
+
+.comparison-header {
+    @apply bg-gray-50 px-6 py-4 border-b border-gray-200;
+}
+
+.comparison-row {
+    @apply px-6 py-4 border-b border-gray-200 hover:bg-gray-50;
+}
+
+.comparison-feature {
+    @apply font-medium text-gray-900;
+}
+
+.comparison-check {
+    @apply text-green-500 text-xl;
+}
+
+.comparison-cross {
+    @apply text-red-400 text-xl;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="purchase-hero">
+    <div class="max-w-7xl mx-auto text-center">
+        <h1 class="text-4xl md:text-5xl font-bold mb-4">
+            Choose Your Perfect Plan
+        </h1>
+        <p class="text-xl md:text-2xl mb-8 text-blue-100">
+            Start your restaurant's digital transformation today
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="#subscription-plans" class="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors">
+                View Subscription Plans
+            </a>
+            <a href="#license-options" class="bg-transparent border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors">
+                View License Options
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 py-12">
+    <!-- Subscription Plans Section -->
+    <section id="subscription-plans" class="mb-16">
+        <div class="text-center mb-12">
+            <h2 class="text-3xl font-bold text-gray-900 mb-4">Subscription Plans</h2>
+            <p class="text-lg text-gray-600">Flexible monthly plans for restaurants of all sizes</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {% for plan in subscription_plans %}
+            <div class="purchase-card" x-data="{ showDetails: false }">
+                <div class="purchase-header">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-xl font-bold text-gray-900">{{ plan.name }}</h3>
+                        {% if plan.is_popular %}
+                        <span class="plan-badge plan-popular">Most Popular</span>
+                        {% endif %}
+                    </div>
+                    <div class="price-tag">
+                        ${{ plan.price }}
+                        <span class="text-lg font-normal text-gray-600">/month</span>
+                    </div>
+                    {% if plan.trial_days > 0 %}
+                    <div class="mt-2">
+                        <span class="trial-badge">{{ plan.trial_days }} days free trial</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="purchase-body">
+                    <div class="feature-list mb-6">
+                        {% if plan.features %}
+                        {% for feature in plan.features %}
+                        <div class="feature-item">
+                            <svg class="feature-icon" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 001.414 1.414L8.586 10l1.293 1.293a1 1 0 001.414-1.414l-2-2z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-gray-700">{{ feature }}</span>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                    
+                    <div class="space-y-3">
+                        {% if plan.trial_days > 0 %}
+                        <button @click="startTrial({{ plan.id }})" class="cta-secondary">
+                            Start Free Trial
+                        </button>
+                        {% endif %}
+                        <button @click="subscribe({{ plan.id }})" class="cta-button">
+                            Subscribe Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- License Options Section -->
+    <section id="license-options" class="mb-16">
+        <div class="text-center mb-12">
+            <h2 class="text-3xl font-bold text-gray-900 mb-4">License Options</h2>
+            <p class="text-lg text-gray-600">One-time purchases for perpetual access</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {% for template in license_templates %}
+            <div class="purchase-card">
+                <div class="purchase-header">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-xl font-bold text-gray-900">{{ template.name }}</h3>
+                        {% if template.license_type == 'enterprise' %}
+                        <span class="plan-badge plan-enterprise">Enterprise</span>
+                        {% endif %}
+                    </div>
+                    <div class="price-tag">
+                        ${{ template.price }}
+                        <span class="text-lg font-normal text-gray-600">/license</span>
+                    </div>
+                </div>
+                
+                <div class="purchase-body">
+                    <div class="feature-list mb-6">
+                        <div class="feature-item">
+                            <svg class="feature-icon" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 001.414 1.414L8.586 10l1.293 1.293a1 1 0 001.414-1.414l-2-2z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-gray-700">{{ template.description or 'Full license access' }}</span>
+                        </div>
+                        <div class="feature-item">
+                            <svg class="feature-icon" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 001.414 1.414L8.586 10l1.293 1.293a1 1 0 001.414-1.414l-2-2z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-gray-700">{{ template.max_users or 'Unlimited' }} users</span>
+                        </div>
+                        <div class="feature-item">
+                            <svg class="feature-icon" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 001.414 1.414L8.586 10l1.293 1.293a1 1 0 001.414-1.414l-2-2z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-gray-700">{{ template.duration or 'Perpetual' }} license</span>
+                        </div>
+                    </div>
+                    
+                    <button @click="purchaseLicense({{ template.id }})" class="cta-button">
+                        Purchase License
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Features Comparison -->
+    <section class="mb-16">
+        <div class="text-center mb-12">
+            <h2 class="text-3xl font-bold text-gray-900 mb-4">Compare Plans</h2>
+            <p class="text-lg text-gray-600">Find the perfect fit for your restaurant</p>
+        </div>
+
+        <div class="comparison-table overflow-x-auto">
+            <table class="w-full">
+                <thead class="comparison-header">
+                    <tr>
+                        <th class="text-left font-semibold text-gray-900">Feature</th>
+                        {% for plan in subscription_plans[:3] %}
+                        <th class="text-center font-semibold text-gray-900">{{ plan.name }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="comparison-row">
+                        <td class="comparison-feature">Monthly Pricing</td>
+                        {% for plan in subscription_plans[:3] %}
+                        <td class="text-center font-semibold text-blue-600">${{ plan.price }}/mo</td>
+                        {% endfor %}
+                    </tr>
+                    <tr class="comparison-row">
+                        <td class="comparison-feature">Free Trial</td>
+                        {% for plan in subscription_plans[:3] %}
+                        <td class="text-center">
+                            {% if plan.trial_days > 0 %}
+                            <span class="comparison-check">✓</span>
+                            <span class="text-sm text-gray-600">{{ plan.trial_days }} days</span>
+                            {% else %}
+                            <span class="comparison-cross">✗</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr class="comparison-row">
+                        <td class="comparison-feature">Advanced Analytics</td>
+                        {% for plan in subscription_plans[:3] %}
+                        <td class="text-center">
+                            <span class="comparison-check">✓</span>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr class="comparison-row">
+                        <td class="comparison-feature">Priority Support</td>
+                        {% for plan in subscription_plans[:3] %}
+                        <td class="text-center">
+                            {% if plan.name in ['Professional', 'Enterprise'] %}
+                            <span class="comparison-check">✓</span>
+                            {% else %}
+                            <span class="comparison-cross">✗</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Trust Indicators -->
+    <section class="text-center">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0-5.591 3.824-10.29 9-11.622 5.176 1.332 9 6.03 9 11.622 0 2.007-.74 4.86-2.034 6.533z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Secure Payments</h3>
+                <p class="text-gray-600">Industry-standard encryption and security</p>
+            </div>
+            
+            <div class="text-center">
+                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Money Back Guarantee</h3>
+                <p class="text-gray-600">30-day satisfaction guarantee</p>
+            </div>
+            
+            <div class="text-center">
+                <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536-3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">24/7 Support</h3>
+                <p class="text-gray-600">Round-the-clock customer assistance</p>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+function purchaseManager() {
+    return {
+        async startTrial(planId) {
+            try {
+                const response = await fetch('/purchase/api/trial/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        plan_id: planId,
+                        trial_days: 14
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`Trial started successfully! Trial ends on ${new Date(data.trial_ends_at).toLocaleDateString()}`);
+                    window.location.href = '/purchase/confirmation/' + data.purchase_number;
+                } else {
+                    alert('Failed to start trial: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error starting trial: ' + error.message);
+            }
+        },
+        
+        async subscribe(planId) {
+            const items = [{
+                type: 'subscription',
+                plan_id: planId,
+                quantity: 1
+            }];
+            
+            window.location.href = '/purchase/checkout?items=' + encodeURIComponent(JSON.stringify(items));
+        },
+        
+        async purchaseLicense(templateId) {
+            const items = [{
+                type: 'license',
+                template_id: templateId,
+                quantity: 1
+            }];
+            
+            window.location.href = '/purchase/checkout?items=' + encodeURIComponent(JSON.stringify(items));
+        }
+    }
+}
+</script>
+{% endblock %}

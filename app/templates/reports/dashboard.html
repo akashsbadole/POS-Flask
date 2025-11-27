@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Reports Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Reports Dashboard</h1>
+        <div class="flex space-x-4">
+            <select id="days-selector" class="border rounded px-3 py-2" onchange="location.href='?days=' + this.value">
+                <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 days</option>
+                <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
+                <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>
+                <option value="365" {% if days == 365 %}selected{% endif %}>Last year</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-blue-500 rounded-md p-3">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Total Orders</dt>
+                        <dd class="text-lg font-medium text-gray-900">{{ stats.total_orders }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-green-500 rounded-md p-3">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Total Revenue</dt>
+                        <dd class="text-lg font-medium text-gray-900">₹{{ "%.2f"|format(stats.total_revenue) }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-yellow-500 rounded-md p-3">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Completed Orders</dt>
+                        <dd class="text-lg font-medium text-gray-900">{{ stats.completed_orders }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-purple-500 rounded-md p-3">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                    </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Avg Order Value</dt>
+                        <dd class="text-lg font-medium text-gray-900">₹{{ "%.2f"|format(stats.average_order_value) }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <a href="{{ url_for('reports.sales_report') }}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Sales Report</h3>
+            <p class="text-sm text-gray-500">Detailed sales analysis and trends</p>
+        </a>
+
+        <a href="{{ url_for('reports.items_report') }}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Menu Performance</h3>
+            <p class="text-sm text-gray-500">Best-selling items and categories</p>
+        </a>
+
+        <a href="{{ url_for('reports.staff_report') }}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Staff Performance</h3>
+            <p class="text-sm text-gray-500">Individual staff metrics and productivity</p>
+        </a>
+
+        <a href="{{ url_for('reports.gst_report') }}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+            <h3 class="text-lg font-medium text-gray-900 mb-2">GST Report</h3>
+            <p class="text-sm text-gray-500">Tax compliance and GST calculations</p>
+        </a>
+
+        <a href="{{ url_for('reports.accounting_report') }}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Accounting</h3>
+            <p class="text-sm text-gray-500">Financial reports and balance sheets</p>
+        </a>
+
+        <a href="{{ url_for('reports.expenses_report') }}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Expenses</h3>
+            <p class="text-sm text-gray-500">Expense tracking and categorization</p>
+        </a>
+
+        {% if current_user.is_super_admin() %}
+        <a href="{{ url_for('reports.restaurant_performance') }}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Restaurant Performance</h3>
+            <p class="text-sm text-gray-500">Multi-location performance analysis</p>
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Payment Method Breakdown -->
+    <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Payment Methods</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {% for method, amount in stats.payment_breakdown.items() %}
+            <div class="text-center">
+                <div class="text-2xl font-bold text-gray-900">₹{{ "%.2f"|format(amount) }}</div>
+                <div class="text-sm text-gray-500">{{ method.title() }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Daily Stats Chart -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Daily Performance</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for date, data in stats.daily_stats.items() %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ date }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ data.orders }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{{ "%.2f"|format(data.revenue) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

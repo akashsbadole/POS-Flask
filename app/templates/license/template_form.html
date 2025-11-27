@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}{% if template %}Edit Template{% else %}Create Template{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">
+            {% if template %}Edit Template{% else %}Create License Template{% endif %}
+        </h1>
+        <a href="{{ url_for('license.templates') }}" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
+            Back to Templates
+        </a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow">
+        <form method="POST" class="p-6">
+            <!-- Basic Information -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Template Name *</label>
+                        <input type="text" name="name" required
+                               value="{{ template.name if template else '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">License Type *</label>
+                        <select name="license_type" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">Select Type</option>
+                            <option value="software" {% if template and template.license_type.value == 'software' %}selected{% endif %}>Software</option>
+                            <option value="hardware" {% if template and template.license_type.value == 'hardware' %}selected{% endif %}>Hardware</option>
+                            <option value="user" {% if template and template.license_type.value == 'user' %}selected{% endif %}>User</option>
+                            <option value="device" {% if template and template.license_type.value == 'device' %}selected{% endif %}>Device</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Product Name *</label>
+                        <input type="text" name="product_name" required
+                               value="{{ template.product_name if template else '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Default Duration (Days) *</label>
+                        <input type="number" name="default_duration_days" required min="1"
+                               value="{{ template.default_duration_days if template else 365 }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Max Activations *</label>
+                        <input type="number" name="max_activations" required min="1"
+                               value="{{ template.max_activations if template else 1 }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <textarea name="description" rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">{{ template.description if template else '' }}</textarea>
+                </div>
+            </div>
+
+            <!-- Features -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Features</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="features" value="pos_basic" 
+                               {% if template and 'pos_basic' in template.get_features_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Basic POS</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="features" value="inventory_management" 
+                               {% if template and 'inventory_management' in template.get_features_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Inventory Management</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="features" value="reporting" 
+                               {% if template and 'reporting' in template.get_features_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Reporting</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="features" value="employee_management" 
+                               {% if template and 'employee_management' in template.get_features_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Employee Management</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="features" value="customer_management" 
+                               {% if template and 'customer_management' in template.get_features_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Customer Management</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="features" value="online_ordering" 
+                               {% if template and 'online_ordering' in template.get_features_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Online Ordering</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="features" value="delivery_management" 
+                               {% if template and 'delivery_management' in template.get_features_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Delivery Management</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="features" value="kitchen_display" 
+                               {% if template and 'kitchen_display' in template.get_features_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Kitchen Display</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="features" value="multi_location" 
+                               {% if template and 'multi_location' in template.get_features_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Multi-Location</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="features" value="api_access" 
+                               {% if template and 'api_access' in template.get_features_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">API Access</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="features" value="advanced_analytics" 
+                               {% if template and 'advanced_analytics' in template.get_features_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Advanced Analytics</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="features" value="loyalty_program" 
+                               {% if template and 'loyalty_program' in template.get_features_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Loyalty Program</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Restrictions -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Restrictions</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="restrictions" value="max_users_5" 
+                               {% if template and 'max_users_5' in template.get_restrictions_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Max 5 Users</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="restrictions" value="max_users_10" 
+                               {% if template and 'max_users_10' in template.get_restrictions_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Max 10 Users</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="restrictions" value="max_terminals_3" 
+                               {% if template and 'max_terminals_3' in template.get_restrictions_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Max 3 Terminals</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="restrictions" value="max_terminals_5" 
+                               {% if template and 'max_terminals_5' in template.get_restrictions_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Max 5 Terminals</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="restrictions" value="no_api_access" 
+                               {% if template and 'no_api_access' in template.get_restrictions_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">No API Access</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="restrictions" value="limited_reports" 
+                               {% if template and 'limited_reports' in template.get_restrictions_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Limited Reports</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="restrictions" value="no_export" 
+                               {% if template and 'no_export' in template.get_restrictions_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">No Data Export</span>
+                    </label>
+                    
+                    <label class="flex items-center">
+                        <input type="checkbox" name="restrictions" value="single_location" 
+                               {% if template and 'single_location' in template.get_restrictions_list() %}checked{% endif %}
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm text-gray-700">Single Location Only</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Submit Buttons -->
+            <div class="flex justify-end space-x-4">
+                <a href="{{ url_for('license.templates') }}" class="bg-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-400">
+                    Cancel
+                </a>
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">
+                    {% if template %}Update Template{% else %}Create Template{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

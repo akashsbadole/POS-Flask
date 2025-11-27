@@ -29,7 +29,7 @@ class Category(db.Model):
             'description': self.description,
             'display_order': self.display_order,
             'is_active': self.is_active,
-            'item_count': len([item for item in self.items if item.is_available]),
+            'item_count': len([item for item in self.items.all() if item.is_available]),
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
     
@@ -44,6 +44,8 @@ class MenuItem(db.Model):
     description = db.Column(db.Text)
     price = db.Column(db.Numeric(10, 2), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
+    hsn_code_id = db.Column(db.Integer, db.ForeignKey('hsn_codes.id'), nullable=True)
     image_url = db.Column(db.String(255))
     is_available = db.Column(db.Boolean, default=True)
     display_order = db.Column(db.Integer, default=0)
@@ -53,9 +55,11 @@ class MenuItem(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
+    restaurant = db.relationship('Restaurant', back_populates='menu_items')
+    hsn_code = db.relationship('HSNCode', back_populates='menu_items')
     variants = db.relationship('ItemVariant', backref='menu_item', lazy=True, cascade='all, delete-orphan')
     add_ons = db.relationship('AddOn', secondary=item_add_ons, backref='menu_items')
-    order_items = db.relationship('OrderItem', backref='menu_item', lazy=True)
+    order_items = db.relationship('OrderItem', back_populates='menu_item')
     
     def get_effective_price(self, variant_id=None):
         """Get price including variant modifier"""
@@ -68,7 +72,7 @@ class MenuItem(db.Model):
     
     def get_available_add_ons(self):
         """Get only available add-ons"""
-        return [addon for addon in self.add_ons if addon.is_active]
+        return [addon for addon in self.add_ons.all() if addon.is_active]
     
     def to_dict(self, include_variants=True, include_add_ons=True):
         """Convert menu item to dictionary for API responses"""
@@ -87,7 +91,7 @@ class MenuItem(db.Model):
         }
         
         if include_variants:
-            result['variants'] = [variant.to_dict() for variant in self.variants]
+            result['variants'] = [variant.to_dict() for variant in self.variants.all()]
         
         if include_add_ons:
             result['add_ons'] = [addon.to_dict() for addon in self.get_available_add_ons()]

@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import List, TYPE_CHECKING, Any
+from typing import List, TYPE_CHECKING
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app import db
 
@@ -37,6 +37,7 @@ class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     table_id = db.Column(db.Integer, db.ForeignKey('tables.id'), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
     order_number = db.Column(db.String(20), unique=True, nullable=False)
     status = db.Column(db.Enum(OrderStatus), default=OrderStatus.PENDING)
     subtotal = db.Column(db.Numeric(10, 2), nullable=False)
@@ -57,8 +58,11 @@ class Order(db.Model):
     completed_at = db.Column(db.DateTime)
     
     # Relationships
-    items: Any = db.relationship('OrderItem', backref='order', lazy='select', cascade='all, delete-orphan')
-    payments: Any = db.relationship('Payment', backref='order', lazy='select', cascade='all, delete-orphan')
+    restaurant = db.relationship('Restaurant', back_populates='orders')
+    table = db.relationship('Table', back_populates='orders')
+    user = db.relationship('User', back_populates='orders')
+    items = db.relationship('OrderItem', backref='order', lazy='select', cascade='all, delete-orphan')
+    payments = db.relationship('Payment', backref='order', lazy='select', cascade='all, delete-orphan')
     
     def __init__(self, **kwargs):
         super(Order, self).__init__(**kwargs)
@@ -71,12 +75,25 @@ class Order(db.Model):
         today_orders = Order.query.filter(
             Order.created_at >= datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         ).count()
-        return f"ORD{today}{today_orders + 1:03d}"
+        
+        # Keep trying until we find a unique number
+        attempts = 0
+        while attempts < 100:  # Prevent infinite loop
+            candidate = f"ORD{today}{today_orders + attempts + 1:03d}"
+            existing = Order.query.filter_by(order_number=candidate).first()
+            if not existing:
+                return candidate
+            attempts += 1
+        
+        # Fallback to timestamp-based number
+        import time
+        return f"ORD{today}{int(time.time()) % 1000:03d}"
     
     def calculate_totals(self):
         """Calculate order totals"""
-        # Convert to list to handle SQLAlchemy relationship
-        items_list = list(self.items) if self.items else []
+        # Use direct query to get items
+        from .order import OrderItem
+        items_list = OrderItem.query.filter_by(order_id=self.id).all()
         self.subtotal = sum(item.get_total_price() for item in items_list)
         
         # Get GST settings for the restaurant
@@ -107,14 +124,16 @@ class Order(db.Model):
             self.sgst_amount = 0.00
             self.igst_amount = 0.00
             self.cess_amount = 0.00
-            self.tax_amount = float(self.subtotal) * float(self.tax_rate)
+            tax_rate = float(self.tax_rate) if self.tax_rate is not None else 0.18
+            self.tax_amount = float(self.subtotal) * tax_rate
         
-        self.total = float(self.subtotal) + float(self.tax_amount) + float(self.service_charge) - float(self.discount_amount)
+        self.total = float(self.subtotal) + float(self.tax_amount or 0) + float(self.service_charge or 0) - float(self.discount_amount or 0)
     
     def get_total_paid(self):
         """Get total amount paid"""
-        # Convert to list to handle SQLAlchemy relationship
-        payments_list = list(self.payments) if self.payments else []
+        # Use direct query to get payments
+        from .order import Payment
+        payments_list = Payment.query.filter_by(order_id=self.id).all()
         return sum(float(payment.amount) for payment in payments_list if payment.is_successful())
     
     def get_balance_due(self):
@@ -172,13 +191,15 @@ class Order(db.Model):
         }
         
         if include_items:
-            # Convert to list to handle SQLAlchemy relationship
-            items_list = list(self.items) if self.items else []
+            # Use direct query to get items
+            from .order import OrderItem
+            items_list = OrderItem.query.filter_by(order_id=self.id).all()
             result['items'] = [item.to_dict() for item in items_list]
         
         if include_payments:
-            # Convert to list to handle SQLAlchemy relationship
-            payments_list = list(self.payments) if self.payments else []
+            # Use direct query to get payments
+            from .order import Payment
+            payments_list = Payment.query.filter_by(order_id=self.id).all()
             result['payments'] = [payment.to_dict() for payment in payments_list]
         
         return result
@@ -199,8 +220,8 @@ class OrderItem(db.Model):
     
     # Relationships
     variant = db.relationship('ItemVariant', backref='order_items')
-    menu_item = db.relationship('MenuItem', backref='order_items')
-    add_ons: Any = db.relationship('AddOn', secondary=order_item_add_ons, backref='order_items', lazy='select')
+    menu_item = db.relationship('MenuItem')
+    add_ons = db.relationship('AddOn', secondary=order_item_add_ons, backref='order_items', lazy='select')
     
     def get_total_price(self):
         """Calculate total price for this order item"""
@@ -210,18 +231,23 @@ class OrderItem(db.Model):
         if self.variant:
             unit_price += float(self.variant.price_modifier)
         
-        # Add add-on prices
-        # Convert to list to handle SQLAlchemy relationship
-        add_ons_list = list(self.add_ons) if self.add_ons else []
-        for add_on in add_ons_list:
+        # Add add-on prices using direct query
+        from app.models.menu import AddOn
+        add_ons_query = db.session.query(AddOn).join(
+            order_item_add_ons, order_item_add_ons.c.addon_id == AddOn.id
+        ).filter(order_item_add_ons.c.order_item_id == self.id).all()
+        for add_on in add_ons_query:
             unit_price += float(add_on.price)
         
         return unit_price * self.quantity
     
     def to_dict(self):
         """Convert order item to dictionary for API responses"""
-        # Convert to list to handle SQLAlchemy relationship
-        add_ons_list = list(self.add_ons) if self.add_ons else []
+        # Get add-ons using direct query
+        from app.models.menu import AddOn
+        add_ons_query = db.session.query(AddOn).join(
+            order_item_add_ons, order_item_add_ons.c.addon_id == AddOn.id
+        ).filter(order_item_add_ons.c.order_item_id == self.id).all()
         
         return {
             'id': self.id,
@@ -234,7 +260,7 @@ class OrderItem(db.Model):
             'variant_name': self.variant.name if self.variant else None,
             'variant_price_modifier': float(self.variant.price_modifier) if self.variant else 0.0,
             'notes': self.notes,
-            'add_ons': [addon.to_dict() for addon in add_ons_list],
+            'add_ons': [addon.to_dict() for addon in add_ons_query],
             'total_price': self.get_total_price()
         }
     

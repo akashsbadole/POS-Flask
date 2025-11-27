@@ -415,3 +415,10 @@ This implementation plan provides everything needed to build a modern, efficient
 4. Follow the development roadmap for systematic progress
 
 The system is designed to be scalable, maintainable, and user-friendly, providing restaurant staff with the tools they need to serve customers efficiently while giving managers the insights they need to run their business effectively.
+
+---
+### Login
+
+`Admin login: admin@restaurant.com
+Admin password: admin123
+Admin PIN: 1234`

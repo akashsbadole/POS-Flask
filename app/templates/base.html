@@ -5,14 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Restaurant POS{% endblock %}</title>
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- TailwindCSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
     
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <meta name="htmx-config" content='{"defaultView":"data","defaultSwapStyle":"innerHTML","historyCacheSize":10,"refreshOnHistoryMiss":true}'>
     
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- HTMX Extensions -->
+    <script src="https://unpkg.com/htmx.org@1.9.6/dist/ext/response-targets.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.6/dist/ext/client-side-templates.js"></script>
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -78,6 +83,13 @@
                 navigator.serviceWorker.register('/static/sw.js')
                     .then(function(registration) {
                         console.log('ServiceWorker registered with scope:', registration.scope);
+                        
+                        // Request notification permission
+                        if ('Notification' in window && Notification.permission === 'default') {
+                            Notification.requestPermission().then(function(permission) {
+                                console.log('Notification permission:', permission);
+                            });
+                        }
                     })
                     .catch(function(error) {
                         console.log('ServiceWorker registration failed:', error);
@@ -86,12 +98,21 @@
         }
     </script>
     
+    <!-- Theme Manager -->
+    <script src="{{ url_for('static', filename='js/theme-manager.js') }}"></script>
+    
+    <!-- Offline Manager -->
+    <script src="{{ url_for('static', filename='js/offline-manager.js') }}"></script>
+    
     {% block extra_head %}{% endblock %}
 </head>
-<body class="h-full bg-gray-50" x-data="{ 
+<body class="h-full bg-gray-50" x-data="{
     sidebarOpen: false,
     notifications: [],
     cartCount: 0,
+    isLoading: false,
+    searchQuery: '',
+    searchResults: [],
     init() {
         // Initialize cart count from session
         this.updateCartCount();
@@ -100,10 +121,28 @@
         this.$el.addEventListener('cartUpdated', () => {
             this.updateCartCount();
         });
+        
+        // Initialize HTMX event listeners
+        this.initHtmxListeners();
+        
+        // Initialize real-time updates
+        this.initRealTimeUpdates();
     },
     updateCartCount() {
-        fetch('/api/cart/count')
-            .then(response => response.json())
+        fetch('/api/cart/count', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => {
+                // Check if response is actually JSON
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    return response.json();
+                } else {
+                    throw new Error('Response is not JSON');
+                }
+            })
             .then(data => {
                 this.cartCount = data.count;
             })
@@ -124,6 +163,77 @@
         setTimeout(() => {
             this.notifications = this.notifications.filter(n => n.id !== this.notifications[this.notifications.length - 1].id);
         }, 5000);
+    },
+    initHtmxListeners() {
+        // HTMX event listeners for better UX
+        document.body.addEventListener('htmx:beforeRequest', (event) => {
+            this.isLoading = true;
+            this.addNotification('Loading...', 'info');
+        });
+        
+        document.body.addEventListener('htmx:afterRequest', (event) => {
+            this.isLoading = false;
+        });
+        
+        document.body.addEventListener('htmx:responseError', (event) => {
+            this.addNotification('Request failed', 'error');
+            this.isLoading = false;
+        });
+        
+        document.body.addEventListener('htmx:confirm', (event) => {
+            if (!confirm('Are you sure you want to perform this action?')) {
+                event.preventDefault();
+            }
+        });
+    },
+    initRealTimeUpdates() {
+        // Simulate real-time updates for orders, tables, etc.
+        setInterval(() => {
+            this.updateRealTimeData();
+        }, 30000); // Update every 30 seconds
+    },
+    updateRealTimeData() {
+        // Update cart count
+        this.updateCartCount();
+        
+        // Update other real-time data based on current page
+        if (window.location.pathname.includes('/kitchen')) {
+            this.updateKitchenOrders();
+        } else if (window.location.pathname.includes('/tables')) {
+            this.updateTableStatus();
+        }
+    },
+    updateKitchenOrders() {
+        htmx.ajax('GET', '/api/kitchen/orders', {
+            target: '#kitchen-orders',
+            swap: 'innerHTML'
+        });
+    },
+    updateTableStatus() {
+        htmx.ajax('GET', '/api/tables/status', {
+            target: '#tables-grid',
+            swap: 'innerHTML'
+        });
+    },
+    performSearch() {
+        if (this.searchQuery.length < 2) {
+            this.searchResults = [];
+            return;
+        }
+        
+        fetch(`/api/search?q=${encodeURIComponent(this.searchQuery)}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                this.searchResults = data.results || [];
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+                this.searchResults = [];
+            });
     }
 }">
     
@@ -143,10 +253,10 @@
             
             <div class="flex flex-col h-full">
                 <!-- Logo -->
-                <div class="flex items-center justify-between h-16 px-4 border-b">
+                <div class="flex items-center justify-between h-16 px-4 border-b bg-gradient-to-r from-orange-50 to-amber-50">
                     <div class="flex items-center">
-                        <i class="fas fa-utensils text-blue-600 text-xl mr-2"></i>
-                        <span class="font-bold text-xl">Restaurant POS</span>
+                        <span class="text-2xl mr-2 food-pulse">🍽️</span>
+                        <span class="font-bold text-xl text-orange-800">Restaurant POS</span>
                     </div>
                     <button @click="toggleSidebar()" class="lg:hidden">
                         <i class="fas fa-times text-gray-500"></i>
@@ -156,49 +266,49 @@
                 <!-- Navigation -->
                 <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
                     {% if current_user.role == 'cashier' %}
-                    <a href="{{ url_for('cashier.dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
-                        <i class="fas fa-cash-register w-5 mr-3"></i>
+                    <a href="{{ url_for('cashier.dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
+                        <span class="w-5 mr-3">💰</span>
                         Point of Sale
                     </a>
                     {% endif %}
                     
                     {% if current_user.role == 'kitchen' %}
-                    <a href="{{ url_for('kitchen.display') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
-                        <i class="fas fa-kitchen-set w-5 mr-3"></i>
+                    <a href="{{ url_for('kitchen.display') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
+                        <span class="w-5 mr-3">👨‍🍳</span>
                         Kitchen Display
                     </a>
                     {% endif %}
                     
                     {% if current_user.can_access_manager_features() %}
-                    <a href="{{ url_for('manager.dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
-                        <i class="fas fa-chart-line w-5 mr-3"></i>
+                    <a href="{{ url_for('manager.dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
+                        <span class="w-5 mr-3">📊</span>
                         Manager Dashboard
                     </a>
                     
-                    <a href="{{ url_for('menu.list_categories') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
-                        <i class="fas fa-book-open w-5 mr-3"></i>
+                    <a href="{{ url_for('menu.list_categories') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
+                        <span class="w-5 mr-3">📖</span>
                         Menu Management
                     </a>
                     
-                    <a href="{{ url_for('tables.floor_plan') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
-                        <i class="fas fa-th w-5 mr-3"></i>
+                    <a href="{{ url_for('tables.floor_plan') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
+                        <span class="w-5 mr-3">🪑</span>
                         Table Management
                     </a>
                     
-                    <a href="{{ url_for('reports.dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
-                        <i class="fas fa-chart-bar w-5 mr-3"></i>
+                    <a href="{{ url_for('reports.dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
+                        <span class="w-5 mr-3">📈</span>
                         Reports
                     </a>
                     
-                    <a href="{{ url_for('inventory.dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
-                        <i class="fas fa-boxes w-5 mr-3"></i>
+                    <a href="{{ url_for('inventory.dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
+                        <span class="w-5 mr-3">📦</span>
                         Inventory
                     </a>
                     {% endif %}
                     
                     {% if current_user.can_access_admin_features() %}
-                    <a href="{{ url_for('main.system_status') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
-                        <i class="fas fa-cog w-5 mr-3"></i>
+                    <a href="{{ url_for('main.system_status') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
+                        <span class="w-5 mr-3">⚙️</span>
                         System Settings
                     </a>
                     {% endif %}
@@ -208,7 +318,7 @@
                 <div class="border-t px-4 py-4">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
-                            <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white">
+                            <div class="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white food-pulse">
                                 {{ current_user.name[0].upper() }}
                             </div>
                         </div>
@@ -219,11 +329,11 @@
                     </div>
                     
                     <div class="mt-3 space-y-1">
-                        <a href="{{ url_for('auth.profile') }}" class="block px-3 py-2 text-sm text-gray-700 rounded hover:bg-gray-100">
-                            <i class="fas fa-user mr-2"></i> Profile
+                        <a href="{{ url_for('auth.profile') }}" class="block px-3 py-2 text-sm text-gray-700 rounded hover:bg-orange-100 transition-colors">
+                            <span class="mr-2">👤</span> Profile
                         </a>
-                        <a href="{{ url_for('auth.logout') }}" class="block px-3 py-2 text-sm text-red-600 rounded hover:bg-red-50">
-                            <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                        <a href="{{ url_for('auth.logout') }}" class="block px-3 py-2 text-sm text-red-600 rounded hover:bg-red-50 transition-colors">
+                            <span class="mr-2">🚪</span> Logout
                         </a>
                     </div>
                 </div>
@@ -235,20 +345,74 @@
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Top Navigation Bar -->
             {% if current_user.is_authenticated %}
-            <header class="bg-white shadow-sm border-b">
+            <header class="bg-white shadow-sm border-b bg-gradient-to-r from-orange-50 to-amber-50">
                 <div class="flex items-center justify-between h-16 px-4">
                     <button @click="toggleSidebar()" class="lg:hidden">
                         <i class="fas fa-bars text-gray-500"></i>
                     </button>
                     
                     <div class="flex items-center space-x-4">
+                        <!-- Search Bar -->
+                        <div class="relative" x-data="{ searchOpen: false }">
+                            <input
+                                type="text"
+                                x-model="searchQuery"
+                                @input.debounce.300ms="performSearch()"
+                                @focus="searchOpen = true"
+                                @blur="setTimeout(() => searchOpen = false, 200)"
+                                placeholder="Search menu, orders, tables..."
+                                class="w-64 px-4 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white"
+                            >
+                            <span class="absolute right-3 top-3 text-gray-400">🔍</span>
+                            
+                            <!-- Search Results Dropdown -->
+                            <div x-show="searchOpen && searchResults.length > 0"
+                                 x-transition:enter="transition ease-out duration-200"
+                                 x-transition:enter-start="opacity-0 transform scale-95"
+                                 x-transition:enter-end="opacity-100 transform scale-100"
+                                 x-transition:leave="transition ease-in duration-150"
+                                 x-transition:leave-start="opacity-100 transform scale-100"
+                                 x-transition:leave-end="opacity-0 transform scale-95"
+                                 class="absolute top-12 right-0 w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto">
+                                <template x-for="result in searchResults" :key="result.id">
+                                    <div class="p-4 hover:bg-gray-50 border-b border-gray-100 cursor-pointer">
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <h4 class="font-semibold text-gray-900" x-text="result.name"></h4>
+                                                <p class="text-sm text-gray-600" x-text="result.description"></p>
+                                                <span class="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded" x-text="result.type"></span>
+                                            </div>
+                                            <div class="text-right">
+                                                <p class="font-bold text-green-600" x-text="'$' + result.price"></p>
+                                                <button
+                                                    hx-post="/api/cart/add"
+                                                    hx-vals='{"item_id": result.id, "quantity": 1}'
+                                                    hx-target="#cart-count"
+                                                    hx-swap="innerHTML"
+                                                    @click.stop
+                                                    class="mt-2 px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors">
+                                                    Add to Cart
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        
                         <!-- Cart Indicator -->
                         {% if current_user.role == 'cashier' %}
                         <div class="relative">
-                            <button class="p-2 text-gray-500 hover:text-gray-700">
-                                <i class="fas fa-shopping-cart"></i>
-                                <span x-show="cartCount > 0" 
-                                      x-text="cartCount" 
+                            <button
+                                class="p-2 text-gray-500 hover:text-gray-700 relative"
+                                hx-get="/api/cart/count"
+                                hx-target="#cart-count"
+                                hx-trigger="load, every 30s"
+                                hx-swap="innerHTML">
+                                <span class="text-lg">🛒</span>
+                                <span id="cart-count"
+                                      x-show="cartCount > 0"
+                                      x-text="cartCount"
                                       class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                                 </span>
                             </button>
@@ -256,19 +420,57 @@
                         {% endif %}
                         
                         <!-- Notifications -->
-                        <div class="relative">
-                            <button @click="notifications = []" class="p-2 text-gray-500 hover:text-gray-700">
-                                <i class="fas fa-bell"></i>
-                                <span x-show="notifications.length > 0" 
-                                      x-text="notifications.length" 
+                        <div class="relative" x-data="{ notificationsOpen: false }">
+                            <button @click="notificationsOpen = !notificationsOpen" class="p-2 text-gray-500 hover:text-orange-600 transition-colors">
+                                <span class="text-lg">🔔</span>
+                                <span x-show="notifications.length > 0"
+                                      x-text="notifications.length"
                                       class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                                 </span>
                             </button>
+                            
+                            <!-- Notifications Dropdown -->
+                            <div x-show="notificationsOpen"
+                                 @click.away="notificationsOpen = false"
+                                 x-transition:enter="transition ease-out duration-200"
+                                 x-transition:enter-start="opacity-0 transform scale-95"
+                                 x-transition:enter-end="opacity-100 transform scale-100"
+                                 x-transition:leave="transition ease-in duration-150"
+                                 x-transition:leave-start="opacity-100 transform scale-100"
+                                 x-transition:leave-end="opacity-0 transform scale-95"
+                                 class="absolute top-12 right-0 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                                <div class="p-4 border-b border-gray-200">
+                                    <h3 class="font-semibold text-gray-900">Notifications</h3>
+                                </div>
+                                <div class="max-h-96 overflow-y-auto">
+                                    <template x-for="notification in notifications" :key="notification.id">
+                                        <div class="p-4 hover:bg-gray-50 border-b border-gray-100">
+                                            <div class="flex items-start">
+                                                <div class="flex-shrink-0">
+                                                    <i :class="{
+                                                        'fa-exclamation-circle text-red-500': notification.type === 'error',
+                                                        'fa-exclamation-triangle text-yellow-500': notification.type === 'warning',
+                                                        'fa-check-circle text-green-500': notification.type === 'success',
+                                                        'fa-info-circle text-blue-500': notification.type !== 'error' && notification.type !== 'warning' && notification.type !== 'success'
+                                                    }" class="fas"></i>
+                                                </div>
+                                                <div class="ml-3 flex-1">
+                                                    <p class="text-sm text-gray-900" x-text="notification.message"></p>
+                                                    <p class="text-xs text-gray-500" x-text="notification.timestamp.toLocaleTimeString()"></p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <div x-show="notifications.length === 0" class="p-4 text-center text-gray-500">
+                                        No new notifications
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- Current Time -->
-                        <div class="text-sm text-gray-600">
-                            <i class="far fa-clock mr-1"></i>
+                        <div class="text-sm text-gray-600 flex items-center">
+                            <span class="mr-1">🕐</span>
                             <span x-text="new Date().toLocaleTimeString()"></span>
                         </div>
                     </div>
@@ -292,20 +494,20 @@
                                      x-transition:leave-start="opacity-100 transform translate-x-0"
                                      x-transition:leave-end="opacity-0 transform translate-x-full"
                                      @click="show = false"
-                                     class="p-4 rounded-lg shadow-lg cursor-pointer
-                                            {% if category == 'error' %}bg-red-500 text-white
-                                            {% elif category == 'warning' %}bg-yellow-500 text-white
-                                            {% elif category == 'success' %}bg-green-500 text-white
-                                            {% else %}bg-blue-500 text-white{% endif %}">
-                                    <div class="flex items-center">
-                                        <i class="fas 
-                                            {% if category == 'error' %}fa-exclamation-circle
-                                            {% elif category == 'warning' %}fa-exclamation-triangle
-                                            {% elif category == 'success' %}fa-check-circle
-                                            {% else %}fa-info-circle{% endif %} mr-2">
-                                        </i>
-                                        <span>{{ message }}</span>
-                                    </div>
+                                     class="p-4 rounded-lg shadow-lg cursor-pointer food-pulse
+                                           {% if category == 'error' %}bg-red-100 border-2 border-red-300 text-red-800
+                                           {% elif category == 'warning' %}bg-yellow-100 border-2 border-yellow-300 text-yellow-800
+                                           {% elif category == 'success' %}bg-green-100 border-2 border-green-300 text-green-800
+                                           {% else %}bg-blue-100 border-2 border-blue-300 text-blue-800{% endif %}">
+                                   <div class="flex items-center">
+                                       <span class="text-xl mr-2">
+                                           {% if category == 'error' %}🌶️
+                                           {% elif category == 'warning' %}⚠️
+                                           {% elif category == 'success' %}✅
+                                           {% else %}ℹ️{% endif %}
+                                       </span>
+                                       <span class="font-medium">{{ message }}</span>
+                                   </div>
                                 </div>
                             {% endfor %}
                         </div>
@@ -332,21 +534,23 @@
                  x-transition:leave-start="opacity-100 transform translate-x-0"
                  x-transition:leave-end="opacity-0 transform translate-x-full"
                  @click="show = false"
-                 class="p-4 rounded-lg shadow-lg cursor-pointer max-w-sm
-                        {% if notification.type == 'error' %}bg-red-500 text-white
-                        {% elif notification.type == 'warning' %}bg-yellow-500 text-white
-                        {% elif notification.type == 'success' %}bg-green-500 text-white
-                        {% else %}bg-blue-500 text-white{% endif %}">
-                <div class="flex items-center">
-                    <i class="fas 
-                        {% if notification.type == 'error' %}fa-exclamation-circle
-                        {% elif notification.type == 'warning' %}fa-exclamation-triangle
-                        {% elif notification.type == 'success' %}fa-check-circle
-                        {% else %}fa-info-circle{% endif %} mr-2">
-                    </i>
+                 :class="{
+                     'bg-red-100 border-2 border-red-300 text-red-800': (notification && notification.type === 'error'),
+                     'bg-yellow-100 border-2 border-yellow-300 text-yellow-800': (notification && notification.type === 'warning'),
+                     'bg-green-100 border-2 border-green-300 text-green-800': (notification && notification.type === 'success'),
+                     'bg-blue-100 border-2 border-blue-300 text-blue-800': (notification && notification.type !== 'error' && notification.type !== 'warning' && notification.type !== 'success')
+                 }"
+                 class="p-4 rounded-lg shadow-lg cursor-pointer max-w-sm food-pulse">
+               <div class="flex items-center">
+                   <span class="text-xl mr-2">
+                       <template x-if="notification && notification.type === 'error'">🌶️</template>
+                       <template x-if="notification && notification.type === 'warning'">⚠️</template>
+                       <template x-if="notification && notification.type === 'success'">✅</template>
+                       <template x-if="notification && notification.type !== 'error' && notification.type !== 'warning' && notification.type !== 'success'">ℹ️</template>
+                   </span>
                     <div>
-                        <p x-text="notification.message"></p>
-                        <p class="text-xs opacity-75" x-text="notification.timestamp.toLocaleTimeString()"></p>
+                        <p x-text="notification && notification.message"></p>
+                        <p class="text-xs opacity-75" x-text="notification && notification.timestamp ? notification.timestamp.toLocaleTimeString() : ''"></p>
                     </div>
                 </div>
             </div>
@@ -354,13 +558,132 @@
     </div>
     
     <!-- Loading Indicator -->
-    <div class="htmx-indicator fixed bottom-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg">
+    <div class="htmx-indicator fixed bottom-4 right-4 bg-orange-500 text-white px-4 py-2 rounded-lg shadow-lg food-pulse">
         <div class="flex items-center">
-            <div class="spinner mr-2"></div>
+            <span class="mr-2 text-xl">🔄</span>
             <span>Loading...</span>
         </div>
     </div>
     
-    {% block scripts %}{% endblock %}
+    {% block scripts %}
+        <script>
+            // Initialize enhanced functionality when page loads
+            document.addEventListener('DOMContentLoaded', function() {
+                // Initialize theme manager
+                if (window.ThemeManager) {
+                    // Add theme selector to UI
+                    addThemeSelector();
+                }
+                
+                // Initialize offline functionality
+                if (window.offlineManager) {
+                    // Cache essential data for offline use
+                    cacheEssentialData();
+                    
+                    // Listen for sync events
+                    window.addEventListener('offline-sync-complete', function(event) {
+                        console.log('Offline sync completed:', event.detail);
+                        // Update UI if needed
+                        if (typeof updateCartCount === 'function') {
+                            updateCartCount();
+                        }
+                    });
+                }
+                
+                // Add theme selector function
+                function addThemeSelector() {
+                    const themeSelector = document.createElement('select');
+                    themeSelector.id = 'theme-selector';
+                    themeSelector.className = 'fixed top-4 right-16 z-50 p-2 bg-white rounded-lg shadow-lg border border-gray-300';
+                    themeSelector.innerHTML = `
+                        <option value="">Select Theme</option>
+                        <option value="classic">Classic Restaurant</option>
+                        <option value="modern">Modern Bistro</option>
+                        <option value="organic">Organic Kitchen</option>
+                        <option value="sunset">Sunset Dining</option>
+                        <option value="midnight">Midnight Service</option>
+                    `;
+                    
+                    themeSelector.addEventListener('change', function() {
+                        if (window.ThemeManager) {
+                            window.ThemeManager.setTheme(this.value);
+                        }
+                    });
+                    
+                    document.body.appendChild(themeSelector);
+                }
+            });
+            
+            async function cacheEssentialData() {
+                try {
+                    // Cache menu items if on relevant pages
+                    if (window.location.pathname.includes('/menu') ||
+                        window.location.pathname.includes('/cashier') ||
+                        window.location.pathname === '/') {
+                        
+                        const response = await fetch('/api/menu/items');
+                        if (response.ok) {
+                            const items = await response.json();
+                            if (window.offlineManager) {
+                                await window.offlineManager.cacheMenuItems(items);
+                            }
+                        }
+                    }
+                    
+                    // Cache tables if on relevant pages
+                    if (window.location.pathname.includes('/tables') ||
+                        window.location.pathname.includes('/kitchen')) {
+                        
+                        const response = await fetch('/api/tables');
+                        if (response.ok) {
+                            const tables = await response.json();
+                            if (window.offlineManager) {
+                                await window.offlineManager.cacheTables(tables);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to cache essential data:', error);
+                }
+            }
+            
+            // Enhanced cart functionality with offline support
+            async function addToCartOffline(itemId, quantity = 1) {
+                try {
+                    const response = await fetch(`/api/menu/items/${itemId}`);
+                    if (response.ok) {
+                        const item = await response.json();
+                        
+                        if (window.offlineManager) {
+                            await window.offlineManager.addToCart({
+                                menu_item_id: itemId,
+                                name: item.name,
+                                price: item.price,
+                                quantity: quantity
+                            });
+                        }
+                        
+                        // Update cart count
+                        if (typeof updateCartCount === 'function') {
+                            updateCartCount();
+                        }
+                        
+                        // Show notification
+                        if (typeof addNotification === 'function') {
+                            addNotification('Item added to cart', 'success');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to add item to cart:', error);
+                    if (typeof addNotification === 'function') {
+                        addNotification('Failed to add item to cart', 'error');
+                    }
+                }
+            }
+            
+            // Make addToCartOffline available globally
+            window.addToCartOffline = addToCartOffline;
+        </script>
+    {% endblock %}
 </body>
 </html>

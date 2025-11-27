@@ -389,12 +389,6 @@ def api_cart():
         'item_count': len(cart)
     })
 
-@bp.route('/api/cart/count')
-@login_required
-def api_cart_count():
-    """API endpoint to get cart item count"""
-    cart = session.get('cart', {})
-    return jsonify({'count': len(cart)})
 
 @bp.route('/api/menu/search')
 @login_required

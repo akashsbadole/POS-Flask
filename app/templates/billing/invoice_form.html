@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}{% if invoice %}Edit Invoice{% else %}Create Invoice{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">
+            {% if invoice %}Edit Invoice{% else %}Create Invoice{% endif %}
+        </h1>
+        <a href="{{ url_for('billing.invoices') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+            Cancel
+        </a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow">
+        <form method="POST" id="invoice-form">
+            <!-- Customer Information -->
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Customer Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Customer Name *</label>
+                        <input type="text" name="customer_name" value="{{ invoice.customer_name if invoice else '' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" name="customer_email" value="{{ invoice.customer_email if invoice else '' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        <input type="tel" name="customer_phone" value="{{ invoice.customer_phone if invoice else '' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                        <textarea name="customer_address" rows="2" 
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">{{ invoice.customer_address if invoice else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Invoice Details -->
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Invoice Details</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
+                        <input type="text" value="{{ invoice.invoice_number if invoice else (billing_settings.generate_invoice_number() if billing_settings else 'INV-001') }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50" disabled>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Issue Date</label>
+                        <input type="date" name="issue_date" 
+                               value="{{ invoice.issue_date.strftime('%Y-%m-%d') if invoice else '' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                        <input type="date" name="due_date" 
+                               value="{{ invoice.due_date.strftime('%Y-%m-%d') if invoice else '' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Invoice Items -->
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Invoice Items</h2>
+                    <button type="button" onclick="addInvoiceItem()" 
+                            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">
+                        Add Item
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200" id="items-table">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tax Rate (%)</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-tbody">
+                            {% if invoice %}
+                                {% for item in invoice.items %}
+                                <tr>
+                                    <td class="px-4 py-2">
+                                        <input type="text" name="item_description[]" value="{{ item.description }}" 
+                                               class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <input type="number" name="item_quantity[]" value="{{ item.quantity }}" step="0.01" min="0"
+                                               class="w-20 border border-gray-300 rounded px-2 py-1 text-sm" onchange="calculateItemTotals()">
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <input type="number" name="item_price[]" value="{{ item.unit_price }}" step="0.01" min="0"
+                                               class="w-24 border border-gray-300 rounded px-2 py-1 text-sm" onchange="calculateItemTotals()">
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <input type="number" name="item_tax_rate[]" value="{{ item.tax_rate * 100 }}" step="0.01" min="0"
+                                               class="w-20 border border-gray-300 rounded px-2 py-1 text-sm" onchange="calculateItemTotals()">
+                                    </td>
+                                    <td class="px-4 py-2 text-sm font-medium">
+                                        <span class="item-total">₹{{ "%.2f"|format(item.total_amount) }}</span>
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <button type="button" onclick="removeInvoiceItem(this)" 
+                                                class="text-red-600 hover:text-red-800 text-sm">Remove</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td class="px-4 py-2">
+                                        <input type="text" name="item_description[]" placeholder="Item description" 
+                                               class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <input type="number" name="item_quantity[]" value="1" step="0.01" min="0"
+                                               class="w-20 border border-gray-300 rounded px-2 py-1 text-sm" onchange="calculateItemTotals()">
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <input type="number" name="item_price[]" value="0" step="0.01" min="0"
+                                               class="w-24 border border-gray-300 rounded px-2 py-1 text-sm" onchange="calculateItemTotals()">
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <input type="number" name="item_tax_rate[]" value="{{ billing_settings.default_tax_rate * 100 if billing_settings else 18 }}" step="0.01" min="0"
+                                               class="w-20 border border-gray-300 rounded px-2 py-1 text-sm" onchange="calculateItemTotals()">
+                                    </td>
+                                    <td class="px-4 py-2 text-sm font-medium">
+                                        <span class="item-total">₹0.00</span>
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <button type="button" onclick="removeInvoiceItem(this)" 
+                                                class="text-red-600 hover:text-red-800 text-sm">Remove</button>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Totals -->
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex justify-end">
+                    <div class="w-full md:w-1/3">
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Subtotal:</span>
+                                <span class="font-medium" id="subtotal">₹{{ "%.2f"|format(invoice.subtotal if invoice else 0) }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Tax Amount:</span>
+                                <span class="font-medium" id="tax-amount">₹{{ "%.2f"|format(invoice.tax_amount if invoice else 0) }}</span>
+                            </div>
+                            <div class="flex justify-between text-lg font-bold">
+                                <span>Total:</span>
+                                <span id="total-amount">₹{{ "%.2f"|format(invoice.total_amount if invoice else 0) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes and Terms -->
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Terms</label>
+                        <textarea name="terms" rows="3" 
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">{{ invoice.terms if invoice else '' }}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                        <textarea name="notes" rows="3" 
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">{{ invoice.notes if invoice else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-2">
+                <a href="{{ url_for('billing.invoices') }}" class="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400">
+                    Cancel
+                </a>
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                    {% if invoice %}Update Invoice{% else %}Create Invoice{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function addInvoiceItem() {
+    const tbody = document.getElementById('items-tbody');
+    const defaultTaxRate = {{ billing_settings.default_tax_rate * 100 if billing_settings else 18 }};
+    
+    const newRow = document.createElement('tr');
+    newRow.innerHTML = `
+        <td class="px-4 py-2">
+            <input type="text" name="item_description[]" placeholder="Item description" 
+                   class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+        </td>
+        <td class="px-4 py-2">
+            <input type="number" name="item_quantity[]" value="1" step="0.01" min="0"
+                   class="w-20 border border-gray-300 rounded px-2 py-1 text-sm" onchange="calculateItemTotals()">
+        </td>
+        <td class="px-4 py-2">
+            <input type="number" name="item_price[]" value="0" step="0.01" min="0"
+                   class="w-24 border border-gray-300 rounded px-2 py-1 text-sm" onchange="calculateItemTotals()">
+        </td>
+        <td class="px-4 py-2">
+            <input type="number" name="item_tax_rate[]" value="${defaultTaxRate}" step="0.01" min="0"
+                   class="w-20 border border-gray-300 rounded px-2 py-1 text-sm" onchange="calculateItemTotals()">
+        </td>
+        <td class="px-4 py-2 text-sm font-medium">
+            <span class="item-total">₹0.00</span>
+        </td>
+        <td class="px-4 py-2">
+            <button type="button" onclick="removeInvoiceItem(this)" 
+                    class="text-red-600 hover:text-red-800 text-sm">Remove</button>
+        </td>
+    `;
+    
+    tbody.appendChild(newRow);
+}
+
+function removeInvoiceItem(button) {
+    const row = button.closest('tr');
+    const tbody = document.getElementById('items-tbody');
+    
+    if (tbody.children.length > 1) {
+        row.remove();
+        calculateItemTotals();
+    }
+}
+
+function calculateItemTotals() {
+    const rows = document.querySelectorAll('#items-tbody tr');
+    let subtotal = 0;
+    let taxAmount = 0;
+    
+    rows.forEach(row => {
+        const quantity = parseFloat(row.querySelector('input[name="item_quantity[]"]').value) || 0;
+        const price = parseFloat(row.querySelector('input[name="item_price[]"]').value) || 0;
+        const taxRate = parseFloat(row.querySelector('input[name="item_tax_rate[]"]').value) || 0;
+        
+        const itemTotal = quantity * price;
+        const itemTax = itemTotal * (taxRate / 100);
+        
+        row.querySelector('.item-total').textContent = `₹${itemTotal.toFixed(2)}`;
+        
+        subtotal += itemTotal;
+        taxAmount += itemTax;
+    });
+    
+    const total = subtotal + taxAmount;
+    
+    document.getElementById('subtotal').textContent = `₹${subtotal.toFixed(2)}`;
+    document.getElementById('tax-amount').textContent = `₹${taxAmount.toFixed(2)}`;
+    document.getElementById('total-amount').textContent = `₹${total.toFixed(2)}`;
+}
+
+// Initialize calculations on page load
+document.addEventListener('DOMContentLoaded', function() {
+    calculateItemTotals();
+});
+</script>
+{% endblock %}

@@ -22,12 +22,13 @@ class Restaurant(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    users = db.relationship('User', backref='restaurant', lazy='select')
-    orders = db.relationship('Order', backref='restaurant', lazy='select')
-    tables = db.relationship('Table', backref='restaurant', lazy='select')
-    menu_items = db.relationship('MenuItem', backref='restaurant', lazy='select')
-    subscriptions = db.relationship('RestaurantSubscription', backref='restaurant', lazy='select')
-    licenses = db.relationship('RestaurantLicense', backref='restaurant', lazy='select')
+    users = db.relationship('User', back_populates='restaurant', lazy='select')
+    orders = db.relationship('Order', back_populates='restaurant', lazy='select')
+    tables = db.relationship('Table', back_populates='restaurant', lazy='select')
+    menu_items = db.relationship('MenuItem', back_populates='restaurant', lazy='select')
+    subscriptions = db.relationship('Subscription', back_populates='restaurant', lazy='select')
+    licenses = db.relationship('License', back_populates='restaurant', lazy='select')
+    gst_settings = db.relationship('GSTSetting', back_populates='restaurant')
     
     def get_active_users_count(self):
         """Get count of active users"""

@@ -1,6 +1,7 @@
 from flask import jsonify, request, session
 from flask_login import login_required, current_user
 from app.api import bp
+from app.api.offline import bp as offline_bp
 from app.models.user import User
 from app.models.menu import Category, MenuItem
 from app.models.order import Order, OrderStatus
@@ -55,9 +56,12 @@ def get_cart():
     })
 
 @bp.route('/cart/count')
-@login_required
 def get_cart_count():
     """Get cart item count"""
+    # Allow unauthenticated access to prevent HTML error responses
+    if not current_user.is_authenticated:
+        return jsonify({'count': 0})
+    
     cart = session.get('cart', {})
     return jsonify({'count': len(cart)})
 
@@ -146,3 +150,5 @@ def search_menu():
         'items': [item.to_dict() for item in items],
         'query': query
     })
+
+# Note: The offline blueprint is registered in app/__init__.py

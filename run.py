@@ -1,6 +1,5 @@
 import os
-from app import create_app, socketio
-from app.models import db
+from app import create_app, socketio, db
 
 app = create_app()
 

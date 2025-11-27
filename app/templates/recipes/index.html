@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Recipe Management{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Recipe Management</h1>
+        <div class="flex space-x-4">
+            <form method="GET" class="flex space-x-2">
+                <input type="text" name="search" value="{{ search }}" placeholder="Search recipes..." 
+                       class="border rounded px-3 py-2 w-64">
+                
+                <select name="category_id" class="border rounded px-3 py-2">
+                    <option value="">All Categories</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    Search
+                </button>
+            </form>
+            
+            <a href="{{ url_for('recipes.create') }}" 
+               class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center">
+                <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                New Recipe
+            </a>
+        </div>
+    </div>
+
+    <!-- Recipe Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        {% for recipe in recipes.items %}
+        <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">{{ recipe.name }}</h3>
+                    <div class="flex space-x-2">
+                        {% if recipe.is_active %}
+                        <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Active</span>
+                        {% else %}
+                        <span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Inactive</span>
+                        {% endif %}
+                        
+                        <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                            {{ recipe.difficulty_level }}
+                        </span>
+                    </div>
+                </div>
+                
+                <p class="text-gray-600 text-sm mb-4 line-clamp-2">{{ recipe.description or 'No description available' }}</p>
+                
+                <div class="space-y-2 mb-4">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Menu Item:</span>
+                        <span class="font-medium">{{ recipe.menu_item.name if recipe.menu_item else 'Not assigned' }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Servings:</span>
+                        <span class="font-medium">{{ recipe.serving_size }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Prep Time:</span>
+                        <span class="font-medium">{{ recipe.prep_time or 0 }} min</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Cook Time:</span>
+                        <span class="font-medium">{{ recipe.cook_time or 0 }} min</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Cost/Serving:</span>
+                        <span class="font-medium text-green-600">₹{{ "%.2f"|format(recipe.cost_per_serving) }}</span>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-2">
+                    <a href="{{ url_for('recipes.view', recipe_id=recipe.id) }}" 
+                       class="flex-1 bg-blue-600 text-white text-center px-3 py-2 rounded text-sm hover:bg-blue-700">
+                        View
+                    </a>
+                    <a href="{{ url_for('recipes.edit', recipe_id=recipe.id) }}" 
+                       class="flex-1 bg-gray-600 text-white text-center px-3 py-2 rounded text-sm hover:bg-gray-700">
+                        Edit
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if recipes.pages > 1 %}
+    <div class="flex justify-center space-x-2">
+        {% if recipes.has_prev %}
+        <a href="{{ url_for('recipes.index', page=recipes.prev_num, search=search, category_id=selected_category) }}" 
+           class="px-3 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+            Previous
+        </a>
+        {% endif %}
+        
+        {% for page_num in recipes.iter_pages() %}
+        {% if page_num %}
+        <a href="{{ url_for('recipes.index', page=page_num, search=search, category_id=selected_category) }}" 
+           class="px-3 py-2 {% if page_num == recipes.page %}bg-blue-600 text-white{% else %}bg-white border border-gray-300{% endif %} rounded-md hover:bg-gray-50">
+            {{ page_num }}
+        </a>
+        {% else %}
+        <span class="px-3 py-2 bg-gray-100 text-gray-500 rounded-md">...</span>
+        {% endif %}
+        {% endfor %}
+        
+        {% if recipes.has_next %}
+        <a href="{{ url_for('recipes.index', page=recipes.next_num, search=search, category_id=selected_category) }}" 
+           class="px-3 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+            Next
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+        <a href="{{ url_for('recipes.categories') }}" class="bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 text-center">
+            Manage Categories
+        </a>
+        <a href="{{ url_for('recipes.cost_calculator') }}" class="bg-yellow-600 text-white px-4 py-3 rounded-lg hover:bg-yellow-700 text-center">
+            Cost Calculator
+        </a>
+        <a href="{{ url_for('inventory.dashboard') }}" class="bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 text-center">
+            Manage Ingredients
+        </a>
+    </div>
+</div>
+{% endblock %}

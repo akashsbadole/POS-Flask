@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if recipe else 'Create' }} Recipe{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">{{ 'Edit' if recipe else 'Create' }} Recipe</h1>
+        <a href="{{ url_for('recipes.index') }}" class="text-blue-600 hover:text-blue-800">
+            ← Back to Recipes
+        </a>
+    </div>
+
+    <form method="POST" class="space-y-8">
+        <!-- Basic Information -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-6">Basic Information</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="menu_item_id" class="block text-sm font-medium text-gray-700 mb-2">
+                        Menu Item *
+                    </label>
+                    <select id="menu_item_id" name="menu_item_id" required
+                            class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Select a menu item</option>
+                        {% for item in menu_items %}
+                        <option value="{{ item.id }}" {% if recipe and recipe.menu_item_id == item.id %}selected{% endif %}>
+                            {{ item.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
+                        Recipe Name *
+                    </label>
+                    <input type="text" id="name" name="name" required
+                           value="{{ recipe.name if recipe else '' }}"
+                           class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div>
+                    <label for="difficulty_level" class="block text-sm font-medium text-gray-700 mb-2">
+                        Difficulty Level
+                    </label>
+                    <select id="difficulty_level" name="difficulty_level"
+                            class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <option value="Easy" {% if recipe and recipe.difficulty_level == 'Easy' %}selected{% endif %}>Easy</option>
+                        <option value="Medium" {% if recipe and recipe.difficulty_level == 'Medium' %}selected{% endif %}>Medium</option>
+                        <option value="Hard" {% if recipe and recipe.difficulty_level == 'Hard' %}selected{% endif %}>Hard</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="serving_size" class="block text-sm font-medium text-gray-700 mb-2">
+                        Serving Size *
+                    </label>
+                    <input type="number" id="serving_size" name="serving_size" required min="1"
+                           value="{{ recipe.serving_size if recipe else 1 }}"
+                           class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div>
+                    <label for="prep_time" class="block text-sm font-medium text-gray-700 mb-2">
+                        Prep Time (minutes)
+                    </label>
+                    <input type="number" id="prep_time" name="prep_time" min="0"
+                           value="{{ recipe.prep_time if recipe else '' }}"
+                           class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div>
+                    <label for="cook_time" class="block text-sm font-medium text-gray-700 mb-2">
+                        Cook Time (minutes)
+                    </label>
+                    <input type="number" id="cook_time" name="cook_time" min="0"
+                           value="{{ recipe.cook_time if recipe else '' }}"
+                           class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+            
+            <div class="mt-6">
+                <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                </label>
+                <textarea id="description" name="description" rows="3"
+                          class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">{{ recipe.description if recipe else '' }}</textarea>
+            </div>
+            
+            <div class="mt-6">
+                <label for="instructions" class="block text-sm font-medium text-gray-700 mb-2">
+                    Instructions
+                </label>
+                <textarea id="instructions" name="instructions" rows="6"
+                          class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">{{ recipe.instructions if recipe else '' }}</textarea>
+            </div>
+            
+            <div class="mt-6">
+                <label class="flex items-center">
+                    <input type="checkbox" name="is_active" {% if recipe and recipe.is_active %}checked{% elif not recipe %}checked{% endif %}
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                    <span class="ml-2 text-sm text-gray-700">Active</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Ingredients -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold text-gray-900">Ingredients</h2>
+                <button type="button" onclick="addIngredient()" 
+                        class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">
+                    Add Ingredient
+                </button>
+            </div>
+            
+            <div id="ingredients-container" class="space-y-4">
+                {% if recipe %}
+                    {% for recipe_ingredient in recipe.ingredients %}
+                    <div class="ingredient-row grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                        <select name="ingredient_id[]" class="border border-gray-300 rounded-md shadow-sm py-2 px-3">
+                            <option value="">Select ingredient</option>
+                            {% for ingredient in ingredients %}
+                            <option value="{{ ingredient.id }}" {% if recipe_ingredient.ingredient_id == ingredient.id %}selected{% endif %}>
+                                {{ ingredient.name }} ({{ ingredient.unit }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <input type="number" name="quantity[]" step="0.001" min="0" required
+                               value="{{ recipe_ingredient.quantity }}"
+                               placeholder="Quantity" class="border border-gray-300 rounded-md shadow-sm py-2 px-3">
+                        <input type="text" name="notes[]" 
+                               value="{{ recipe_ingredient.notes or '' }}"
+                               placeholder="Notes (optional)" class="border border-gray-300 rounded-md shadow-sm py-2 px-3">
+                        <button type="button" onclick="removeIngredient(this)" 
+                                class="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 text-sm">
+                            Remove
+                        </button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tags -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-6">Tags</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {% for tag in tags %}
+                <label class="flex items-center">
+                    <input type="checkbox" name="tag_ids[]" value="{{ tag.id }}"
+                           {% if recipe and tag in recipe.tags %}checked{% endif %}
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                    <span class="ml-2 text-sm text-gray-700">{{ tag.name }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Submit Buttons -->
+        <div class="flex justify-end space-x-4">
+            <a href="{{ url_for('recipes.index') }}" 
+               class="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700">
+                Cancel
+            </a>
+            <button type="submit" 
+                    class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
+                {{ 'Update' if recipe else 'Create' }} Recipe
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function addIngredient() {
+    const container = document.getElementById('ingredients-container');
+    const ingredientRow = document.createElement('div');
+    ingredientRow.className = 'ingredient-row grid grid-cols-1 md:grid-cols-4 gap-4 items-center';
+    
+    ingredientRow.innerHTML = `
+        <select name="ingredient_id[]" class="border border-gray-300 rounded-md shadow-sm py-2 px-3">
+            <option value="">Select ingredient</option>
+            {% for ingredient in ingredients %}
+            <option value="{{ ingredient.id }}">{{ ingredient.name }} ({{ ingredient.unit }})</option>
+            {% endfor %}
+        </select>
+        <input type="number" name="quantity[]" step="0.001" min="0" required
+               placeholder="Quantity" class="border border-gray-300 rounded-md shadow-sm py-2 px-3">
+        <input type="text" name="notes[]" 
+               placeholder="Notes (optional)" class="border border-gray-300 rounded-md shadow-sm py-2 px-3">
+        <button type="button" onclick="removeIngredient(this)" 
+                class="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 text-sm">
+            Remove
+        </button>
+    `;
+    
+    container.appendChild(ingredientRow);
+}
+
+function removeIngredient(button) {
+    button.parentElement.remove();
+}
+
+// Cost calculation
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('ingredients-container');
+    container.addEventListener('change', calculateRecipeCost);
+});
+
+function calculateRecipeCost() {
+    const ingredientSelects = document.querySelectorAll('select[name="ingredient_id[]"]');
+    const quantityInputs = document.querySelectorAll('input[name="quantity[]"]');
+    
+    let totalCost = 0;
+    
+    ingredientSelects.forEach((select, index) => {
+        const ingredientId = select.value;
+        const quantity = parseFloat(quantityInputs[index].value) || 0;
+        
+        if (ingredientId && quantity > 0) {
+            // Find the selected option to get cost info
+            const selectedOption = select.options[select.selectedIndex];
+            if (selectedOption && selectedOption.dataset.cost) {
+                totalCost += parseFloat(selectedOption.dataset.cost) * quantity;
+            }
+        }
+    });
+    
+    // Update cost display (you can add a cost display element)
+    console.log('Total Recipe Cost:', totalCost);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}License Details - {{ license.license_key }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">License Details</h1>
+        <div class="space-x-4">
+            <a href="{{ url_for('license.licenses') }}" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
+                Back to Licenses
+            </a>
+        </div>
+    </div>
+
+    <!-- License Information -->
+    <div class="bg-white rounded-lg shadow mb-6">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">License Information</h3>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 mb-2">License Key</h4>
+                    <p class="text-sm font-mono text-gray-900 bg-gray-50 p-2 rounded">{{ license.license_key }}</p>
+                </div>
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 mb-2">Product</h4>
+                    <p class="text-sm text-gray-900">{{ license.product_name }} {{ license.product_version or '' }}</p>
+                </div>
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 mb-2">License Type</h4>
+                    <p class="text-sm text-gray-900">{{ license.license_type.value if license.license_type else 'Unknown' }}</p>
+                </div>
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 mb-2">Status</h4>
+                    {% if license.status == 'active' %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            Active
+                        </span>
+                    {% elif license.status == 'expired' %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                            Expired
+                        </span>
+                    {% elif license.status == 'suspended' %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                            Suspended
+                        </span>
+                    {% else %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                            {{ license.status }}
+                        </span>
+                    {% endif %}
+                </div>
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 mb-2">Restaurant</h4>
+                    <p class="text-sm text-gray-900">{{ license.restaurant.name if license.restaurant else 'N/A' }}</p>
+                </div>
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 mb-2">User</h4>
+                    <p class="text-sm text-gray-900">{{ license.user.name if license.user else 'N/A' }}</p>
+                </div>
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 mb-2">Device ID</h4>
+                    <p class="text-sm text-gray-900">{{ license.device_id or 'N/A' }}</p>
+                </div>
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 mb-2">Activations</h4>
+                    <p class="text-sm text-gray-900">{{ license.current_activations }} / {{ license.max_activations }}</p>
+                </div>
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 mb-2">Issued Date</h4>
+                    <p class="text-sm text-gray-900">{{ license.issued_date.strftime('%Y-%m-%d %H:%M:%S') if license.issued_date else 'N/A' }}</p>
+                </div>
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 mb-2">Expiry Date</h4>
+                    <p class="text-sm text-gray-900">
+                        {{ license.expiry_date.strftime('%Y-%m-%d %H:%M:%S') if license.expiry_date else 'Never' }}
+                        {% if license.is_expired() %}
+                            <span class="text-red-600">(Expired)</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features and Restrictions -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Features</h3>
+            </div>
+            <div class="p-6">
+                {% set features = license.get_features_list() %}
+                {% if features %}
+                    <ul class="space-y-2">
+                        {% for feature in features %}
+                            <li class="flex items-center">
+                                <svg class="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-sm text-gray-900">{{ feature }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-sm text-gray-500">No features configured</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Restrictions</h3>
+            </div>
+            <div class="p-6">
+                {% set restrictions = license.get_restrictions_list() %}
+                {% if restrictions %}
+                    <ul class="space-y-2">
+                        {% for restriction in restrictions %}
+                            <li class="flex items-center">
+                                <svg class="w-4 h-4 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-sm text-gray-900">{{ restriction }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-sm text-gray-500">No restrictions configured</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="bg-white rounded-lg shadow mb-6">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">License Actions</h3>
+        </div>
+        <div class="p-6">
+            <div class="flex flex-wrap gap-4">
+                <form method="POST" action="{{ url_for('license.verify_license', license_id=license.id) }}" class="inline">
+                    <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                        Verify License
+                    </button>
+                </form>
+                
+                {% if license.current_activations < license.max_activations %}
+                <button onclick="showActivateModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                    Activate License
+                </button>
+                {% endif %}
+                
+                {% if license.current_activations > 0 %}
+                <button onclick="showDeactivateModal()" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700">
+                    Deactivate License
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Activations -->
+    <div class="bg-white rounded-lg shadow mb-6">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">License Activations</h3>
+        </div>
+        <div class="p-6">
+            {% if activations %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Device ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activated At</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Used</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for activation in activations %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ activation.device_id }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ activation.user.name if activation.user else 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ activation.activated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ activation.last_used_at.strftime('%Y-%m-%d %H:%M:%S') if activation.last_used_at else 'Never' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {% if activation.is_active %}
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                            Active
+                                        </span>
+                                    {% else %}
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                            Inactive
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-sm text-gray-500">No activations found</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Usage Statistics -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Usage Statistics (Last 30 Days)</h3>
+        </div>
+        <div class="p-6">
+            {% if usage_stats %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usage Count</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Feature Usage</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for stat in usage_stats %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ stat.usage_date.strftime('%Y-%m-%d') }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ stat.usage_count }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ stat.feature_usage or 'N/A' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-sm text-gray-500">No usage statistics available</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Activate Modal -->
+<div id="activateModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Activate License</h3>
+            <form method="POST" action="{{ url_for('license.activate_license', license_id=license.id) }}">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Device ID</label>
+                    <input type="text" name="device_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">User (Optional)</label>
+                    <select name="user_id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Select User</option>
+                        <!-- Users would be populated here -->
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button type="button" onclick="hideActivateModal()" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        Activate
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Deactivate Modal -->
+<div id="deactivateModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Deactivate License</h3>
+            <form method="POST" action="{{ url_for('license.deactivate_license', license_id=license.id) }}">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Device ID</label>
+                    <input type="text" name="device_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">User (Optional)</label>
+                    <select name="user_id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Select User</option>
+                        <!-- Users would be populated here -->
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button type="button" onclick="hideDeactivateModal()" class="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700">
+                        Deactivate
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function showActivateModal() {
+    document.getElementById('activateModal').classList.remove('hidden');
+}
+
+function hideActivateModal() {
+    document.getElementById('activateModal').classList.add('hidden');
+}
+
+function showDeactivateModal() {
+    document.getElementById('deactivateModal').classList.remove('hidden');
+}
+
+function hideDeactivateModal() {
+    document.getElementById('deactivateModal').classList.add('hidden');
+}
+</script>
+{% endblock %}

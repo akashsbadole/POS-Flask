@@ -1,0 +1,692 @@
+{% extends "base.html" %}
+
+{% block title %}Error Management Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.error-stat-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow;
+}
+
+.error-severity-low {
+    @apply bg-green-50 text-green-700 border-green-200;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+.error-severity-medium {
+    @apply bg-yellow-50 text-yellow-700 border-yellow-200;
+    background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+}
+.error-severity-high {
+    @apply bg-orange-50 text-orange-700 border-orange-200;
+    background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
+}
+.error-severity-critical {
+    @apply bg-red-50 text-red-700 border-red-200;
+    background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+}
+
+.error-category-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.error-trend-item {
+    @apply flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors;
+}
+
+.error-resolution-form {
+    @apply mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200;
+}
+
+/* Food-themed error animations */
+@keyframes error-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+@keyframes error-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.error-pulse {
+    animation: error-pulse 2s infinite;
+}
+
+.error-shake {
+    animation: error-shake 0.5s ease-in-out;
+}
+
+/* Food-themed error icons */
+.error-icon-critical::before {
+    content: "🌶️";
+    font-size: 1.5em;
+}
+
+.error-icon-high::before {
+    content: "🍋";
+    font-size: 1.5em;
+}
+
+.error-icon-medium::before {
+    content: "🧀";
+    font-size: 1.5em;
+}
+
+.error-icon-low::before {
+    content: "🥬";
+    font-size: 1.5em;
+}
+
+/* Enhanced food-themed cards */
+.food-error-card {
+    background: linear-gradient(135deg, #fff 0%, #fef9e7 100%);
+    border: 2px solid #f59e0b;
+    position: relative;
+    overflow: hidden;
+}
+
+.food-error-card::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(245, 158, 11, 0.1) 0%, transparent 70%);
+    animation: rotate 20s linear infinite;
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8" x-data="errorManager()">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+                <svg class="w-8 h-8 mr-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Error Management
+            </h1>
+            <p class="text-gray-600 mt-2">Monitor and manage system errors and issues</p>
+        </div>
+        <div class="flex space-x-3">
+            <button @click="refreshStats()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Refresh
+            </button>
+            <button @click="showLogErrorModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Log Error
+            </button>
+        </div>
+    </div>
+
+    <!-- Error Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="food-error-card error-stat-card"
+             :class="{ 'error-pulse': stats.total_errors > 50 }">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-600 flex items-center">
+                        <span class="mr-2">🍽️</span> Total Errors
+                    </p>
+                    <p class="text-2xl font-bold text-gray-900" x-text="stats.total_errors || 0"></p>
+                </div>
+                <div class="bg-red-100 p-3 rounded-full">
+                    <span class="text-2xl">🔥</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="food-error-card error-stat-card error-severity-critical"
+             :class="{ 'error-shake': stats.by_severity?.critical > 0 }">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-700 flex items-center">
+                        <span class="mr-2">🌶️</span> Critical Errors
+                    </p>
+                    <p class="text-2xl font-bold text-red-700" x-text="stats.by_severity?.critical || 0"></p>
+                </div>
+                <div class="bg-red-100 p-3 rounded-full">
+                    <span class="text-2xl error-icon-critical"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="food-error-card error-stat-card error-severity-medium">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-700 flex items-center">
+                        <span class="mr-2">🥘</span> Open Issues
+                    </p>
+                    <p class="text-2xl font-bold text-yellow-700" x-text="stats.by_status?.open || 0"></p>
+                </div>
+                <div class="bg-yellow-100 p-3 rounded-full">
+                    <span class="text-2xl">👁️</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="food-error-card error-stat-card error-severity-low">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-700 flex items-center">
+                        <span class="mr-2">🥗</span> Resolved
+                    </p>
+                    <p class="text-2xl font-bold text-green-700" x-text="stats.by_status?.resolved || 0"></p>
+                </div>
+                <div class="bg-green-100 p-3 rounded-full">
+                    <span class="text-2xl">✅</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Trends and Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Error by Severity -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Errors by Severity</h3>
+            <div class="space-y-3">
+                <template x-for="[severity, count] in Object.entries(stats.by_severity || {})" :key="severity">
+                    <div class="flex items-center justify-between">
+                        <span class="capitalize text-sm font-medium text-gray-700" x-text="severity"></span>
+                        <div class="flex items-center">
+                            <div class="w-32 bg-gray-200 rounded-full h-2 mr-3">
+                                <div class="h-2 rounded-full" 
+                                     :class="getSeverityClass(severity)"
+                                     :style="`width: ${(count / Math.max(...Object.values(stats.by_severity))) * 100}%`"></div>
+                            </div>
+                            <span class="text-sm font-medium text-gray-900" x-text="count"></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Error by Category -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Errors by Category</h3>
+            <div class="space-y-3">
+                <template x-for="[category, count] in Object.entries(stats.by_category || {})" :key="category">
+                    <div class="flex items-center justify-between">
+                        <span class="capitalize text-sm font-medium text-gray-700" x-text="category"></span>
+                        <div class="flex items-center">
+                            <div class="w-32 bg-gray-200 rounded-full h-2 mr-3">
+                                <div class="bg-blue-600 h-2 rounded-full" 
+                                     :style="`width: ${(count / Math.max(...Object.values(stats.by_category))) * 100}%`"></div>
+                            </div>
+                            <span class="text-sm font-medium text-gray-900" x-text="count"></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Error Trends -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Error Trends</h3>
+        <div class="space-y-2" x-show="stats.recent_trends && stats.recent_trends.length > 0">
+            <template x-for="trend in stats.recent_trends" :key="trend.error_code">
+                <div class="error-trend-item">
+                    <div class="flex-1">
+                        <div class="flex items-center">
+                            <span class="font-medium text-gray-900" x-text="trend.title"></span>
+                            <span class="ml-2 text-xs text-gray-500" x-text="trend.error_code"></span>
+                            <span class="ml-auto px-2 py-1 rounded-full text-xs font-medium"
+                                  :class="getSeverityClass(trend.severity)"
+                                  x-text="trend.severity"></span>
+                        </div>
+                        <div class="text-sm text-gray-600 mt-1">
+                            <span x-text="trend.count + ' occurrences'"></span>
+                            <span class="mx-2">•</span>
+                            <span x-text="'Last: ' + new Date(trend.last_occurred).toLocaleString()"></span>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+        <div x-show="!stats.recent_trends || stats.recent_trends.length === 0" class="text-center py-8 text-gray-500">
+            No recent error trends found
+        </div>
+    </div>
+
+    <!-- Error Logs Table -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                    <span class="mr-2">📋</span> Recent Error Logs
+                </h3>
+                <div class="flex items-center space-x-4">
+                    <button @click="exportErrors()" class="bg-gray-600 text-white px-3 py-2 rounded-md hover:bg-gray-700 transition-colors text-sm flex items-center">
+                        <span class="mr-2">📥</span> Export
+                    </button>
+                    <button @click="bulkResolveErrors()" class="bg-orange-600 text-white px-3 py-2 rounded-md hover:bg-orange-700 transition-colors text-sm flex items-center">
+                        <span class="mr-2">✅</span> Bulk Resolve
+                    </button>
+                    <select x-model="filters.severity" @change="loadErrorLogs()" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                        <option value="">All Severities</option>
+                        <option value="low">🥬 Low</option>
+                        <option value="medium">🧀 Medium</option>
+                        <option value="high">🍋 High</option>
+                        <option value="critical">🌶️ Critical</option>
+                    </select>
+                    <select x-model="filters.status" @change="loadErrorLogs()" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                        <option value="">All Statuses</option>
+                        <option value="open">🔴 Open</option>
+                        <option value="in_progress">🟡 In Progress</option>
+                        <option value="resolved">🟢 Resolved</option>
+                        <option value="closed">⚫ Closed</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <input type="checkbox" @change="toggleAllSelections" class="rounded border-gray-300">
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Error Code</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Severity</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Occurred</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" x-show="errorLogs.length > 0">
+                    <template x-for="log in errorLogs" :key="log.id">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <input type="checkbox" x-model="log.selected" class="rounded border-gray-300">
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" x-text="log.error_code"></td>
+                            <td class="px-6 py-4 text-sm text-gray-900" x-text="log.title"></td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                      :class="getSeverityClass(log.severity)"
+                                      x-text="log.severity"></span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="log.category"></td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                      :class="getStatusClass(log.status)"
+                                      x-text="log.status"></span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="new Date(log.occurred_at).toLocaleString()"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button @click="viewErrorDetails(log)" class="text-blue-600 hover:text-blue-900 mr-3">👁️ View</button>
+                                <button @click="resolveError(log.id)" x-show="log.status === 'open' || log.status === 'in_progress'" class="text-green-600 hover:text-green-900">✅ Resolve</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+                <tbody x-show="errorLogs.length === 0">
+                    <tr>
+                        <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                            <div class="flex flex-col items-center">
+                                <span class="text-4xl mb-2">🍽️</span>
+                                No error logs found - Kitchen is running smoothly!
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Log Error Modal -->
+    <div x-show="showLogModal" x-cloak
+         class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+         @click.self="showLogModal = false">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-900 flex items-center">
+                        <span class="mr-2">📝</span> Log New Error
+                    </h3>
+                    <button @click="showLogModal = false" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Error Title *</label>
+                        <input type="text" x-model="newError.title"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Enter error title">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea x-model="newError.description" rows="3"
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="Enter error description"></textarea>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <select x-model="newError.category"
+                                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="system">System</option>
+                                <option value="user">User</option>
+                                <option value="payment">Payment</option>
+                                <option value="order">Order</option>
+                                <option value="inventory">Inventory</option>
+                                <option value="license">License</option>
+                                <option value="network">Network</option>
+                                <option value="database">Database</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Severity</label>
+                            <select x-model="newError.severity"
+                                    class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="low">🥬 Low</option>
+                                <option value="medium">🧀 Medium</option>
+                                <option value="high">🍋 High</option>
+                                <option value="critical">🌶️ Critical</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button @click="showLogModal = false"
+                            class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors">
+                        Cancel
+                    </button>
+                    <button @click="submitNewError()"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                        Log Error
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function errorManager() {
+    return {
+        stats: {{ stats | tojson }},
+        errorLogs: [],
+        filters: {
+            severity: '',
+            status: ''
+        },
+        showLogModal: false,
+        newError: {
+            title: '',
+            description: '',
+            category: 'system',
+            severity: 'medium'
+        },
+        
+        init() {
+            this.loadErrorLogs();
+            this.setupGlobalErrorHandling();
+        },
+        
+        setupGlobalErrorHandling() {
+            // Global error handler for frontend errors
+            window.addEventListener('error', (event) => {
+                this.logFrontendError({
+                    title: event.message,
+                    description: `Error in ${event.filename} at line ${event.lineno}`,
+                    category: 'system',
+                    severity: 'medium',
+                    stack_trace: event.error ? event.error.stack : '',
+                    url: window.location.href,
+                    browser_info: navigator.userAgent
+                });
+            });
+            
+            // Unhandled promise rejection handler
+            window.addEventListener('unhandledrejection', (event) => {
+                this.logFrontendError({
+                    title: 'Unhandled Promise Rejection',
+                    description: event.reason,
+                    category: 'system',
+                    severity: 'high',
+                    stack_trace: event.reason ? event.reason.stack : '',
+                    url: window.location.href,
+                    browser_info: navigator.userAgent
+                });
+            });
+        },
+        
+        async logFrontendError(errorData) {
+            try {
+                await fetch('/error/log-frontend', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(errorData)
+                });
+            } catch (e) {
+                console.error('Failed to log frontend error:', e);
+            }
+        },
+        
+        async refreshStats() {
+            try {
+                const response = await fetch('/error/stats');
+                const data = await response.json();
+                this.stats = data;
+                this.showNotification('Stats refreshed successfully', 'success');
+            } catch (error) {
+                console.error('Error refreshing stats:', error);
+                this.showNotification('Failed to refresh stats', 'error');
+            }
+        },
+        
+        async loadErrorLogs() {
+            try {
+                const params = new URLSearchParams(this.filters);
+                const response = await fetch(`/error/logs?${params}`);
+                const data = await response.json();
+                this.errorLogs = data.logs;
+            } catch (error) {
+                console.error('Error loading logs:', error);
+                this.showNotification('Failed to load error logs', 'error');
+            }
+        },
+        
+        getSeverityClass(severity) {
+            const classes = {
+                'low': 'bg-green-100 text-green-800',
+                'medium': 'bg-yellow-100 text-yellow-800',
+                'high': 'bg-orange-100 text-orange-800',
+                'critical': 'bg-red-100 text-red-800'
+            };
+            return classes[severity] || 'bg-gray-100 text-gray-800';
+        },
+        
+        getStatusClass(status) {
+            const classes = {
+                'open': 'bg-red-100 text-red-800',
+                'in_progress': 'bg-yellow-100 text-yellow-800',
+                'resolved': 'bg-green-100 text-green-800',
+                'closed': 'bg-gray-100 text-gray-800'
+            };
+            return classes[status] || 'bg-gray-100 text-gray-800';
+        },
+        
+        viewErrorDetails(log) {
+            // Show detailed error modal
+            alert(`Error Details:\n\nCode: ${log.error_code}\nTitle: ${log.title}\nDescription: ${log.description}\nCategory: ${log.category}\nSeverity: ${log.severity}\nStatus: ${log.status}\nOccurred: ${new Date(log.occurred_at).toLocaleString()}`);
+        },
+        
+        async resolveError(errorId) {
+            const resolution = prompt('Enter resolution details:');
+            if (!resolution) return;
+            
+            try {
+                const response = await fetch(`/error/resolve/${errorId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        resolution: resolution,
+                        resolution_notes: ''
+                    })
+                });
+                
+                if (response.ok) {
+                    await this.loadErrorLogs();
+                    await this.refreshStats();
+                    this.showNotification('Error resolved successfully', 'success');
+                } else {
+                    throw new Error('Failed to resolve error');
+                }
+            } catch (error) {
+                console.error('Error resolving error:', error);
+                this.showNotification('Failed to resolve error', 'error');
+            }
+        },
+        
+        async bulkResolveErrors() {
+            const selectedErrors = this.errorLogs.filter(log => log.selected && (log.status === 'open' || log.status === 'in_progress'));
+            if (selectedErrors.length === 0) {
+                this.showNotification('No errors selected for resolution', 'warning');
+                return;
+            }
+            
+            const resolution = prompt('Enter resolution details for all selected errors:');
+            if (!resolution) return;
+            
+            try {
+                const response = await fetch('/error/bulk-resolve', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        error_ids: selectedErrors.map(log => log.id),
+                        resolution: resolution
+                    })
+                });
+                
+                if (response.ok) {
+                    await this.loadErrorLogs();
+                    await this.refreshStats();
+                    this.showNotification(`${selectedErrors.length} errors resolved successfully`, 'success');
+                } else {
+                    throw new Error('Failed to resolve errors');
+                }
+            } catch (error) {
+                console.error('Error bulk resolving errors:', error);
+                this.showNotification('Failed to resolve errors', 'error');
+            }
+        },
+        
+        async exportErrors() {
+            try {
+                window.open('/error/export', '_blank');
+                this.showNotification('Error export started', 'success');
+            } catch (error) {
+                console.error('Error exporting errors:', error);
+                this.showNotification('Failed to export errors', 'error');
+            }
+        },
+        
+        showLogErrorModal() {
+            this.showLogModal = true;
+            this.newError = {
+                title: '',
+                description: '',
+                category: 'system',
+                severity: 'medium'
+            };
+        },
+        
+        async submitNewError() {
+            if (!this.newError.title) {
+                this.showNotification('Error title is required', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/error/log', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.newError)
+                });
+                
+                if (response.ok) {
+                    this.showLogModal = false;
+                    await this.loadErrorLogs();
+                    await this.refreshStats();
+                    this.showNotification('Error logged successfully', 'success');
+                } else {
+                    throw new Error('Failed to log error');
+                }
+            } catch (error) {
+                console.error('Error logging new error:', error);
+                this.showNotification('Failed to log error', 'error');
+            }
+        },
+        
+        toggleAllSelections(event) {
+            const isChecked = event.target.checked;
+            this.errorLogs.forEach(log => {
+                log.selected = isChecked;
+            });
+        },
+        
+        showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${
+                type === 'success' ? 'bg-green-500 text-white' :
+                type === 'error' ? 'bg-red-500 text-white' :
+                type === 'warning' ? 'bg-yellow-500 text-white' :
+                'bg-blue-500 text-white'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.classList.add('translate-x-0');
+            }, 100);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.classList.add('translate-x-full');
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -5,10 +5,14 @@ from app.models.order import Order, OrderStatus, Payment
 from app.models.menu import MenuItem, Category
 from app.models.user import User
 from app.models.table import Table
+from app.models.gst import GSTSetting
+from app.models.accounting import Transaction, Account, Expense
+from app.models.restaurant import Restaurant
 from app import db
 from datetime import datetime, timedelta
 import csv
 from io import StringIO
+from sqlalchemy import func, and_
 
 @bp.route('/dashboard')
 @login_required
@@ -164,7 +168,8 @@ def export_sales():
     
     # Write data
     for order in orders:
-        for payment in order.payments:
+        payments_list = list(order.payments) if order.payments else []
+        for payment in payments_list:
             writer.writerow([
                 order.order_number,
                 order.created_at.strftime('%Y-%m-%d %H:%M'),
@@ -204,7 +209,8 @@ def calculate_report_stats(start_date, end_date):
     # Payment method breakdown
     payment_breakdown = {}
     for order in orders:
-        for payment in order.payments:
+        payments_list = list(order.payments) if order.payments else []
+        for payment in payments_list:
             method = payment.method.value
             if method not in payment_breakdown:
                 payment_breakdown[method] = 0
@@ -248,7 +254,8 @@ def get_items_sold(start_date, end_date, category_id=None):
     items_sold = {}
     
     for order in orders:
-        for order_item in order.items:
+        items_list = list(order.items) if order.items else []
+        for order_item in items_list:
             item_key = order_item.item_id
             
             if item_key not in items_sold:
@@ -351,3 +358,401 @@ def get_api_items_sold():
         })
     
     return jsonify({'items': api_items})
+
+# Enhanced Reporting Routes
+
+@bp.route('/gst')
+@login_required
+def gst_report():
+    """GST compliance report"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Get date range
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    restaurant_id = request.args.get('restaurant_id', type=int)
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    else:
+        start_date = datetime.now() - timedelta(days=30)
+    
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    else:
+        end_date = datetime.now()
+    
+    # Get GST data
+    gst_data = get_gst_report_data(start_date, end_date, restaurant_id)
+    restaurants = Restaurant.query.all() if current_user.is_super_admin() else [current_user.restaurant]
+    
+    return render_template('reports/gst.html',
+                         gst_data=gst_data,
+                         restaurants=restaurants,
+                         start_date=start_date,
+                         end_date=end_date,
+                         selected_restaurant=restaurant_id)
+
+@bp.route('/accounting')
+@login_required
+def accounting_report():
+    """Accounting and financial reports"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Get date range
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    report_type = request.args.get('type', 'profit_loss')
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    else:
+        start_date = datetime.now() - timedelta(days=30)
+    
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    else:
+        end_date = datetime.now()
+    
+    # Get accounting data
+    accounting_data = get_accounting_report_data(start_date, end_date, report_type)
+    
+    return render_template('reports/accounting.html',
+                         accounting_data=accounting_data,
+                         report_type=report_type,
+                         start_date=start_date,
+                         end_date=end_date)
+
+@bp.route('/expenses')
+@login_required
+def expenses_report():
+    """Expense management report"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Get date range
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    category = request.args.get('category')
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    else:
+        start_date = datetime.now() - timedelta(days=30)
+    
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    else:
+        end_date = datetime.now()
+    
+    # Get expense data
+    expenses = get_expense_report_data(start_date, end_date, category)
+    
+    return render_template('reports/expenses.html',
+                         expenses=expenses,
+                         selected_category=category,
+                         start_date=start_date,
+                         end_date=end_date)
+
+@bp.route('/restaurant-performance')
+@login_required
+def restaurant_performance():
+    """Restaurant performance report (for super admin)"""
+    if not current_user.is_super_admin():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Get date range
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    restaurant_id = request.args.get('restaurant_id', type=int)
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    else:
+        start_date = datetime.now() - timedelta(days=30)
+    
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    else:
+        end_date = datetime.now()
+    
+    # Get performance data
+    performance_data = get_restaurant_performance_data(start_date, end_date, restaurant_id)
+    restaurants = Restaurant.query.all()
+    
+    return render_template('reports/restaurant_performance.html',
+                         performance_data=performance_data,
+                         restaurants=restaurants,
+                         start_date=start_date,
+                         end_date=end_date,
+                         selected_restaurant=restaurant_id)
+
+@bp.route('/export/gst')
+@login_required
+def export_gst():
+    """Export GST report as CSV"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Get date range
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    restaurant_id = request.args.get('restaurant_id', type=int)
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    else:
+        start_date = datetime.now() - timedelta(days=30)
+    
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    else:
+        end_date = datetime.now()
+    
+    # Get GST data
+    gst_data = get_gst_report_data(start_date, end_date, restaurant_id)
+    
+    # Create CSV
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow(['Date', 'Order Number', 'Subtotal', 'CGST', 'SGST', 'IGST', 'CESS', 'Total GST', 'Total'])
+    
+    # Write data
+    for order in gst_data['orders']:
+        writer.writerow([
+            order.created_at.strftime('%Y-%m-%d'),
+            order.order_number,
+            order.subtotal,
+            order.cgst_amount,
+            order.sgst_amount,
+            order.igst_amount,
+            order.cess_amount,
+            order.tax_amount,
+            order.total
+        ])
+    
+    # Create response
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers['Content-Disposition'] = f'attachment; filename=gst_report_{start_date.strftime("%Y%m%d")}_to_{end_date.strftime("%Y%m%d")}.csv'
+    response.headers['Content-type'] = 'text/csv'
+    
+    return response
+
+@bp.route('/export/accounting')
+@login_required
+def export_accounting():
+    """Export accounting report as CSV"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Get date range
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    report_type = request.args.get('type', 'profit_loss')
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    else:
+        start_date = datetime.now() - timedelta(days=30)
+    
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    else:
+        end_date = datetime.now()
+    
+    # Get accounting data
+    accounting_data = get_accounting_report_data(start_date, end_date, report_type)
+    
+    # Create CSV
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    if report_type == 'profit_loss':
+        writer.writerow(['Category', 'Amount', 'Type'])
+        for item in accounting_data['profit_loss_items']:
+            writer.writerow([item['name'], item['amount'], item['type']])
+    elif report_type == 'balance_sheet':
+        writer.writerow(['Account', 'Balance', 'Type'])
+        for item in accounting_data['balance_sheet_items']:
+            writer.writerow([item['name'], item['balance'], item['type']])
+    
+    # Create response
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers['Content-Disposition'] = f'attachment; filename=accounting_{report_type}_{start_date.strftime("%Y%m%d")}_to_{end_date.strftime("%Y%m%d")}.csv'
+    response.headers['Content-type'] = 'text/csv'
+    
+    return response
+
+# Enhanced Helper Functions
+
+def get_gst_report_data(start_date, end_date, restaurant_id=None):
+    """Get GST compliance report data"""
+    query = Order.query.filter(
+        Order.created_at >= start_date,
+        Order.created_at <= end_date,
+        Order.status == OrderStatus.SERVED
+    )
+    
+    if restaurant_id:
+        query = query.filter_by(restaurant_id=restaurant_id)
+    
+    orders = query.all()
+    
+    # Calculate GST totals
+    total_subtotal = sum(float(order.subtotal) for order in orders)
+    total_cgst = sum(float(order.cgst_amount) for order in orders)
+    total_sgst = sum(float(order.sgst_amount) for order in orders)
+    total_igst = sum(float(order.igst_amount) for order in orders)
+    total_cess = sum(float(order.cess_amount) for order in orders)
+    total_gst = sum(float(order.tax_amount) for order in orders)
+    total_amount = sum(float(order.total) for order in orders)
+    
+    return {
+        'orders': orders,
+        'total_subtotal': total_subtotal,
+        'total_cgst': total_cgst,
+        'total_sgst': total_sgst,
+        'total_igst': total_igst,
+        'total_cess': total_cess,
+        'total_gst': total_gst,
+        'total_amount': total_amount,
+        'order_count': len(orders)
+    }
+
+def get_accounting_report_data(start_date, end_date, report_type='profit_loss'):
+    """Get accounting report data"""
+    if report_type == 'profit_loss':
+        # Get revenue
+        revenue_orders = Order.query.filter(
+            Order.created_at >= start_date,
+            Order.created_at <= end_date,
+            Order.status == OrderStatus.SERVED
+        ).all()
+        
+        total_revenue = sum(float(order.total) for order in revenue_orders)
+        
+        # Get expenses
+        expenses = Expense.query.filter(
+            Expense.created_at >= start_date,
+            Expense.created_at <= end_date
+        ).all()
+        
+        total_expenses = sum(float(expense.amount) for expense in expenses)
+        
+        # Get transactions
+        transactions = Transaction.query.filter(
+            Transaction.created_at >= start_date,
+            Transaction.created_at <= end_date
+        ).all()
+        
+        return {
+            'profit_loss_items': [
+                {'name': 'Total Revenue', 'amount': total_revenue, 'type': 'Revenue'},
+                {'name': 'Total Expenses', 'amount': total_expenses, 'type': 'Expense'},
+                {'name': 'Net Profit/Loss', 'amount': total_revenue - total_expenses, 'type': 'Profit'}
+            ],
+            'transactions': transactions
+        }
+    
+    elif report_type == 'balance_sheet':
+        # Get account balances
+        accounts = Account.query.all()
+        balance_sheet_items = []
+        
+        for account in accounts:
+            # Calculate account balance from transactions
+            debit_total = db.session.query(func.sum(Transaction.amount)).filter_by(
+                debit_account_id=account.id
+            ).scalar() or 0
+            
+            credit_total = db.session.query(func.sum(Transaction.amount)).filter_by(
+                credit_account_id=account.id
+            ).scalar() or 0
+            
+            balance = debit_total - credit_total
+            
+            balance_sheet_items.append({
+                'name': account.name,
+                'balance': balance,
+                'type': account.account_type
+            })
+        
+        return {
+            'balance_sheet_items': balance_sheet_items
+        }
+    
+    return {}
+
+def get_expense_report_data(start_date, end_date, category=None):
+    """Get expense report data"""
+    query = Expense.query.filter(
+        Expense.created_at >= start_date,
+        Expense.created_at <= end_date
+    )
+    
+    if category:
+        query = query.filter_by(category=category)
+    
+    expenses = query.order_by(Expense.created_at.desc()).all()
+    
+    # Calculate totals by category
+    category_totals = {}
+    for expense in expenses:
+        if expense.category not in category_totals:
+            category_totals[expense.category] = 0
+        category_totals[expense.category] += float(expense.amount)
+    
+    return {
+        'expenses': expenses,
+        'category_totals': category_totals,
+        'total_expenses': sum(float(expense.amount) for expense in expenses)
+    }
+
+def get_restaurant_performance_data(start_date, end_date, restaurant_id=None):
+    """Get restaurant performance data"""
+    query = Restaurant.query
+    
+    if restaurant_id:
+        query = query.filter_by(id=restaurant_id)
+    
+    restaurants = query.all()
+    
+    performance_data = []
+    
+    for restaurant in restaurants:
+        # Get orders for this restaurant
+        orders = Order.query.filter(
+            Order.restaurant_id == restaurant.id,
+            Order.created_at >= start_date,
+            Order.created_at <= end_date
+        ).all()
+        
+        # Calculate metrics
+        total_orders = len(orders)
+        total_revenue = sum(float(order.total) for order in orders)
+        average_order_value = total_revenue / total_orders if total_orders > 0 else 0
+        
+        # Get staff count
+        staff_count = User.query.filter_by(restaurant_id=restaurant.id, is_active=True).count()
+        
+        performance_data.append({
+            'restaurant': restaurant,
+            'total_orders': total_orders,
+            'total_revenue': total_revenue,
+            'average_order_value': average_order_value,
+            'staff_count': staff_count
+        })
+    
+    return performance_data

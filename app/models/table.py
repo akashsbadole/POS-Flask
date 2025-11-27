@@ -26,7 +26,9 @@ class Table(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    orders = db.relationship('Order', backref='table', lazy=True)
+    restaurant = db.relationship('Restaurant', back_populates='tables')
+    orders = db.relationship('Order', back_populates='table')
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
     
     def get_current_order(self):
         """Get the current active order for this table"""

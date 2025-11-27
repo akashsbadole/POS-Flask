@@ -16,7 +16,7 @@ class GSTSetting(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    restaurant = db.relationship('Restaurant', backref='gst_settings')
+    restaurant = db.relationship('Restaurant', back_populates='gst_settings')
     
     def get_total_gst_rate(self):
         """Get total GST rate"""
@@ -68,7 +68,7 @@ class HSNCode(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
-    menu_items = db.relationship('MenuItem', backref='hsn_code')
+    menu_items = db.relationship('MenuItem', back_populates='hsn_code')
     
     def to_dict(self):
         """Convert HSN code to dictionary for API responses"""

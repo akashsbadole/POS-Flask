@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Billing Settings{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Billing Settings</h1>
+        <a href="{{ url_for('billing.dashboard') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+            Back to Dashboard
+        </a>
+    </div>
+
+    <form method="POST" class="space-y-6">
+        <!-- Invoice Settings -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800">Invoice Settings</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Invoice Number Prefix</label>
+                        <input type="text" name="invoice_prefix" value="{{ billing_settings.invoice_prefix if billing_settings else 'INV' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-sm text-gray-500 mt-1">Prefix for auto-generated invoice numbers</p>
+                    </div>
+                    <div class="flex items-center pt-6">
+                        <input type="checkbox" name="auto_generate_numbers" id="auto_generate_numbers" 
+                               {% if billing_settings and billing_settings.auto_generate_numbers %}checked{% endif %}
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="auto_generate_numbers" class="ml-2 block text-sm text-gray-900">
+                            Auto-generate invoice numbers
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Default Payment Terms (days)</label>
+                        <input type="number" name="default_payment_terms" min="0" 
+                               value="{{ billing_settings.default_payment_terms if billing_settings else 30 }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-sm text-gray-500 mt-1">Default due date calculation from issue date</p>
+                    </div>
+                    <div class="flex items-center pt-6">
+                        <input type="checkbox" name="allow_partial_payments" id="allow_partial_payments" 
+                               {% if billing_settings and billing_settings.allow_partial_payments %}checked{% endif %}
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="allow_partial_payments" class="ml-2 block text-sm text-gray-900">
+                            Allow partial payments
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tax Settings -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800">Tax Settings</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Default Tax Rate (%)</label>
+                        <input type="number" name="default_tax_rate" step="0.01" min="0" max="100" 
+                               value="{{ (billing_settings.default_tax_rate * 100) if billing_settings else 18 }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-sm text-gray-500 mt-1">Default tax rate for new invoice items</p>
+                    </div>
+                    <div class="flex items-center pt-6">
+                        <input type="checkbox" name="tax_inclusive" id="tax_inclusive" 
+                               {% if billing_settings and billing_settings.tax_inclusive %}checked{% endif %}
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="tax_inclusive" class="ml-2 block text-sm text-gray-900">
+                            Tax inclusive pricing
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Currency Settings -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800">Currency Settings</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Currency Code</label>
+                        <select name="currency_code" 
+                                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="INR" {% if not billing_settings or billing_settings.currency_code == 'INR' %}selected{% endif %}>INR - Indian Rupee</option>
+                            <option value="USD" {% if billing_settings and billing_settings.currency_code == 'USD' %}selected{% endif %}>USD - US Dollar</option>
+                            <option value="EUR" {% if billing_settings and billing_settings.currency_code == 'EUR' %}selected{% endif %}>EUR - Euro</option>
+                            <option value="GBP" {% if billing_settings and billing_settings.currency_code == 'GBP' %}selected{% endif %}>GBP - British Pound</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Currency Symbol</label>
+                        <input type="text" name="currency_symbol" maxlength="3" 
+                               value="{{ billing_settings.currency_symbol if billing_settings else '₹' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-sm text-gray-500 mt-1">Symbol displayed on invoices</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Email Settings -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800">Email Settings</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">From Email Address</label>
+                        <input type="email" name="email_from_address" 
+                               value="{{ billing_settings.email_from_address if billing_settings else '' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-sm text-gray-500 mt-1">Email address for sending invoices</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">From Name</label>
+                        <input type="text" name="email_from_name" 
+                               value="{{ billing_settings.email_from_name if billing_settings else '' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-sm text-gray-500 mt-1">Display name for email sender</p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">CC Email Addresses</label>
+                        <input type="text" name="email_cc_addresses" 
+                               value="{{ billing_settings.email_cc_addresses if billing_settings else '' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-sm text-gray-500 mt-1">Comma-separated list of CC recipients</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reminder Settings -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-800">Payment Reminder Settings</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="flex items-center">
+                        <input type="checkbox" name="auto_send_reminders" id="auto_send_reminders" 
+                               {% if billing_settings and billing_settings.auto_send_reminders %}checked{% endif %}
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="auto_send_reminders" class="ml-2 block text-sm text-gray-900">
+                            Auto-send payment reminders
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Reminder Days</label>
+                        <input type="text" name="reminder_days" 
+                               value="{{ billing_settings.reminder_days if billing_settings else '7,14,30' }}" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-sm text-gray-500 mt-1">Comma-separated days after due date (e.g., 7,14,30)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                    Save Settings
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

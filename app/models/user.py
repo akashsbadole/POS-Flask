@@ -20,8 +20,8 @@ class User(UserMixin, db.Model):
     profile_image = db.Column(db.String(255))
     
     # Relationships
-    orders = db.relationship('Order', backref='user', lazy=True)
-    restaurant = db.relationship('Restaurant', backref='users', lazy=True)
+    orders = db.relationship('Order', back_populates='user')
+    restaurant = db.relationship('Restaurant', back_populates='users')
     
     def set_password(self, password):
         """Set password hash"""

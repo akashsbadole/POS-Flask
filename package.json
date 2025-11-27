@@ -1,0 +1,41 @@
+{
+  "name": "restaurant-pos",
+  "version": "1.0.0",
+  "description": "Restaurant POS System with Food-themed Design",
+  "main": "run.py",
+  "scripts": {
+    "build-css": "tailwindcss -i ./app/static/css/input.css -o ./app/static/css/tailwind.css --watch",
+    "build-css-prod": "tailwindcss -i ./app/static/css/input.css -o ./app/static/css/tailwind.css --minify",
+    "dev": "concurrently \"npm run build-css\" \"python run.py\"",
+    "build": "npm run build-css-prod",
+    "postinstall": "tailwindcss -i ./app/static/css/input.css -o ./app/static/css/tailwind.css"
+  },
+  "keywords": [
+    "restaurant",
+    "pos",
+    "flask",
+    "tailwindcss",
+    "food-themed"
+  ],
+  "author": "Restaurant POS Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.7",
+    "@tailwindcss/typography": "^0.5.10",
+    "@tailwindcss/aspect-ratio": "^0.4.2",
+    "autoprefixer": "^10.4.16",
+    "concurrently": "^8.2.2",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.3.6"
+  },
+  "dependencies": {
+    "alpinejs": "^3.13.3",
+    "htmx.org": "^1.9.10"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ]
+}

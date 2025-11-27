@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Subscribe to {{ plan.name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <!-- Plan Header -->
+            <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-2xl font-bold">{{ plan.name }}</h1>
+                        <p class="text-blue-100">{{ plan.description or 'Perfect plan for your restaurant' }}</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-3xl font-bold">₹{{ "%.2f"|format(plan.price_monthly) }}</div>
+                        <div class="text-sm">per month</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plan Details -->
+            <div class="p-6">
+                <form method="POST" class="space-y-6">
+                    <!-- Billing Cycle Selection -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Choose Billing Cycle</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <label class="relative bg-white border-2 rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors">
+                                <input type="radio" name="billing_cycle" value="monthly" checked class="sr-only">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <span class="text-lg font-semibold">Monthly</span>
+                                        <span class="text-gray-600">₹{{ "%.2f"|format(plan.price_monthly) }}/month</span>
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        Billed monthly
+                                    </div>
+                                </div>
+                            </label>
+                            
+                            <label class="relative bg-white border-2 rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors">
+                                <input type="radio" name="billing_cycle" value="yearly" class="sr-only">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <span class="text-lg font-semibold">Yearly</span>
+                                        <span class="text-gray-600">₹{{ "%.2f"|format(plan.price_yearly) }}/year</span>
+                                        <span class="text-green-600 font-semibold">Save 17%</span>
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        Billed annually
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Payment Method -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Payment Method</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <label class="relative bg-white border-2 rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors">
+                                <input type="radio" name="payment_method" value="credit_card" checked class="sr-only">
+                                <div class="text-center">
+                                    <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 2v8a2 2 0 01-2 2h14a2 2 0 012-2v-8a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2z"></path>
+                                    </svg>
+                                    <span class="text-sm font-medium">Credit Card</span>
+                                </div>
+                            </label>
+                            
+                            <label class="relative bg-white border-2 rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors">
+                                <input type="radio" name="payment_method" value="bank_transfer" class="sr-only">
+                                <div class="text-center">
+                                    <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                    </svg>
+                                    <span class="text-sm font-medium">Bank Transfer</span>
+                                </div>
+                            </label>
+                            
+                            <label class="relative bg-white border-2 rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors">
+                                <input type="radio" name="payment_method" value="upi" class="sr-only">
+                                <div class="text-center">
+                                    <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 12h.01M12 6h.01M16 12h.01M21 12h.01"></path>
+                                    </svg>
+                                    <span class="text-sm font-medium">UPI</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Plan Features -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">What's Included</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="flex items-center space-x-3 p-4 bg-green-50 rounded-lg">
+                                <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010-1.414l-8 8a1 1 0 01-1.414 0l-8-8a1 1 0 011.414 0l8 8a1 1 0 001.414 0l-8 8z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-sm font-medium">Up to {{ plan.max_users }} users</span>
+                            </div>
+                            
+                            <div class="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg">
+                                <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010-1.414l-8 8a1 1 0 01-1.414 0l-8-8a1 1 0 011.414 0l8 8a1 1 0 001.414 0l-8 8z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-sm font-medium">{{ plan.max_orders_per_month }} orders/month</span>
+                            </div>
+                            
+                            {% if plan.api_access %}
+                            <div class="flex items-center space-x-3 p-4 bg-purple-50 rounded-lg">
+                                <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010-1.414l-8 8a1 1 0 01-1.414 0l-8-8a1 1 0 011.414 0l8 8a1 1 0 001.414 0l-8 8z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-sm font-medium">API Access</span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if plan.advanced_reporting %}
+                            <div class="flex items-center space-x-3 p-4 bg-yellow-50 rounded-lg">
+                                <svg class="w-6 h-6 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010-1.414l-8 8a1 1 0 01-1.414 0l-8-8a1 1 0 011.414 0l8 8a1 1 0 001.414 0l-8 8z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-sm font-medium">Advanced Reports</span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if plan.priority_support %}
+                            <div class="flex items-center space-x-3 p-4 bg-red-50 rounded-lg">
+                                <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010-1.414l-8 8a1 1 0 01-1.414 0l-8-8a1 1 0 011.414 0l8 8a1 1 0 001.414 0l-8 8z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span class="text-sm font-medium">Priority Support</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex justify-between items-center">
+                        <a href="{{ url_for('subscription.plans') }}" class="text-gray-600 hover:text-gray-800">
+                            ← Back to Plans
+                        </a>
+                        <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-md font-medium hover:bg-blue-700">
+                            Subscribe Now
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

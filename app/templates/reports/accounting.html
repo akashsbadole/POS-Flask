@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Accounting Reports{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Accounting Reports</h1>
+        <div class="flex space-x-4">
+            <form method="GET" class="flex space-x-2">
+                <input type="date" name="start_date" value="{{ start_date.strftime('%Y-%m-%d') }}" class="border rounded px-3 py-2">
+                <input type="date" name="end_date" value="{{ end_date.strftime('%Y-%m-%d') }}" class="border rounded px-3 py-2">
+                
+                <select name="type" class="border rounded px-3 py-2">
+                    <option value="profit_loss" {% if report_type == 'profit_loss' %}selected{% endif %}>Profit & Loss</option>
+                    <option value="balance_sheet" {% if report_type == 'balance_sheet' %}selected{% endif %}>Balance Sheet</option>
+                    <option value="cash_flow" {% if report_type == 'cash_flow' %}selected{% endif %}>Cash Flow</option>
+                </select>
+                
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Filter</button>
+            </form>
+            
+            <a href="{{ url_for('reports.export_accounting', start_date=start_date.strftime('%Y-%m-%d'), end_date=end_date.strftime('%Y-%m-%d'), type=report_type) }}" 
+               class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                Export CSV
+            </a>
+        </div>
+    </div>
+
+    {% if report_type == 'profit_loss' %}
+    <!-- Profit & Loss Statement -->
+    <div class="bg-white rounded-lg shadow mb-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">Profit & Loss Statement</h2>
+            <p class="text-sm text-gray-500 mt-1">Period: {{ start_date.strftime('%B %d, %Y') }} - {{ end_date.strftime('%B %d, %Y') }}</p>
+        </div>
+        
+        <div class="p-6">
+            <!-- Revenue Section -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Revenue</h3>
+                <div class="space-y-2">
+                    {% for item in accounting_data.profit_loss_items %}
+                    {% if item.type == 'Revenue' %}
+                    <div class="flex justify-between py-2 border-b">
+                        <span class="text-gray-700">{{ item.name }}</span>
+                        <span class="font-medium text-green-600">₹{{ "%.2f"|format(item.amount) }}</span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                
+                <div class="flex justify-between py-3 mt-4 border-t-2 border-gray-300">
+                    <span class="text-lg font-semibold">Total Revenue</span>
+                    <span class="text-lg font-bold text-green-600">
+                        ₹{{ "%.2f"|format(accounting_data.profit_loss_items | selectattr('type', 'equalto', 'Revenue') | map(attribute='amount') | sum) }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Expenses Section -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Expenses</h3>
+                <div class="space-y-2">
+                    {% for item in accounting_data.profit_loss_items %}
+                    {% if item.type == 'Expense' %}
+                    <div class="flex justify-between py-2 border-b">
+                        <span class="text-gray-700">{{ item.name }}</span>
+                        <span class="font-medium text-red-600">₹{{ "%.2f"|format(item.amount) }}</span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                
+                <div class="flex justify-between py-3 mt-4 border-t-2 border-gray-300">
+                    <span class="text-lg font-semibold">Total Expenses</span>
+                    <span class="text-lg font-bold text-red-600">
+                        ₹{{ "%.2f"|format(accounting_data.profit_loss_items | selectattr('type', 'equalto', 'Expense') | map(attribute='amount') | sum) }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Profit/Loss Summary -->
+            <div class="bg-gray-50 rounded-lg p-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="text-center">
+                        <div class="text-sm text-gray-500 mb-1">Gross Revenue</div>
+                        <div class="text-2xl font-bold text-green-600">
+                            ₹{{ "%.2f"|format(accounting_data.profit_loss_items | selectattr('type', 'equalto', 'Revenue') | map(attribute='amount') | sum) }}
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <div class="text-sm text-gray-500 mb-1">Total Expenses</div>
+                        <div class="text-2xl font-bold text-red-600">
+                            ₹{{ "%.2f"|format(accounting_data.profit_loss_items | selectattr('type', 'equalto', 'Expense') | map(attribute='amount') | sum) }}
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <div class="text-sm text-gray-500 mb-1">Net Profit/Loss</div>
+                        <div class="text-2xl font-bold {% if accounting_data.profit_loss_items | selectattr('type', 'equalto', 'Profit') | map(attribute='amount') | sum > 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                            ₹{{ "%.2f"|format(accounting_data.profit_loss_items | selectattr('type', 'equalto', 'Profit') | map(attribute='amount') | sum) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% elif report_type == 'balance_sheet' %}
+    <!-- Balance Sheet -->
+    <div class="bg-white rounded-lg shadow mb-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">Balance Sheet</h2>
+            <p class="text-sm text-gray-500 mt-1">As of {{ end_date.strftime('%B %d, %Y') }}</p>
+        </div>
+        
+        <div class="p-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Assets -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Assets</h3>
+                    <div class="space-y-2">
+                        {% for item in accounting_data.balance_sheet_items %}
+                        {% if item.type == 'Asset' %}
+                        <div class="flex justify-between py-2 border-b">
+                            <span class="text-gray-700">{{ item.name }}</span>
+                            <span class="font-medium">₹{{ "%.2f"|format(item.balance) }}</span>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="flex justify-between py-3 mt-4 border-t-2 border-gray-300">
+                        <span class="text-lg font-semibold">Total Assets</span>
+                        <span class="text-lg font-bold">
+                            ₹{{ "%.2f"|format(accounting_data.balance_sheet_items | selectattr('type', 'equalto', 'Asset') | map(attribute='balance') | sum) }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Liabilities & Equity -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Liabilities & Equity</h3>
+                    
+                    <!-- Liabilities -->
+                    <div class="mb-6">
+                        <h4 class="text-md font-medium text-gray-700 mb-2">Liabilities</h4>
+                        <div class="space-y-2">
+                            {% for item in accounting_data.balance_sheet_items %}
+                            {% if item.type == 'Liability' %}
+                            <div class="flex justify-between py-2 border-b">
+                                <span class="text-gray-700">{{ item.name }}</span>
+                                <span class="font-medium">₹{{ "%.2f"|format(item.balance) }}</span>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="flex justify-between py-3 mt-4 border-t border-gray-300">
+                            <span class="font-semibold">Total Liabilities</span>
+                            <span class="font-bold">
+                                ₹{{ "%.2f"|format(accounting_data.balance_sheet_items | selectattr('type', 'equalto', 'Liability') | map(attribute='balance') | sum) }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Equity -->
+                    <div>
+                        <h4 class="text-md font-medium text-gray-700 mb-2">Equity</h4>
+                        <div class="space-y-2">
+                            {% for item in accounting_data.balance_sheet_items %}
+                            {% if item.type == 'Equity' %}
+                            <div class="flex justify-between py-2 border-b">
+                                <span class="text-gray-700">{{ item.name }}</span>
+                                <span class="font-medium">₹{{ "%.2f"|format(item.balance) }}</span>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="flex justify-between py-3 mt-4 border-t border-gray-300">
+                            <span class="font-semibold">Total Equity</span>
+                            <span class="font-bold">
+                                ₹{{ "%.2f"|format(accounting_data.balance_sheet_items | selectattr('type', 'equalto', 'Equity') | map(attribute='balance') | sum) }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Total Liabilities & Equity -->
+                    <div class="flex justify-between py-3 mt-4 border-t-2 border-gray-300">
+                        <span class="text-lg font-semibold">Total Liabilities & Equity</span>
+                        <span class="text-lg font-bold">
+                            ₹{{ "%.2f"|format((accounting_data.balance_sheet_items | selectattr('type', 'equalto', 'Liability') | map(attribute='balance') | sum) + (accounting_data.balance_sheet_items | selectattr('type', 'equalto', 'Equity') | map(attribute='balance') | sum)) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% elif report_type == 'cash_flow' %}
+    <!-- Cash Flow Statement -->
+    <div class="bg-white rounded-lg shadow mb-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">Cash Flow Statement</h2>
+            <p class="text-sm text-gray-500 mt-1">Period: {{ start_date.strftime('%B %d, %Y') }} - {{ end_date.strftime('%B %d, %Y') }}</p>
+        </div>
+        
+        <div class="p-6">
+            <div class="text-center py-12">
+                <div class="text-gray-500">Cash flow report coming soon...</div>
+                <p class="text-sm text-gray-400 mt-2">This will show operating, investing, and financing activities</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Transactions -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">Recent Transactions</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Debit Account</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credit Account</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for transaction in accounting_data.transactions[:20] %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ transaction.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-900">{{ transaction.description }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-900">{{ transaction.debit_account.name }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-900">{{ transaction.credit_account.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            ₹{{ "%.2f"|format(transaction.amount) }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
