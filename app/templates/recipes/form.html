@@ -12,6 +12,7 @@
     </div>
 
     <form method="POST" class="space-y-8">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <!-- Basic Information -->
         <div class="bg-white rounded-lg shadow p-6">
             <h2 class="text-xl font-semibold text-gray-900 mb-6">Basic Information</h2>

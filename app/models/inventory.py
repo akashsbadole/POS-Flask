@@ -12,6 +12,7 @@ class Ingredient(db.Model):
     minimum_stock = db.Column(db.Numeric(10, 3), default=0.000)
     unit_cost = db.Column(db.Numeric(10, 2), default=0.00)
     supplier = db.Column(db.String(100))
+    category = db.Column(db.String(50), default='other')  # vegetable, meat, dairy, grain, spice, liquid, other
     last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
@@ -58,6 +59,7 @@ class Ingredient(db.Model):
             'minimum_stock': float(self.minimum_stock),
             'unit_cost': float(self.unit_cost),
             'supplier': self.supplier,
+            'category': self.category or 'other',
             'stock_status': self.get_stock_status(),
             'is_low_stock': self.is_low_stock(),
             'last_updated': self.last_updated.isoformat() if self.last_updated else None

@@ -52,6 +52,32 @@ def create_category():
     
     return render_template('menu/category_form.html')
 
+@bp.route('/categories/<int:category_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_category(category_id):
+    """Edit an existing menu category"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    category = Category.query.get_or_404(category_id)
+    
+    if request.method == 'POST':
+        category.name = request.form.get('name')
+        category.description = request.form.get('description')
+        category.display_order = request.form.get('display_order', 0, type=int)
+        
+        db.session.commit()
+        
+        flash(f'Category "{category.name}" updated successfully', 'success')
+        
+        if request.headers.get('HX-Request'):
+            return render_template('menu/partials/category_item.html', category=category)
+        
+        return redirect(url_for('menu.list_categories'))
+    
+    return render_template('menu/category_form.html', category=category, edit_mode=True)
+
 @bp.route('/items')
 @login_required
 def list_items():

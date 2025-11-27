@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Report{% endblock %}
+
+{% block extra_css %}
+<style>
+.report-header {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6;
+}
+
+.filters-section {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6;
+}
+
+.table-container {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden;
+}
+
+.sales-table {
+    @apply w-full;
+}
+
+.sales-table th {
+    @apply bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+}
+
+.sales-table td {
+    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-t border-gray-200;
+}
+
+.status-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.status-completed {
+    @apply bg-green-100 text-green-800;
+}
+
+.status-pending {
+    @apply bg-yellow-100 text-yellow-800;
+}
+
+.status-cancelled {
+    @apply bg-red-100 text-red-800;
+}
+
+.payment-method {
+    @apply inline-flex items-center;
+}
+
+.payment-icon-cash::before { content: "💵"; margin-right: 0.25rem; }
+.payment-icon-card::before { content: "💳"; margin-right: 0.25rem; }
+.payment-icon-upi::before { content: "📱"; margin-right: 0.25rem; }
+.payment-icon-wallet::before { content: "👛"; margin-right: 0.25rem; }
+
+.export-button {
+    @apply inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors;
+}
+
+.summary-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+}
+
+.summary-value {
+    @apply text-2xl font-bold text-gray-900;
+}
+
+.summary-label {
+    @apply text-sm font-medium text-gray-600;
+}
+
+.summary-change {
+    @apply text-xs font-medium;
+}
+
+.change-positive {
+    @apply text-green-600;
+}
+
+.change-negative {
+    @apply text-red-600;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8" x-data="salesReport()">
+    <!-- Report Header -->
+    <div class="report-header">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+                    <svg class="w-8 h-8 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Sales Report
+                </h1>
+                <p class="text-gray-600 mt-2">Detailed sales analysis and transaction history</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button @click="exportData()" class="export-button">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Export CSV
+                </button>
+                <button @click="printReport()" class="export-button">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                    </svg>
+                    Print Summary
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="summary-card">
+            <div class="summary-label">Total Sales</div>
+            <div class="summary-value text-green-600" x-text="'₹' + totalSales.toLocaleString()"></div>
+            <div class="summary-change change-positive">+12.5% vs last period</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Total Orders</div>
+            <div class="summary-value text-blue-600" x-text="totalOrders.toLocaleString()"></div>
+            <div class="summary-change change-positive">+8.3% vs last period</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Average Order Value</div>
+            <div class="summary-value text-purple-600" x-text="'₹' + averageOrderValue.toFixed(2)"></div>
+            <div class="summary-change change-negative">-2.1% vs last period</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Tax Collected</div>
+            <div class="summary-value text-orange-600" x-text="'₹' + totalTax.toLocaleString()"></div>
+            <div class="summary-change change-positive">+15.7% vs last period</div>
+        </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="filters-section">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                <input type="date" x-model="filters.startDate" @change="applyFilters()" 
+                       class="w-full border border-gray-300 rounded-md px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                <input type="date" x-model="filters.endDate" @change="applyFilters()" 
+                       class="w-full border border-gray-300 rounded-md px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select x-model="filters.status" @change="applyFilters()" 
+                        class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    <option value="">All Status</option>
+                    <option value="served">Completed</option>
+                    <option value="pending">Pending</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+                <select x-model="filters.paymentMethod" @change="applyFilters()" 
+                        class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    <option value="">All Methods</option>
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                    <option value="upi">UPI</option>
+                    <option value="wallet">Wallet</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sales Table -->
+    <div class="table-container">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Sales Transactions</h3>
+            <p class="text-sm text-gray-600 mt-1">Showing <span x-text="filteredOrders.length"></span> orders</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="sales-table">
+                <thead>
+                    <tr>
+                        <th>Order #</th>
+                        <th>Date & Time</th>
+                        <th>Status</th>
+                        <th>Subtotal</th>
+                        <th>Tax</th>
+                        <th>Total</th>
+                        <th>Payment Method</th>
+                        <th>Staff</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="order in filteredOrders" :key="order.id">
+                        <tr>
+                            <td class="font-medium" x-text="order.order_number"></td>
+                            <td x-text="new Date(order.created_at).toLocaleString()"></td>
+                            <td>
+                                <span class="status-badge" 
+                                      :class="'status-' + order.status.toLowerCase()"
+                                      x-text="order.status.charAt(0).toUpperCase() + order.status.slice(1)"></span>
+                            </td>
+                            <td x-text="'₹' + parseFloat(order.subtotal).toFixed(2)"></td>
+                            <td x-text="'₹' + parseFloat(order.tax_amount).toFixed(2)"></td>
+                            <td class="font-semibold" x-text="'₹' + parseFloat(order.total).toFixed(2)"></td>
+                            <td>
+                                <span class="payment-method" 
+                                      :class="'payment-icon-' + (order.payment_method || 'cash').toLowerCase()"
+                                      x-text="(order.payment_method || 'Cash').charAt(0).toUpperCase() + (order.payment_method || 'Cash').slice(1)"></span>
+                            </td>
+                            <td x-text="order.staff_name || 'N/A'"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function salesReport() {
+    return {
+        orders: {{ orders | tojson if orders else '[]' }},
+        filteredOrders: [],
+        filters: {
+            startDate: '{{ start_date.strftime("%Y-%m-%d") if start_date else "" }}',
+            endDate: '{{ end_date.strftime("%Y-%m-%d") if end_date else "" }}',
+            status: '',
+            paymentMethod: ''
+        },
+        totalSales: 0,
+        totalOrders: 0,
+        averageOrderValue: 0,
+        totalTax: 0,
+        
+        init() {
+            this.applyFilters();
+        },
+        
+        applyFilters() {
+            this.filteredOrders = this.orders.filter(order => {
+                const orderDate = new Date(order.created_at);
+                
+                // Date filter
+                if (this.filters.startDate && orderDate < new Date(this.filters.startDate)) {
+                    return false;
+                }
+                if (this.filters.endDate && orderDate > new Date(this.filters.endDate + 'T23:59:59')) {
+                    return false;
+                }
+                
+                // Status filter
+                if (this.filters.status && order.status !== this.filters.status) {
+                    return false;
+                }
+                
+                // Payment method filter
+                if (this.filters.paymentMethod) {
+                    const payments = order.payments || [];
+                    const hasPaymentMethod = payments.some(p => 
+                        p.method && p.method.toLowerCase() === this.filters.paymentMethod.toLowerCase()
+                    );
+                    if (!hasPaymentMethod) return false;
+                }
+                
+                return true;
+            });
+            
+            this.calculateSummary();
+        },
+        
+        calculateSummary() {
+            this.totalOrders = this.filteredOrders.length;
+            this.totalSales = this.filteredOrders.reduce((sum, order) => 
+                sum + parseFloat(order.total || 0), 0);
+            this.totalTax = this.filteredOrders.reduce((sum, order) => 
+                sum + parseFloat(order.tax_amount || 0), 0);
+            this.averageOrderValue = this.totalOrders > 0 ? this.totalSales / this.totalOrders : 0;
+        },
+        
+        exportData() {
+            const params = new URLSearchParams();
+            if (this.filters.startDate) params.append('start_date', this.filters.startDate);
+            if (this.filters.endDate) params.append('end_date', this.filters.endDate);
+            
+            window.open(`/reports/export/sales?${params.toString()}`, '_blank');
+        },
+        
+        printReport() {
+            const params = new URLSearchParams();
+            params.append('start_date', this.filters.startDate);
+            params.append('end_date', this.filters.endDate);
+            params.append('type', 'sales');
+            window.open(`/reports/print-summary?${params.toString()}`, '_blank');
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -60,6 +60,7 @@
           hx-post="{{ url_for('orders.process_split_payment', order_id=order.id) }}"
           hx-target="#order-totals"
           hx-swap="innerHTML">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         
         <div class="space-y-3 mb-4">
             <template x-for="(payment, index) in paymentMethods" :key="index">

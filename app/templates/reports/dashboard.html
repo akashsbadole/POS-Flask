@@ -429,11 +429,16 @@ function reportsManager() {
         },
         
         printReport() {
-            window.print();
+            const params = new URLSearchParams();
+            if (this.customStartDate) params.append('start_date', this.customStartDate);
+            if (this.customEndDate) params.append('end_date', this.customEndDate);
+            params.append('type', 'dashboard');
+            
+            window.open(`/reports/print-summary?${params.toString()}`, '_blank');
         },
         
         scheduleReport() {
-            alert('Report scheduling feature coming soon!');
+            window.location.href = '/reports/schedule';
         },
         
         refreshReports() {

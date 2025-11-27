@@ -25,6 +25,15 @@
                 
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Filter</button>
             </form>
+            
+            <a href="{{ url_for('reports.export_expenses', start_date=start_date.strftime('%Y-%m-%d'), end_date=end_date.strftime('%Y-%m-%d'), category=selected_category) }}"
+               class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                Export CSV
+            </a>
+            <a href="{{ url_for('reports.print_summary', start_date=start_date.strftime('%Y-%m-%d'), end_date=end_date.strftime('%Y-%m-%d'), type='expenses', category=selected_category) }}"
+               class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700" target="_blank">
+                Print Summary
+            </a>
         </div>
     </div>
 

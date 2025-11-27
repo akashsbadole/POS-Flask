@@ -258,7 +258,20 @@ def inventory_reports():
 @login_required
 def api_ingredients():
     """API endpoint to get ingredients"""
-    ingredients = Ingredient.query.order_by(Ingredient.name).all()
+    stock_filter = request.args.get('stock_filter')
+    search = request.args.get('search', '')
+    
+    query = Ingredient.query
+    
+    if search:
+        query = query.filter(Ingredient.name.contains(search))
+    
+    if stock_filter == 'low':
+        query = query.filter(Ingredient.current_stock <= Ingredient.minimum_stock)
+    elif stock_filter == 'out':
+        query = query.filter(Ingredient.current_stock == 0)
+    
+    ingredients = query.order_by(Ingredient.name).all()
     return jsonify([ingredient.to_dict() for ingredient in ingredients])
 
 @bp.route('/api/ingredients/<int:ingredient_id>')

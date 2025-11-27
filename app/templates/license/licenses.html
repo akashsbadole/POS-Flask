@@ -121,6 +121,7 @@
                             </a>
                             {% if license.is_valid() %}
                                 <form method="POST" action="{{ url_for('license.verify_license', license_id=license.id) }}" class="inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="text-green-600 hover:text-green-900">
                                         Verify
                                     </button>

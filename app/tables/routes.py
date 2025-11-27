@@ -245,3 +245,33 @@ def get_sections():
     """API endpoint to get floor sections"""
     sections = db.session.query(Table.floor_section).distinct().all()
     return jsonify([section[0] for section in sections if section[0]])
+
+@bp.route('/partials/table-list')
+@login_required
+def partials_table_list():
+    """Return table list partial for HTMX requests"""
+    if not current_user.can_access_manager_features():
+        return '', 403  # Forbidden
+    
+    # Get query parameters
+    search = request.args.get('search', '')
+    status = request.args.get('status', '')
+    
+    # Build query
+    query = Table.query
+    
+    if search:
+        query = query.filter(
+            Table.number.ilike(f'%{search}%') |
+            Table.name.ilike(f'%{search}%')
+        )
+    
+    if status:
+        try:
+            query = query.filter(Table.status == TableStatus(status))
+        except ValueError:
+            pass  # Invalid status, ignore
+    
+    tables = query.order_by(Table.number).all()
+    
+    return render_template('tables/partials/table_list.html', tables=tables)

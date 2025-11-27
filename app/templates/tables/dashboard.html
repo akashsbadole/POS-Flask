@@ -461,7 +461,7 @@ function tableManager() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                        'X-CSRFToken': '{{ csrf_token() }}'
                     },
                     body: JSON.stringify({ status: newStatus })
                 });
@@ -485,7 +485,7 @@ function tableManager() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                        'X-CSRFToken': '{{ csrf_token() }}'
                     }
                 });
                 

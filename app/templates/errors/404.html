@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found{% endblock %}
+
+{% block extra_css %}
+<style>
+.error-container {
+    @apply min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8;
+}
+
+.error-content {
+    @apply max-w-md w-full text-center;
+}
+
+.error-code {
+    @apply text-9xl font-bold text-gray-300 mb-4;
+}
+
+.error-title {
+    @apply text-3xl font-bold text-gray-900 mb-2;
+}
+
+.error-description {
+    @apply text-gray-600 mb-8;
+}
+
+.error-actions {
+    @apply space-y-4;
+}
+
+.action-button {
+    @apply w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors;
+}
+
+.secondary-button {
+    @apply w-full flex justify-center py-3 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors;
+}
+
+.error-illustration {
+    @apply mb-8;
+}
+
+.search-box {
+    @apply mt-6 relative;
+}
+
+.search-input {
+    @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500;
+}
+
+.search-button {
+    @apply absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-gray-400 hover:text-gray-600;
+}
+
+.helpful-links {
+    @apply mt-8 grid grid-cols-2 gap-4;
+}
+
+.link-card {
+    @apply p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer;
+}
+
+.link-title {
+    @apply font-medium text-gray-900 mb-1;
+}
+
+.link-description {
+    @apply text-sm text-gray-600;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-content">
+        <!-- Error Illustration -->
+        <div class="error-illustration">
+            <svg class="mx-auto h-24 w-24 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </div>
+
+        <!-- Error Code -->
+        <div class="error-code">404</div>
+        
+        <!-- Error Title -->
+        <h1 class="error-title">Page Not Found</h1>
+        
+        <!-- Error Description -->
+        <p class="error-description">
+            Sorry, we couldn't find the page you're looking for. The page might have been removed, 
+            had its name changed, or is temporarily unavailable.
+        </p>
+        
+        <!-- Search Box -->
+        <div class="search-box">
+            <input type="text" 
+                   placeholder="Search for what you need..." 
+                   class="search-input"
+                   x-data="{ searchQuery: '' }"
+                   @keyup.enter="window.location.href = `/search?q=${searchQuery}`">
+            <button class="search-button" @click="window.location.href = `/search?q=${searchQuery}`">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="error-actions">
+            <a href="{{ url_for('main.dashboard') }}" class="action-button">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                Go to Dashboard
+            </a>
+            
+            <button onclick="history.back()" class="secondary-button">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Go Back
+            </button>
+        </div>
+        
+        <!-- Helpful Links -->
+        <div class="helpful-links">
+            <div class="link-card" onclick="window.location.href='{{ url_for('menu.list_categories') }}'">
+                <div class="link-title">Menu Management</div>
+                <div class="link-description">Manage menu items and categories</div>
+            </div>
+            
+            <div class="link-card" onclick="window.location.href='{{ url_for('orders.list_orders') }}'">
+                <div class="link-title">Orders</div>
+                <div class="link-description">View and manage orders</div>
+            </div>
+            
+            <div class="link-card" onclick="window.location.href='{{ url_for('tables.manage_tables') }}'">
+                <div class="link-title">Table Management</div>
+                <div class="link-description">Manage restaurant tables</div>
+            </div>
+            
+            <div class="link-card" onclick="window.location.href='{{ url_for('reports.dashboard') }}'">
+                <div class="link-title">Reports</div>
+                <div class="link-description">View business reports</div>
+            </div>
+        </div>
+        
+        <!-- Contact Support -->
+        <div class="mt-8 p-4 bg-blue-50 rounded-lg">
+            <p class="text-sm text-blue-800">
+                <strong>Still can't find what you're looking for?</strong><br>
+                Contact our support team for assistance.
+            </p>
+            <a href="{{ url_for('support.contact') }}" class="inline-flex items-center mt-2 text-blue-600 hover:text-blue-800">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                </svg>
+                Contact Support
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

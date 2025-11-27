@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - Restaurant POS{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Page Header -->
+    <div class="bg-white rounded-lg shadow-sm border border-orange-200 mb-6">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h1 class="text-2xl font-bold text-gray-900">User Profile</h1>
+                <div class="flex items-center space-x-2">
+                    <span class="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
+                        {{ current_user.get_role_display_name() }}
+                    </span>
+                    {% if current_user.user_active %}
+                    <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                        Active
+                    </span>
+                    {% else %}
+                    <span class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
+                        Inactive
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Profile Information -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-lg shadow-sm border border-orange-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Profile Information</h2>
+                </div>
+                <div class="p-6">
+                    <div class="flex items-center mb-6">
+                        <div class="w-20 h-20 bg-orange-500 rounded-full flex items-center justify-center text-white text-2xl font-bold food-pulse">
+                            {{ current_user.name[0].upper() }}
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-xl font-semibold text-gray-900">{{ current_user.name }}</h3>
+                            <p class="text-gray-600">{{ current_user.get_role_display_name() }}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                            <div class="flex items-center text-gray-900">
+                                <i class="fas fa-envelope mr-2 text-orange-500"></i>
+                                {{ current_user.email }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                            <div class="flex items-center text-gray-900">
+                                <i class="fas fa-phone mr-2 text-orange-500"></i>
+                                {{ current_user.phone or 'Not set' }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">User ID</label>
+                            <div class="flex items-center text-gray-900">
+                                <i class="fas fa-id-badge mr-2 text-orange-500"></i>
+                                #{{ current_user.id }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Member Since</label>
+                            <div class="flex items-center text-gray-900">
+                                <i class="fas fa-calendar mr-2 text-orange-500"></i>
+                                {{ current_user.created_at.strftime('%B %d, %Y') if current_user.created_at else 'Unknown' }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Last Login</label>
+                            <div class="flex items-center text-gray-900">
+                                <i class="fas fa-clock mr-2 text-orange-500"></i>
+                                {{ current_user.last_login.strftime('%B %d, %Y at %I:%M %p') if current_user.last_login else 'Never' }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">PIN Code</label>
+                            <div class="flex items-center text-gray-900">
+                                <i class="fas fa-key mr-2 text-orange-500"></i>
+                                {% if current_user.pin_code %}
+                                <span class="text-green-600">Set</span>
+                                {% else %}
+                                <span class="text-gray-500">Not set</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-lg shadow-sm border border-orange-200 mt-6">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Quick Actions</h2>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <a href="{{ url_for('auth.change_password') }}" 
+                           class="flex items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors border border-blue-200">
+                            <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white mr-4">
+                                <i class="fas fa-lock"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-blue-900">Change Password</h3>
+                                <p class="text-sm text-blue-700">Update your account password</p>
+                            </div>
+                        </a>
+
+                        <a href="{{ url_for('auth.set_pin') }}" 
+                           class="flex items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors border border-green-200">
+                            <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white mr-4">
+                                <i class="fas fa-key"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-green-900">Set PIN Code</h3>
+                                <p class="text-sm text-green-700">Configure quick login PIN</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Permissions & Access -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow-sm border border-orange-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Permissions</h2>
+                </div>
+                <div class="p-6">
+                    <div class="space-y-3">
+                        {% for permission in current_user.get_permissions() %}
+                        <div class="flex items-center">
+                            <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                            <span class="text-sm text-gray-700">{{ permission.replace('_', ' ').title() }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Restaurant Info (if applicable) -->
+            {% if current_user.restaurant %}
+            <div class="bg-white rounded-lg shadow-sm border border-orange-200 mt-6">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Restaurant</h2>
+                </div>
+                <div class="p-6">
+                    <div class="space-y-3">
+                        <div class="flex items-center">
+                            <i class="fas fa-store mr-2 text-orange-500"></i>
+                            <span class="text-sm text-gray-900">{{ current_user.restaurant.name }}</span>
+                        </div>
+                        {% if current_user.restaurant.address %}
+                        <div class="flex items-start">
+                            <i class="fas fa-map-marker-alt mr-2 text-orange-500 mt-1"></i>
+                            <span class="text-sm text-gray-900">{{ current_user.restaurant.address }}</span>
+                        </div>
+                        {% endif %}
+                        {% if current_user.restaurant.phone %}
+                        <div class="flex items-center">
+                            <i class="fas fa-phone mr-2 text-orange-500"></i>
+                            <span class="text-sm text-gray-900">{{ current_user.restaurant.phone }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

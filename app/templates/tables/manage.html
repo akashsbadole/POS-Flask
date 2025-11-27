@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Tables{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6" x-data="tablesManager()">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Manage Tables</h1>
+            <p class="text-gray-600">Configure and manage restaurant tables</p>
+        </div>
+        <a href="{{ url_for('tables.create_table') }}" 
+           class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            Add Table
+        </a>
+    </div>
+
+    {% if tables %}
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">All Tables</h2>
+                <div class="flex items-center space-x-3">
+                    <div class="relative">
+                        <input type="text"
+                               x-model="searchQuery"
+                               @input.debounce.300ms="performSearch()"
+                               placeholder="Search tables..."
+                               class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-2a2 2 0 00-2.828 2.828l1.172 1.172H4a2 2 0 00-2.828 2.828L4 7.172V4a2 2 0 002.828 2.828l1.172-1.172L16 16z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <select x-model="selectedStatus" @change="filterByStatus(selectedStatus)"
+                            class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">All Status</option>
+                        <option value="free">Available</option>
+                        <option value="occupied">Occupied</option>
+                        <option value="reserved">Reserved</option>
+                        <option value="cleaning">Cleaning</option>
+                        <option value="maintenance">Maintenance</option>
+                    </select>
+                    <button @click="showAddTableModal()"
+                            class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        Add Table
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Loading indicator -->
+        <div x-show="isLoading" class="flex justify-center py-8" id="loading-indicator">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+        
+        <!-- Table content with HTMX -->
+        <div id="table-list"
+             hx-get="{{ url_for('tables.partials_table_list') }}"
+             hx-trigger="load"
+             hx-target="#table-list"
+             hx-indicator="#loading-indicator">
+            <!-- Table content will be loaded here -->
+        </div>
+        
+        <!-- Static table as fallback -->
+        <div class="overflow-x-auto" x-show="!isLoading">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Table
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Name
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Capacity
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Section
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Active
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for table in tables %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {{ table.number }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ table.name or '-' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ table.capacity }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ table.floor_section or '-' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                  {% if table.status.value == 'free' %}bg-green-100 text-green-800
+                                  {% elif table.status.value == 'occupied' %}bg-red-100 text-red-800
+                                  {% elif table.status.value == 'reserved' %}bg-yellow-100 text-yellow-800
+                                  {% elif table.status.value == 'cleaning' %}bg-blue-100 text-blue-800
+                                  {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ table.get_status_text() }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if table.is_active %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Active
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                Inactive
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div class="flex space-x-2">
+                                <button @click="editTable({{ table.id }})"
+                                        class="text-blue-600 hover:text-blue-900">
+                                    Edit
+                                </button>
+                                <button @click="deleteTable({{ table.id }})"
+                                        class="text-red-600 hover:text-red-900">
+                                    Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow">
+        <div class="p-12 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No tables</h3>
+            <p class="mt-1 text-sm text-gray-500">Get started by creating your first table.</p>
+            <div class="mt-6">
+                <a href="{{ url_for('tables.create_table') }}" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Add Table
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="mt-6 flex justify-between">
+        <div class="text-sm text-gray-500">
+            Total: {{ tables|length }} tables
+        </div>
+        <a href="{{ url_for('tables.floor_plan') }}" 
+           class="text-blue-600 hover:text-blue-900 text-sm">
+            View Floor Plan →
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+<script>
+function tablesManager() {
+    return {
+        isLoading: false,
+        searchQuery: '',
+        selectedStatus: '',
+        tables: {{ tables|tojson|safe }},
+        
+        init() {
+            // Initialize with empty search
+            this.performSearch();
+        },
+        
+        performSearch() {
+            this.isLoading = true;
+            
+            // Build query parameters
+            const params = new URLSearchParams();
+            if (this.searchQuery) params.append('search', this.searchQuery);
+            if (this.selectedStatus) params.append('status', this.selectedStatus);
+            
+            // Make HTMX request to update table list
+            const url = `{{ url_for('tables.partials_table_list') }}?${params.toString()}`;
+            
+            htmx.ajax('GET', url, {
+                target: '#table-list',
+                swap: 'innerHTML',
+                headers: {
+                    'HX-Trigger': 'search'
+                }
+            }).then(() => {
+                this.isLoading = false;
+            }).catch(error => {
+                console.error('Search error:', error);
+                this.isLoading = false;
+                this.showNotification('Error searching tables', 'error');
+            });
+        },
+        
+        filterByStatus(status) {
+            this.selectedStatus = status;
+            this.performSearch();
+        },
+        
+        showAddTableModal() {
+            // Show modal for adding new table
+            const modal = document.getElementById('add-table-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } else {
+                // Fallback to navigation if modal doesn't exist
+                window.location.href = '{{ url_for("tables.create_table") }}';
+            }
+        },
+        
+        editTable(id) {
+            window.location.href = `/tables/edit/${id}`;
+        },
+        
+        deleteTable(id) {
+            if (confirm('Are you sure you want to delete this table?')) {
+                this.isLoading = true;
+                
+                fetch(`/tables/delete/${id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    this.isLoading = false;
+                    if (data.success) {
+                        // Refresh the table list
+                        this.performSearch();
+                        this.showNotification('Table deleted successfully', 'success');
+                    } else {
+                        this.showNotification('Error deleting table: ' + data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    this.isLoading = false;
+                    this.showNotification('Error deleting table', 'error');
+                });
+            }
+        },
+        
+        refreshTableList() {
+            this.performSearch();
+        },
+        
+        showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${
+                type === 'success' ? 'bg-green-500 text-white' :
+                type === 'error' ? 'bg-red-500 text-white' :
+                'bg-blue-500 text-white'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+                notification.classList.add('opacity-0', 'translate-x-full');
+                setTimeout(() => {
+                    if (document.body.contains(notification)) {
+                        document.body.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+    }
+}
+</script>

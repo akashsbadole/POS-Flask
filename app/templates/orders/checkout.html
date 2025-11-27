@@ -63,35 +63,44 @@
                             <form method="POST" action="{{ url_for('orders.process_payment', order_id=order.id) }}"
                                   hx-post="{{ url_for('orders.process_payment', order_id=order.id) }}"
                                   hx-target="#order-totals"
-                                  hx-swap="innerHTML">
+                                  hx-swap="innerHTML"
+                                  aria-label="Single payment form"
+                                  data-validate="true">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <div class="space-y-3">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-                                        <select name="payment_method" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <label for="payment_method" class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                                        <select id="payment_method" name="payment_method"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                accesskey="m" data-field="payment_method" aria-describedby="payment-method-help">
                                             <option value="cash">Cash</option>
                                             <option value="card">Card</option>
                                             <option value="upi">UPI</option>
                                             <option value="wallet">Wallet</option>
                                             <option value="gift_card">Gift Card</option>
                                         </select>
+                                        <span id="payment-method-help" class="sr-only">Select payment method</span>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                                        <label for="payment_amount" class="block text-sm font-medium text-gray-700 mb-1">Amount</label>
                                         <div class="relative">
-                                            <input type="number" 
-                                               name="amount" 
+                                            <input id="payment_amount" type="number"
+                                               name="amount"
                                                value="{{ "%.2f"|format(order.get_balance_due()) }}"
                                                step="0.01"
                                                min="0"
                                                max="{{ "%.2f"|format(order.get_balance_due()) }}"
-                                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                               accesskey="a" data-field="amount" aria-describedby="payment-amount-help">
                                             <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                                <span class="text-gray-500 text-sm">$</span>
+                                                <span class="text-gray-500 text-sm" aria-hidden="true">$</span>
                                             </div>
                                         </div>
+                                        <span id="payment-amount-help" class="sr-only">Enter payment amount</span>
                                     </div>
-                                    <button type="submit" 
-                                            class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+                                    <button type="submit"
+                                            class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                            accesskey="p" data-shortcut="F1" aria-label="Process payment">
                                         Process Payment
                                     </button>
                                 </div>
@@ -102,7 +111,8 @@
                         <div>
                             <h3 class="text-md font-medium mb-3">Split Payment</h3>
                             <button onclick="document.getElementById('split-payment-form').style.display='block'"
-                                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    accesskey="s" data-shortcut="Ctrl+Shift+P" aria-label="Open split payment form">
                                 Split Payment
                             </button>
                         </div>
@@ -111,7 +121,8 @@
                     <!-- Discount Option -->
                     <div class="mt-4 pt-4 border-t">
                         <button onclick="document.getElementById('discount-form').style.display='block'"
-                                class="w-full bg-yellow-500 text-white py-2 px-4 rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                class="w-full bg-yellow-500 text-white py-2 px-4 rounded-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                accesskey="d" data-shortcut="Ctrl+D" aria-label="Apply discount">
                             Apply Discount
                         </button>
                     </div>
@@ -160,13 +171,15 @@
                     <div class="mt-4 space-y-2">
                         {% if order.is_fully_paid() %}
                         <button onclick="window.location.href='{{ url_for('orders.print_receipt', order_id=order.id) }}'"
-                                class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+                                class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                accesskey="r" data-shortcut="Ctrl+P" aria-label="Print receipt">
                             Print Receipt
                         </button>
                         {% endif %}
                         
                         <a href="{{ url_for('orders.order_details', order_id=order.id) }}"
-                           class="block w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 text-center">
+                           class="block w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 text-center"
+                           accesskey="v" data-shortcut="Alt+V" aria-label="View order details">
                             View Order Details
                         </a>
                     </div>

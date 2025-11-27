@@ -14,30 +14,39 @@
     </div>
 
     <div class="bg-white rounded-lg shadow">
-        <form method="POST" id="invoice-form">
+        <form method="POST" id="invoice-form" data-validate="true" aria-label="Invoice form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <!-- Customer Information -->
             <div class="p-6 border-b border-gray-200">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Customer Information</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Customer Name *</label>
-                        <input type="text" name="customer_name" value="{{ invoice.customer_name if invoice else '' }}" 
-                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        <label for="customer_name" class="block text-sm font-medium text-gray-700 mb-1">Customer Name *</label>
+                        <input id="customer_name" type="text" name="customer_name" value="{{ invoice.customer_name if invoice else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               required accesskey="n" data-field="customer_name" aria-describedby="customer-name-help">
+                        <span id="customer-name-help" class="sr-only">Enter customer name</span>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input type="email" name="customer_email" value="{{ invoice.customer_email if invoice else '' }}" 
-                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <label for="customer_email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input id="customer_email" type="email" name="customer_email" value="{{ invoice.customer_email if invoice else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               accesskey="e" data-field="customer_email" aria-describedby="customer-email-help">
+                        <span id="customer-email-help" class="sr-only">Enter customer email address</span>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                        <input type="tel" name="customer_phone" value="{{ invoice.customer_phone if invoice else '' }}" 
-                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <label for="customer_phone" class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        <input id="customer_phone" type="tel" name="customer_phone" value="{{ invoice.customer_phone if invoice else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               accesskey="p" data-field="customer_phone" aria-describedby="customer-phone-help">
+                        <span id="customer-phone-help" class="sr-only">Enter customer phone number</span>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                        <textarea name="customer_address" rows="2" 
-                                  class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">{{ invoice.customer_address if invoice else '' }}</textarea>
+                        <label for="customer_address" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                        <textarea id="customer_address" name="customer_address" rows="2"
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  accesskey="a" data-field="customer_address" aria-describedby="customer-address-help">{{ invoice.customer_address if invoice else '' }}</textarea>
+                        <span id="customer-address-help" class="sr-only">Enter customer address</span>
                     </div>
                 </div>
             </div>
@@ -47,21 +56,25 @@
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Invoice Details</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
-                        <input type="text" value="{{ invoice.invoice_number if invoice else (billing_settings.generate_invoice_number() if billing_settings else 'INV-001') }}" 
-                               class="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50" disabled>
+                        <label for="invoice_number" class="block text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
+                        <input id="invoice_number" type="text" value="{{ invoice.invoice_number if invoice else (billing_settings.generate_invoice_number() if billing_settings else 'INV-001') }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50" disabled readonly>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Issue Date</label>
-                        <input type="date" name="issue_date" 
-                               value="{{ invoice.issue_date.strftime('%Y-%m-%d') if invoice else '' }}" 
-                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <label for="issue_date" class="block text-sm font-medium text-gray-700 mb-1">Issue Date</label>
+                        <input id="issue_date" type="date" name="issue_date"
+                               value="{{ invoice.issue_date.strftime('%Y-%m-%d') if invoice else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               accesskey="i" data-field="issue_date" aria-describedby="issue-date-help">
+                        <span id="issue-date-help" class="sr-only">Select invoice issue date</span>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-                        <input type="date" name="due_date" 
-                               value="{{ invoice.due_date.strftime('%Y-%m-%d') if invoice else '' }}" 
-                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <label for="due_date" class="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                        <input id="due_date" type="date" name="due_date"
+                               value="{{ invoice.due_date.strftime('%Y-%m-%d') if invoice else '' }}"
+                               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               accesskey="d" data-field="due_date" aria-describedby="due-date-help">
+                        <span id="due-date-help" class="sr-only">Select invoice due date</span>
                     </div>
                 </div>
             </div>
@@ -70,8 +83,9 @@
             <div class="p-6 border-b border-gray-200">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-semibold text-gray-800">Invoice Items</h2>
-                    <button type="button" onclick="addInvoiceItem()" 
-                            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm">
+                    <button type="button" onclick="addInvoiceItem()"
+                            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            accesskey="a" data-shortcut="Ctrl+A" aria-label="Add new invoice item">
                         Add Item
                     </button>
                 </div>
@@ -189,10 +203,14 @@
 
             <!-- Form Actions -->
             <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-2">
-                <a href="{{ url_for('billing.invoices') }}" class="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400">
+                <a href="{{ url_for('billing.invoices') }}"
+                   class="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                   accesskey="c" data-shortcut="Escape" aria-label="Cancel and return to invoices">
                     Cancel
                 </a>
-                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                <button type="submit"
+                        class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        accesskey="s" data-shortcut="Ctrl+S" aria-label="Save invoice">
                     {% if invoice %}Update Invoice{% else %}Create Invoice{% endif %}
                 </button>
             </div>

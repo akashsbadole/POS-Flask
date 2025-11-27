@@ -1,0 +1,464 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if schedule else 'Create' }} Report Schedule{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-container {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+}
+
+.form-section {
+    @apply mb-8;
+}
+
+.section-title {
+    @apply text-lg font-semibold text-gray-900 mb-4 flex items-center;
+}
+
+.form-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+}
+
+.form-group {
+    @apply mb-4;
+}
+
+.form-label {
+    @apply block text-sm font-medium text-gray-700 mb-2;
+}
+
+.form-input {
+    @apply w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+}
+
+.form-select {
+    @apply w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+}
+
+.form-textarea {
+    @apply w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+}
+
+.form-checkbox {
+    @apply h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500;
+}
+
+.checkbox-label {
+    @apply flex items-center;
+}
+
+.help-text {
+    @apply text-sm text-gray-500 mt-1;
+}
+
+.button-group {
+    @apply flex items-center justify-end space-x-3 mt-6;
+}
+
+.button-primary {
+    @apply bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors;
+}
+
+.button-secondary {
+    @apply bg-gray-200 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-300 transition-colors;
+}
+
+.parameter-section {
+    @apply bg-gray-50 rounded-lg p-4 border border-gray-200;
+}
+
+.parameter-title {
+    @apply font-medium text-gray-900 mb-3;
+}
+
+.recipients-container {
+    @apply space-y-2;
+}
+
+.recipient-input {
+    @apply flex items-center space-x-2;
+}
+
+.recipient-email {
+    @apply flex-1;
+}
+
+.remove-recipient {
+    @apply text-red-500 hover:text-red-700;
+}
+
+.add-recipient {
+    @apply text-blue-500 hover:text-blue-700;
+}
+
+.report-type-icon {
+    @apply w-5 h-5 mr-2;
+}
+
+.frequency-info {
+    @apply bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2;
+}
+
+.frequency-item {
+    @apply flex items-center justify-between;
+}
+
+.frequency-name {
+    @apply font-medium text-blue-900;
+}
+
+.frequency-description {
+    @apply text-sm text-blue-700;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8" x-data="scheduleForm()">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+                <svg class="w-8 h-8 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                {{ 'Edit' if schedule else 'Create' }} Report Schedule
+            </h1>
+            <p class="text-gray-600 mt-2">Configure automated report generation and delivery</p>
+        </div>
+    </div>
+
+    <form method="POST" class="form-container">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- Basic Information -->
+        <div class="form-section">
+            <h2 class="section-title">
+                <span class="mr-2">📋</span> Basic Information
+            </h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label" for="name">Schedule Name *</label>
+                    <input type="text" id="name" name="name" required
+                           class="form-input"
+                           value="{{ schedule.name if schedule else '' }}"
+                           placeholder="e.g., Daily Sales Report">
+                    <p class="help-text">A descriptive name for this schedule</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="report_type">Report Type *</label>
+                    <select id="report_type" name="report_type" required
+                            class="form-select"
+                            x-model="formData.report_type"
+                            @change="updateReportParameters()">
+                        <option value="">Select Report Type</option>
+                        {% for report_type in report_types %}
+                        <option value="{{ report_type.value }}" 
+                                {{ 'selected' if schedule and schedule.report_type == report_type else '' }}>
+                            {{ report_type.value.replace('_', ' ').title() }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <p class="help-text">Choose the type of report to generate</p>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="description">Description</label>
+                <textarea id="description" name="description" rows="3"
+                          class="form-textarea"
+                          placeholder="Optional description of this schedule">{{ schedule.description if schedule else '' }}</textarea>
+                <p class="help-text">Optional description of what this schedule does</p>
+            </div>
+        </div>
+
+        <!-- Schedule Configuration -->
+        <div class="form-section">
+            <h2 class="section-title">
+                <span class="mr-2">⏰</span> Schedule Configuration
+            </h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label" for="frequency">Frequency *</label>
+                    <select id="frequency" name="frequency" required
+                            class="form-select"
+                            x-model="formData.frequency"
+                            @change="updateFrequencyInfo()">
+                        <option value="">Select Frequency</option>
+                        {% for frequency in frequencies %}
+                        <option value="{{ frequency.value }}" 
+                                {{ 'selected' if schedule and schedule.frequency == frequency else '' }}>
+                            {{ frequency.value.title() }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <p class="help-text">How often the report should be generated</p>
+                </div>
+
+                <div class="form-group">
+                    <div class="checkbox-label mt-6">
+                        <input type="checkbox" id="is_active" name="is_active" 
+                               class="form-checkbox"
+                               {{ 'checked' if schedule and schedule.is_active else 'checked' }}>
+                        <label for="is_active" class="ml-2 text-sm font-medium text-gray-700">
+                            Active
+                        </label>
+                    </div>
+                    <p class="help-text">Enable or disable this schedule</p>
+                </div>
+            </div>
+
+            <!-- Frequency Information -->
+            <div x-show="formData.frequency" x-transition class="frequency-info">
+                <h3 class="parameter-title">Frequency Information</h3>
+                <div class="space-y-2">
+                    <div class="frequency-item">
+                        <span class="frequency-name">Daily:</span>
+                        <span class="frequency-description">Runs once every day at the same time</span>
+                    </div>
+                    <div class="frequency-item">
+                        <span class="frequency-name">Weekly:</span>
+                        <span class="frequency-description">Runs once every week on the same day</span>
+                    </div>
+                    <div class="frequency-item">
+                        <span class="frequency-name">Monthly:</span>
+                        <span class="frequency-description">Runs once every month on the same date</span>
+                    </div>
+                    <div class="frequency-item">
+                        <span class="frequency-name">Quarterly:</span>
+                        <span class="frequency-description">Runs once every 3 months</span>
+                    </div>
+                    <div class="frequency-item">
+                        <span class="frequency-name">Yearly:</span>
+                        <span class="frequency-description">Runs once every year</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Parameters -->
+        <div class="form-section">
+            <h2 class="section-title">
+                <span class="mr-2">⚙️</span> Report Parameters
+            </h2>
+            <div class="parameter-section">
+                <h3 class="parameter-title">Date Range</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="start_date">Start Date</label>
+                        <input type="date" id="start_date" name="start_date"
+                               class="form-input"
+                               value="{{ schedule.get_parameters().get('start_date', '') if schedule else '' }}">
+                        <p class="help-text">Start date for report data (leave blank for dynamic)</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="end_date">End Date</label>
+                        <input type="date" id="end_date" name="end_date"
+                               class="form-input"
+                               value="{{ schedule.get_parameters().get('end_date', '') if schedule else '' }}">
+                        <p class="help-text">End date for report data (leave blank for dynamic)</p>
+                    </div>
+                </div>
+
+                <!-- Conditional Parameters -->
+                <div x-show="formData.report_type === 'items'" x-transition class="form-group mt-4">
+                    <label class="form-label" for="category_id">Category</label>
+                    <select id="category_id" name="category_id" class="form-select">
+                        <option value="">All Categories</option>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}" 
+                                {{ 'selected' if schedule and schedule.get_parameters().get('category_id') == category.id|string else '' }}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <p class="help-text">Filter by specific menu category</p>
+                </div>
+
+                <div x-show="formData.report_type === 'staff'" x-transition class="form-group mt-4">
+                    <label class="form-label" for="user_id">Staff Member</label>
+                    <select id="user_id" name="user_id" class="form-select">
+                        <option value="">All Staff</option>
+                        {% for user in users %}
+                        <option value="{{ user.id }}" 
+                                {{ 'selected' if schedule and schedule.get_parameters().get('user_id') == user.id|string else '' }}>
+                            {{ user.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <p class="help-text">Filter by specific staff member</p>
+                </div>
+
+                <div x-show="formData.report_type === 'gst' || formData.report_type === 'restaurant_performance'" x-transition class="form-group mt-4">
+                    <label class="form-label" for="restaurant_id">Restaurant</label>
+                    <select id="restaurant_id" name="restaurant_id" class="form-select">
+                        <option value="">All Restaurants</option>
+                        {% for restaurant in restaurants %}
+                        <option value="{{ restaurant.id }}" 
+                                {{ 'selected' if schedule and schedule.get_parameters().get('restaurant_id') == restaurant.id|string else '' }}>
+                            {{ restaurant.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <p class="help-text">Filter by specific restaurant</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delivery Configuration -->
+        <div class="form-section">
+            <h2 class="section-title">
+                <span class="mr-2">📧</span> Delivery Configuration
+            </h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label" for="delivery_method">Delivery Method *</label>
+                    <select id="delivery_method" name="delivery_method" required
+                            class="form-select"
+                            x-model="formData.delivery_method"
+                            @change="updateDeliveryFields()">
+                        <option value="">Select Delivery Method</option>
+                        {% for method in delivery_methods %}
+                        <option value="{{ method.value }}" 
+                                {{ 'selected' if schedule and schedule.delivery_method == method else '' }}>
+                            {{ method.value.replace('_', ' ').title() }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <p class="help-text">How the report should be delivered</p>
+                </div>
+            </div>
+
+            <!-- Email Configuration -->
+            <div x-show="formData.delivery_method === 'email' || formData.delivery_method === 'both'" x-transition>
+                <div class="parameter-section mt-4">
+                    <h3 class="parameter-title">Email Configuration</h3>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Email Recipients</label>
+                        <div class="recipients-container">
+                            <template x-for="(recipient, index) in emailRecipients" :key="index">
+                                <div class="recipient-input">
+                                    <input type="email" 
+                                           class="form-input recipient-email"
+                                           x-model="recipient.email"
+                                           placeholder="email@example.com"
+                                           :name="`email_recipients_${index}`">
+                                    <button type="button" @click="removeRecipient(index)" 
+                                            class="remove-recipient">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                        <button type="button" @click="addRecipient()" class="add-recipient">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            Add Recipient
+                        </button>
+                        <p class="help-text">Email addresses that will receive the report</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="email_subject">Email Subject</label>
+                        <input type="text" id="email_subject" name="email_subject"
+                               class="form-input"
+                               value="{{ schedule.email_subject if schedule else '' }}"
+                               placeholder="Automated Report">
+                        <p class="help-text">Subject line for the email</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="email_message">Email Message</label>
+                        <textarea id="email_message" name="email_message" rows="3"
+                                  class="form-textarea"
+                                  placeholder="Please find the attached report.">{{ schedule.email_message if schedule else '' }}</textarea>
+                        <p class="help-text">Message body for the email</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="button-group">
+            <a href="{{ url_for('reports.schedule_list') }}" class="button-secondary">
+                Cancel
+            </a>
+            <button type="submit" class="button-primary">
+                {{ 'Update Schedule' if schedule else 'Create Schedule' }}
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function scheduleForm() {
+    return {
+        formData: {
+            report_type: '{{ schedule.report_type.value if schedule else '' }}',
+            frequency: '{{ schedule.frequency.value if schedule else '' }}',
+            delivery_method: '{{ schedule.delivery_method.value if schedule else '' }}'
+        },
+        emailRecipients: [
+            {% if schedule %}
+            {% for email in schedule.get_email_recipients() %}
+            { email: '{{ email }}' },
+            {% endfor %}
+            {% else %}
+            { email: '' }
+            {% endif %}
+        ],
+        
+        init() {
+            // Initialize with existing recipients if editing
+            this.updateHiddenRecipients();
+        },
+        
+        updateReportParameters() {
+            // Could be used to show/hide parameter sections based on report type
+        },
+        
+        updateFrequencyInfo() {
+            // Could be used to show frequency-specific options
+        },
+        
+        updateDeliveryFields() {
+            // Could be used to show/hide email fields
+        },
+        
+        addRecipient() {
+            this.emailRecipients.push({ email: '' });
+            this.updateHiddenRecipients();
+        },
+        
+        removeRecipient(index) {
+            this.emailRecipients.splice(index, 1);
+            this.updateHiddenRecipients();
+        },
+        
+        updateHiddenRecipients() {
+            // Create hidden inputs for form submission
+            const form = document.querySelector('form');
+            const existingInputs = form.querySelectorAll('[name^="email_recipients_"]');
+            existingInputs.forEach(input => input.remove());
+            
+            this.emailRecipients.forEach((recipient, index) => {
+                if (recipient.email.trim()) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = `email_recipients_${index}`;
+                    input.value = recipient.email;
+                    form.appendChild(input);
+                }
+            });
+        }
+    }
+}
+</script>
+{% endblock %}

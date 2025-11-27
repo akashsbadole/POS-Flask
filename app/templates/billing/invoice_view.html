@@ -9,6 +9,7 @@
         <div class="space-x-2">
             {% if invoice.status != 'paid' and current_user.can_access_manager_features() %}
             <form method="POST" action="{{ url_for('billing.send_invoice', invoice_id=invoice.id) }}" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
                     Send Invoice
                 </button>
@@ -240,6 +241,7 @@
         <div class="p-6">
             <h3 class="text-lg font-semibold text-gray-800 mb-4">Add Payment</h3>
             <form method="POST" action="{{ url_for('billing.add_payment', invoice_id=invoice.id) }}" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Payment Amount</label>
                     <input type="number" name="amount" step="0.01" min="0" max="{{ invoice.balance_amount }}" required

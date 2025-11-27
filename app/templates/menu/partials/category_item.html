@@ -1,0 +1,37 @@
+<div class="p-6 hover:bg-gray-50 transition-colors border-l-4 border-green-500" hx-target="this">
+    <div class="flex items-center justify-between">
+        <div class="flex-1">
+            <div class="flex items-center">
+                <h3 class="text-lg font-medium text-gray-900">{{ category.name }}</h3>
+                {% if not category.is_active %}
+                <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    Inactive
+                </span>
+                {% endif %}
+                <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    New
+                </span>
+            </div>
+            {% if category.description %}
+            <p class="mt-1 text-sm text-gray-600">{{ category.description }}</p>
+            {% endif %}
+            <div class="mt-2 flex items-center text-sm text-gray-500">
+                <span>{{ category.items|length }} menu items</span>
+                <span class="mx-2">•</span>
+                <span>Order: {{ category.display_order }}</span>
+                <span class="mx-2">•</span>
+                <span>Created: {{ category.created_at.strftime('%m/%d/%Y') if category.created_at else 'Unknown' }}</span>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <a href="{{ url_for('menu.list_items', category_id=category.id) }}" 
+               class="text-blue-600 hover:text-blue-900 text-sm">
+                View Items
+            </a>
+            <a href="{{ url_for('menu.create_category') }}" 
+               class="text-gray-600 hover:text-gray-900 text-sm">
+                Edit
+            </a>
+        </div>
+    </div>
+</div>

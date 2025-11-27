@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block title %}Report Execution History{% endblock %}
+
+{% block extra_css %}
+<style>
+.execution-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow;
+}
+
+.execution-header {
+    @apply flex items-center justify-between mb-4;
+}
+
+.execution-title {
+    @apply text-lg font-semibold text-gray-900;
+}
+
+.execution-status {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.status-pending {
+    @apply bg-yellow-100 text-yellow-800;
+}
+
+.status-running {
+    @apply bg-blue-100 text-blue-800;
+}
+
+.status-completed {
+    @apply bg-green-100 text-green-800;
+}
+
+.status-failed {
+    @apply bg-red-100 text-red-800;
+}
+
+.execution-meta {
+    @apply flex items-center space-x-4 text-sm text-gray-600;
+}
+
+.execution-details {
+    @apply mt-4 pt-4 border-t border-gray-200;
+}
+
+.detail-item {
+    @apply flex items-center justify-between py-2;
+}
+
+.detail-label {
+    @apply text-sm font-medium text-gray-600;
+}
+
+.detail-value {
+    @apply text-sm text-gray-900;
+}
+
+.execution-actions {
+    @apply flex items-center space-x-2 mt-4;
+}
+
+.action-button {
+    @apply inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors;
+}
+
+.action-button-primary {
+    @apply bg-blue-600 text-white border-blue-600 hover:bg-blue-700;
+}
+
+.action-button-success {
+    @apply bg-green-600 text-white border-green-600 hover:bg-green-700;
+}
+
+.filter-section {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6;
+}
+
+.filter-grid {
+    @apply grid grid-cols-1 md:grid-cols-4 gap-4;
+}
+
+.filter-group {
+    @apply flex flex-col;
+}
+
+.filter-label {
+    @apply text-sm font-medium text-gray-700 mb-2;
+}
+
+.filter-select {
+    @apply border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+}
+
+.file-download {
+    @apply inline-flex items-center px-3 py-2 border border-green-300 shadow-sm text-sm font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100 transition-colors;
+}
+
+.error-message {
+    @apply mt-2 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700;
+}
+
+.duration-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8" x-data="executionManager()">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+                <svg class="w-8 h-8 mr-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                Report Execution History
+            </h1>
+            <p class="text-gray-600 mt-2">View and download generated reports</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <a href="{{ url_for('reports.schedule_list') }}" class="action-button">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back to Schedules
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-section">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <span class="mr-2">🔍</span> Filters
+        </h3>
+        <div class="filter-grid">
+            <div class="filter-group">
+                <label class="filter-label" for="status-filter">Status</label>
+                <select id="status-filter" x-model="filters.status" @change="applyFilters()" class="filter-select">
+                    <option value="">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="running">Running</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label" for="report-type-filter">Report Type</label>
+                <select id="report-type-filter" x-model="filters.report_type" @change="applyFilters()" class="filter-select">
+                    <option value="">All Types</option>
+                    <option value="sales">Sales</option>
+                    <option value="items">Items</option>
+                    <option value="staff">Staff</option>
+                    <option value="gst">GST</option>
+                    <option value="accounting">Accounting</option>
+                    <option value="expenses">Expenses</option>
+                    <option value="restaurant_performance">Restaurant Performance</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label" for="date-filter">Date Range</label>
+                <select id="date-filter" x-model="filters.date_range" @change="applyFilters()" class="filter-select">
+                    <option value="">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">Last Week</option>
+                    <option value="month">Last Month</option>
+                    <option value="quarter">Last Quarter</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">&nbsp;</label>
+                <button @click="clearFilters()" class="action-button">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    Clear Filters
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Executions List -->
+    <div class="space-y-6">
+        <template x-for="execution in filteredExecutions" :key="execution.id">
+            <div class="execution-card">
+                <div class="execution-header">
+                    <h3 class="execution-title" x-text="execution.schedule.name"></h3>
+                    <div class="execution-status" 
+                         :class="'status-' + execution.status"
+                         x-text="execution.status.charAt(0).toUpperCase() + execution.status.slice(1)">
+                    </div>
+                </div>
+
+                <div class="execution-meta">
+                    <div class="duration-badge" x-show="execution.execution_duration() > 0">
+                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span x-text="execution.execution_duration().toFixed(2) + 's'"></span>
+                    </div>
+                    <div>
+                        <span class="font-medium">Type:</span>
+                        <span class="capitalize" x-text="execution.report_type.replace('_', ' ')"></span>
+                    </div>
+                    <div>
+                        <span class="font-medium">Created:</span>
+                        <span x-text="new Date(execution.created_at).toLocaleString()"></span>
+                    </div>
+                </div>
+
+                <div class="execution-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Schedule:</span>
+                        <span class="detail-value" x-text="execution.schedule.name"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Started:</span>
+                        <span class="detail-value" x-text="execution.started_at ? new Date(execution.started_at).toLocaleString() : 'Not started'"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Completed:</span>
+                        <span class="detail-value" x-text="execution.completed_at ? new Date(execution.completed_at).toLocaleString() : 'Not completed'"></span>
+                    </div>
+                    <div class="detail-item" x-show="execution.file_size">
+                        <span class="detail-label">File Size:</span>
+                        <span class="detail-value" x-text="formatFileSize(execution.file_size)"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Delivery Status:</span>
+                        <span class="detail-value" x-text="execution.delivery_status.charAt(0).toUpperCase() + execution.delivery_status.slice(1)"></span>
+                    </div>
+                    <div class="detail-item" x-show="execution.retry_count > 0">
+                        <span class="detail-label">Retry Count:</span>
+                        <span class="detail-value" x-text="execution.retry_count"></span>
+                    </div>
+                </div>
+
+                <!-- Error Message -->
+                <div x-show="execution.error_message" class="error-message">
+                    <strong>Error:</strong> <span x-text="execution.error_message"></span>
+                </div>
+
+                <!-- Actions -->
+                <div class="execution-actions">
+                    <button x-show="execution.status === 'pending'" 
+                            @click="retryExecution(execution.id)" 
+                            class="action-button action-button-primary">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Retry
+                    </button>
+                    
+                    <a x-show="execution.file_path && execution.status === 'completed'" 
+                       :href="`/reports/download/${execution.id}`"
+                       class="file-download">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Download
+                    </a>
+                    
+                    <button x-show="execution.status === 'failed'" 
+                            @click="viewError(execution)" 
+                            class="action-button">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        View Error
+                    </button>
+                </div>
+            </div>
+        </template>
+
+        <!-- No Results -->
+        <div x-show="filteredExecutions.length === 0" class="text-center py-12">
+            <div class="text-gray-400 text-6xl mb-4">📭</div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No executions found</h3>
+            <p class="text-gray-600">Try adjusting your filters or check back later</p>
+        </div>
+    </div>
+</div>
+
+<script>
+function executionManager() {
+    return {
+        executions: {{ executions | tojson if executions else '[]' }},
+        filters: {
+            status: '',
+            report_type: '',
+            date_range: ''
+        },
+        filteredExecutions: [],
+        
+        init() {
+            this.applyFilters();
+        },
+        
+        applyFilters() {
+            this.filteredExecutions = this.executions.filter(execution => {
+                // Status filter
+                if (this.filters.status && execution.status !== this.filters.status) {
+                    return false;
+                }
+                
+                // Report type filter
+                if (this.filters.report_type && execution.report_type !== this.filters.report_type) {
+                    return false;
+                }
+                
+                // Date range filter
+                if (this.filters.date_range) {
+                    const executionDate = new Date(execution.created_at);
+                    const now = new Date();
+                    
+                    switch (this.filters.date_range) {
+                        case 'today':
+                            if (executionDate.toDateString() !== now.toDateString()) {
+                                return false;
+                            }
+                            break;
+                        case 'week':
+                            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                            if (executionDate < weekAgo) {
+                                return false;
+                            }
+                            break;
+                        case 'month':
+                            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                            if (executionDate < monthAgo) {
+                                return false;
+                            }
+                            break;
+                        case 'quarter':
+                            const quarterAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+                            if (executionDate < quarterAgo) {
+                                return false;
+                            }
+                            break;
+                    }
+                }
+                
+                return true;
+            });
+        },
+        
+        clearFilters() {
+            this.filters = {
+                status: '',
+                report_type: '',
+                date_range: ''
+            };
+            this.applyFilters();
+        },
+        
+        formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        },
+        
+        retryExecution(executionId) {
+            if (confirm('Are you sure you want to retry this execution?')) {
+                // This would typically make an API call to retry
+                window.location.href = `/reports/schedule/execution/${executionId}/retry`;
+            }
+        },
+        
+        viewError(execution) {
+            alert(`Error Details:\n\n${execution.error_message}`);
+        }
+    }
+}
+</script>
+{% endblock %}

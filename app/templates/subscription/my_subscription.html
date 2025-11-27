@@ -183,6 +183,7 @@
             </a>
             {% if subscription.status == 'cancelled' %}
             <form method="POST" action="{{ url_for('subscription.reactivate_subscription', subscription_id=subscription.id) }}" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700">
                     Reactivate Subscription
                 </button>

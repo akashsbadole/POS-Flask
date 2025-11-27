@@ -122,4 +122,28 @@ def create_app(config_name=None):
         from flask_wtf.csrf import generate_csrf
         return dict(csrf_token=generate_csrf)
     
+    # Register error handlers
+    @app.errorhandler(404)
+    def not_found_error(error):
+        from flask import render_template
+        return render_template('errors/404.html'), 404
+    
+    @app.errorhandler(403)
+    def forbidden_error(error):
+        from flask import render_template
+        return render_template('errors/403.html'), 403
+    
+    @app.errorhandler(500)
+    def internal_error(error):
+        from flask import render_template
+        # Log the error
+        import traceback
+        app.logger.error(f"Internal Server Error: {error}\n{traceback.format_exc()}")
+        
+        # Generate error ID for tracking
+        import uuid
+        error_id = str(uuid.uuid4())[:8]
+        
+        return render_template('errors/500.html', error_id=error_id), 500
+    
     return app

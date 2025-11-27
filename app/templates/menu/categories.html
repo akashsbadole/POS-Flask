@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Menu Categories{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Menu Categories</h1>
+            <p class="text-gray-600">Organize your menu items into categories</p>
+        </div>
+        <a href="{{ url_for('menu.create_category') }}" 
+           class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            Add Category
+        </a>
+    </div>
+
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">All Categories</h2>
+        </div>
+        
+        {% if categories %}
+        <div class="divide-y divide-gray-200">
+            {% for category in categories %}
+            <div class="p-6 hover:bg-gray-50 transition-colors">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center">
+                            <h3 class="text-lg font-medium text-gray-900">{{ category.name }}</h3>
+                            {% if not category.is_active %}
+                            <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                Inactive
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% if category.description %}
+                        <p class="mt-1 text-sm text-gray-600">{{ category.description }}</p>
+                        {% endif %}
+                        <div class="mt-2 flex items-center text-sm text-gray-500">
+                            <span>{{ category.items|length }} menu items</span>
+                            <span class="mx-2">•</span>
+                            <span>Order: {{ category.display_order }}</span>
+                            <span class="mx-2">•</span>
+                            <span>Created: {{ category.created_at.strftime('%m/%d/%Y') if category.created_at else 'Unknown' }}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <a href="{{ url_for('menu.list_items', category_id=category.id) }}" 
+                           class="text-blue-600 hover:text-blue-900 text-sm">
+                            View Items
+                        </a>
+                        <a href="{{ url_for('menu.create_category') }}" 
+                           class="text-gray-600 hover:text-gray-900 text-sm">
+                            Edit
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-12 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No categories</h3>
+            <p class="mt-1 text-sm text-gray-500">Get started by creating your first menu category.</p>
+            <div class="mt-6">
+                <a href="{{ url_for('menu.create_category') }}" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Add Category
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

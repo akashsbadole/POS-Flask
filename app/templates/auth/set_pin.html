@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}Set PIN Code - Restaurant POS{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Page Header -->
+    <div class="bg-white rounded-lg shadow-sm border border-orange-200 mb-6">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center">
+                <a href="{{ url_for('auth.profile') }}" class="mr-4 text-orange-600 hover:text-orange-800 transition-colors">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <h1 class="text-2xl font-bold text-gray-900">Set PIN Code</h1>
+            </div>
+        </div>
+    </div>
+
+    <!-- PIN Setup Form -->
+    <div class="bg-white rounded-lg shadow-sm border border-orange-200">
+        <div class="p-6">
+            <form method="POST" action="{{ url_for('auth.set_pin') }}" 
+                  x-data="pinForm()"
+                  @submit="validateForm($event)">
+                
+                <!-- Current PIN Status -->
+                <div class="mb-6 p-4 {% if current_user.pin_code %}bg-green-50 border-green-200{% else %}bg-yellow-50 border-yellow-200{% endif %} rounded-lg border">
+                    <div class="flex items-center">
+                        <i class="fas {% if current_user.pin_code %}fa-check-circle text-green-600{% else %}fa-exclamation-triangle text-yellow-600{% endif %} mr-3"></i>
+                        <div>
+                            <h3 class="font-medium {% if current_user.pin_code %}text-green-900{% else %}text-yellow-900{% endif %}">
+                                {% if current_user.pin_code %}PIN Code is Set{% else %}No PIN Code Set{% endif %}
+                            </h3>
+                            <p class="text-sm {% if current_user.pin_code %}text-green-700{% else %}text-yellow-700{% endif %}">
+                                {% if current_user.pin_code %}
+                                You can change your PIN code using the form below
+                                {% else %}
+                                Set a PIN code for quick login access
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PIN Input -->
+                <div class="mb-6">
+                    <label for="pin" class="block text-sm font-medium text-gray-700 mb-2">
+                        4-Digit PIN Code
+                    </label>
+                    <div class="relative">
+                        <input type="password" 
+                               id="pin" 
+                               name="pin" 
+                               required
+                               maxlength="4"
+                               pattern="[0-9]{4}"
+                               x-model="pin"
+                               @input="validatePinInput()"
+                               class="w-full px-4 py-3 text-center text-2xl tracking-widest border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono"
+                               placeholder="----">
+                        <button type="button" 
+                                @click="togglePinVisibility()"
+                                class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <p class="mt-2 text-sm text-gray-600">Enter exactly 4 digits (0-9)</p>
+                </div>
+
+                <!-- Confirm PIN -->
+                <div class="mb-6">
+                    <label for="confirm_pin" class="block text-sm font-medium text-gray-700 mb-2">
+                        Confirm PIN Code
+                    </label>
+                    <div class="relative">
+                        <input type="password" 
+                               id="confirm_pin" 
+                               name="confirm_pin" 
+                               required
+                               maxlength="4"
+                               pattern="[0-9]{4}"
+                               x-model="confirmPin"
+                               @input="checkPinMatch()"
+                               class="w-full px-4 py-3 text-center text-2xl tracking-widest border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono"
+                               placeholder="----">
+                        <button type="button" 
+                                @click="toggleConfirmPinVisibility()"
+                                class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- PIN Match Indicator -->
+                    <div x-show="confirmPin.length > 0" class="mt-2">
+                        <div class="flex items-center">
+                            <i class="fas" 
+                               :class="pinsMatch ? 'fa-check-circle text-green-500' : 'fa-times-circle text-red-500'"></i>
+                            <span class="ml-2 text-sm" 
+                                  :class="pinsMatch ? 'text-green-600' : 'text-red-600'">
+                                <span x-show="pinsMatch">PIN codes match</span>
+                                <span x-show="!pinsMatch">PIN codes do not match</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visual PIN Display -->
+                <div class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h3 class="text-sm font-medium text-gray-700 mb-3">PIN Preview</h3>
+                    <div class="flex justify-center space-x-2">
+                        <template x-for="(digit, index) in pinDisplay" :key="index">
+                            <div class="w-12 h-12 bg-white border-2 rounded-lg flex items-center justify-center"
+                                 :class="digit ? 'border-orange-500' : 'border-gray-300'">
+                                <span class="text-xl font-bold" 
+                                      :class="digit ? 'text-orange-600' : 'text-gray-400'"
+                                      x-text="digit || '•'"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex items-center justify-between">
+                    <a href="{{ url_for('auth.profile') }}" 
+                       class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                        Cancel
+                    </a>
+                    <button type="submit" 
+                            :disabled="!canSubmit"
+                            :class="canSubmit ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-400 cursor-not-allowed'"
+                            class="px-6 py-2 text-white rounded-lg transition-colors">
+                        <span class="flex items-center">
+                            <i class="fas fa-key mr-2"></i>
+                            {% if current_user.pin_code %}Update PIN{% else %}Set PIN{% endif %}
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PIN Information -->
+    <div class="bg-white rounded-lg shadow-sm border border-orange-200 mt-6">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">About PIN Login</h2>
+        </div>
+        <div class="p-6">
+            <div class="space-y-4">
+                <div class="flex items-start">
+                    <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0 mr-3">
+                        <i class="fas fa-bolt text-orange-600 text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-gray-900">Quick Access</h3>
+                        <p class="text-sm text-gray-600">Use your PIN for faster login without typing your full password</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-start">
+                    <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0 mr-3">
+                        <i class="fas fa-shield-alt text-orange-600 text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-gray-900">Secure</h3>
+                        <p class="text-sm text-gray-600">PIN codes are encrypted and stored securely in the database</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-start">
+                    <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0 mr-3">
+                        <i class="fas fa-clock text-orange-600 text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-gray-900">Short Sessions</h3>
+                        <p class="text-sm text-gray-600">PIN login sessions automatically timeout after 15 minutes for security</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-start">
+                    <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0 mr-3">
+                        <i class="fas fa-user-lock text-orange-600 text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-medium text-gray-900">Role-Based</h3>
+                        <p class="text-sm text-gray-600">Available for Cashier and Kitchen staff roles</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Warning -->
+    <div class="bg-yellow-50 rounded-lg border border-yellow-200 mt-6">
+        <div class="p-4">
+            <div class="flex items-start">
+                <i class="fas fa-exclamation-triangle text-yellow-600 mt-1 mr-3"></i>
+                <div>
+                    <h3 class="font-medium text-yellow-900">Security Notice</h3>
+                    <p class="text-sm text-yellow-800 mt-1">
+                        Choose a PIN that's not easily guessable (avoid 1234, 0000, or repeating digits). 
+                        Keep your PIN confidential and don't share it with others.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function pinForm() {
+    return {
+        pin: '',
+        confirmPin: '',
+        pinVisible: false,
+        confirmPinVisible: false,
+        
+        get pinsMatch() {
+            return this.pin === this.confirmPin && this.pin.length === 4;
+        },
+        
+        get canSubmit() {
+            return this.pin.length === 4 && this.pinsMatch;
+        },
+        
+        get pinDisplay() {
+            return this.pin.split('');
+        },
+        
+        validatePinInput() {
+            // Only allow digits
+            this.pin = this.pin.replace(/[^0-9]/g, '');
+        },
+        
+        checkPinMatch() {
+            // Only allow digits in confirm pin
+            this.confirmPin = this.confirmPin.replace(/[^0-9]/g, '');
+        },
+        
+        togglePinVisibility() {
+            const pinField = document.getElementById('pin');
+            const icon = event.target;
+            
+            if (pinField.type === 'password') {
+                pinField.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                pinField.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        },
+        
+        toggleConfirmPinVisibility() {
+            const confirmPinField = document.getElementById('confirm_pin');
+            const icon = event.target;
+            
+            if (confirmPinField.type === 'password') {
+                confirmPinField.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                confirmPinField.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        },
+        
+        validateForm(event) {
+            if (!this.canSubmit) {
+                event.preventDefault();
+                return false;
+            }
+            return true;
+        }
+    }
+}
+</script>
+{% endblock %}

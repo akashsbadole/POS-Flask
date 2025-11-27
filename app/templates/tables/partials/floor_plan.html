@@ -1,0 +1,114 @@
+<div class="relative bg-gray-50 rounded-lg p-6 min-h-[600px]" x-data="floorPlanManager()">
+    <!-- Floor plan header -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h3 class="text-lg font-semibold text-gray-900">Restaurant Floor Plan</h3>
+            <p class="text-sm text-gray-600">Click on tables to manage status or drag to reposition</p>
+        </div>
+        <div class="flex space-x-2">
+            <button @click="toggleEditMode()" 
+                    :class="editMode ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'"
+                    class="text-white px-4 py-2 rounded-md text-sm transition-colors duration-150">
+                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+                {{ editMode ? 'Save Layout' : 'Edit Layout' }}
+            </button>
+            <button @click="resetLayout()" 
+                    class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm hover:bg-gray-300 transition-colors duration-150">
+                Reset Layout
+            </button>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="flex flex-wrap gap-4 mb-6 text-sm">
+        <div class="flex items-center">
+            <div class="w-4 h-4 bg-green-100 border-2 border-green-300 rounded mr-2"></div>
+            <span>Available</span>
+        </div>
+        <div class="flex items-center">
+            <div class="w-4 h-4 bg-red-100 border-2 border-red-300 rounded mr-2"></div>
+            <span>Occupied</span>
+        </div>
+        <div class="flex items-center">
+            <div class="w-4 h-4 bg-yellow-100 border-2 border-yellow-300 rounded mr-2"></div>
+            <span>Reserved</span>
+        </div>
+        <div class="flex items-center">
+            <div class="w-4 h-4 bg-blue-100 border-2 border-blue-300 rounded mr-2"></div>
+            <span>Cleaning</span>
+        </div>
+        <div class="flex items-center">
+            <div class="w-4 h-4 bg-gray-100 border-2 border-gray-300 rounded mr-2"></div>
+            <span>Maintenance</span>
+        </div>
+    </div>
+
+    <!-- Floor plan canvas -->
+    <div class="relative bg-white rounded-lg border-2 border-gray-200 min-h-[500px] overflow-hidden">
+        <!-- Grid background for edit mode -->
+        <div x-show="editMode" class="absolute inset-0 bg-grid-pattern opacity-10"></div>
+        
+        <!-- Tables positioned absolutely -->
+        {% for table in tables %}
+        <div class="absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200"
+             :class="editMode ? 'cursor-move hover:scale-105' : 'cursor-pointer'"
+             style="left: {{ table.position_x or (loop.index0 * 120 + 80) }}px; top: {{ table.position_y or (loop.index0 // 4 * 120 + 80) }}px;"
+             @click="!editMode && selectTable({{ table.id }})"
+             x-data="{ tableId: {{ table.id }}, isDragging: false }"
+             @mousedown="editMode && startDrag($event, tableId)"
+             @mousemove="editMode && isDragging && drag($event, tableId)"
+             @mouseup="editMode && isDragging && endDrag(tableId)"
+             @mouseleave="editMode && isDragging && endDrag(tableId)">
+            
+            {% include 'tables/partials/table_card.html' %}
+        </div>
+        {% endfor %}
+        
+        <!-- Empty state -->
+        <div x-show="!{{ tables|length }}" class="flex flex-col items-center justify-center h-full py-12">
+            <svg class="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+            </svg>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No tables configured</h3>
+            <p class="text-gray-600 mb-4">Add tables to get started with your floor plan</p>
+            <button @click="$dispatch('show-add-table-modal')" 
+                    class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors duration-150">
+                Add Your First Table
+            </button>
+        </div>
+    </div>
+
+    <!-- Floor plan stats -->
+    <div class="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="bg-white rounded-lg p-4 border border-gray-200">
+            <div class="text-2xl font-bold text-gray-900">{{ tables|length }}</div>
+            <div class="text-sm text-gray-600">Total Tables</div>
+        </div>
+        <div class="bg-white rounded-lg p-4 border border-gray-200">
+            <div class="text-2xl font-bold text-green-600">{{ tables|selectattr('status.value', 'equalto', 'free')|list|length }}</div>
+            <div class="text-sm text-gray-600">Available</div>
+        </div>
+        <div class="bg-white rounded-lg p-4 border border-gray-200">
+            <div class="text-2xl font-bold text-red-600">{{ tables|selectattr('status.value', 'equalto', 'occupied')|list|length }}</div>
+            <div class="text-sm text-gray-600">Occupied</div>
+        </div>
+        <div class="bg-white rounded-lg p-4 border border-gray-200">
+            <div class="text-2xl font-bold text-yellow-600">{{ tables|selectattr('status.value', 'equalto', 'reserved')|list|length }}</div>
+            <div class="text-sm text-gray-600">Reserved</div>
+        </div>
+        <div class="bg-white rounded-lg p-4 border border-gray-200">
+            <div class="text-2xl font-bold text-blue-600">{{ tables|selectattr('status.value', 'equalto', 'cleaning')|list|length }}</div>
+            <div class="text-sm text-gray-600">Cleaning</div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-grid-pattern {
+    background-image: linear-gradient(0deg, transparent 24%, rgba(0, 0, 0, .05) 25%, rgba(0, 0, 0, .05) 26%, transparent 27%, transparent 74%, rgba(0, 0, 0, .05) 75%, rgba(0, 0, 0, .05) 76%, transparent 77%, transparent),
+                      linear-gradient(90deg, transparent 24%, rgba(0, 0, 0, .05) 25%, rgba(0, 0, 0, .05) 26%, transparent 27%, transparent 74%, rgba(0, 0, 0, .05) 75%, rgba(0, 0, 0, .05) 76%, transparent 77%, transparent);
+    background-size: 50px 50px;
+}
+</style>

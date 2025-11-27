@@ -21,6 +21,14 @@
     <!-- Alpine.js Setup -->
     <script src="{{ url_for('static', filename='js/alpine-setup.js') }}"></script>
     
+    <!-- Keyboard Navigation -->
+    <script src="{{ url_for('static', filename='js/keyboard-navigation.js') }}"></script>
+    
+    <!-- Accessibility Testing (only in development) -->
+    {% if config.DEBUG %}
+    <script src="{{ url_for('static', filename='js/accessibility-test.js') }}"></script>
+    {% endif %}
+    
     <!-- HTMX Extensions -->
     <script src="https://unpkg.com/htmx.org@1.9.6/dist/ext/response-targets.js"></script>
     <script src="https://unpkg.com/htmx.org@1.9.6/dist/ext/client-side-templates.js"></script>
@@ -130,55 +138,91 @@
                 </div>
                 
                 <!-- Navigation -->
-                <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
+                <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar" role="navigation" aria-label="Main navigation">
                     {% if current_user.role == 'cashier' %}
-                    <a href="{{ url_for('cashier.dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
-                        <span class="w-5 mr-3">💰</span>
+                    <a href="{{ url_for('cashier.dashboard') }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="1"
+                       data-shortcut="Alt+1"
+                       aria-label="Point of Sale - Press Alt+1">
+                        <span class="w-5 mr-3" aria-hidden="true">💰</span>
                         Point of Sale
                     </a>
                     {% endif %}
                     
                     {% if current_user.role == 'kitchen' %}
-                    <a href="{{ url_for('kitchen.display') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
-                        <span class="w-5 mr-3">👨‍🍳</span>
+                    <a href="{{ url_for('kitchen.display') }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="1"
+                       data-shortcut="Alt+1"
+                       aria-label="Kitchen Display - Press Alt+1">
+                        <span class="w-5 mr-3" aria-hidden="true">👨‍🍳</span>
                         Kitchen Display
                     </a>
                     {% endif %}
                     
                     {% if current_user.can_access_manager_features() %}
-                    <a href="{{ url_for('main.dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
-                        <span class="w-5 mr-3">📊</span>
-                        Manager Dashboard
+                    <a href="{{ url_for('main.dashboard') }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="1"
+                       data-shortcut="Alt+1"
+                       aria-label="Manager Dashboard - Press Alt+1">
+                        <span class="w-5 mr-3" aria-hidden="true">📊</span>
+                        Dashboard
                     </a>
                    
-                    <a href="{{ url_for('main.menu_dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
-                        <span class="w-5 mr-3">📖</span>
-                        Menu Dashboard
+                    <a href="{{ url_for('main.menu_dashboard') }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="2"
+                       data-shortcut="Alt+2"
+                       aria-label="Menu Management - Press Alt+2">
+                        <span class="w-5 mr-3" aria-hidden="true">📖</span>
+                        Menu
                     </a>
                    
-                    <a href="{{ url_for('main.tables_dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
-                        <span class="w-5 mr-3">🪑</span>
-                        Tables Dashboard
+                    <a href="{{ url_for('main.tables_dashboard') }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="3"
+                       data-shortcut="Alt+3"
+                       aria-label="Table Management - Press Alt+3">
+                        <span class="w-5 mr-3" aria-hidden="true">🪑</span>
+                        Tables
                     </a>
                    
-                    <a href="{{ url_for('main.reports_dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
-                        <span class="w-5 mr-3">📈</span>
-                        Reports Dashboard
+                    <a href="{{ url_for('main.reports_dashboard') }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="4"
+                       data-shortcut="Alt+4"
+                       aria-label="Reports - Press Alt+4">
+                        <span class="w-5 mr-3" aria-hidden="true">📈</span>
+                        Reports
                     </a>
                    
-                    <a href="{{ url_for('main.inventory_dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
-                        <span class="w-5 mr-3">📦</span>
-                        Inventory Dashboard
+                    <a href="{{ url_for('main.inventory_dashboard') }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="5"
+                       data-shortcut="Alt+5"
+                       aria-label="Inventory Management - Press Alt+5">
+                        <span class="w-5 mr-3" aria-hidden="true">📦</span>
+                        Inventory
                     </a>
                     {% endif %}
                     
                     {% if current_user.can_access_admin_features() %}
-                    <a href="{{ url_for('main.settings_dashboard') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
-                        <span class="w-5 mr-3">⚙️</span>
-                        Settings Dashboard
+                    <a href="{{ url_for('main.settings_dashboard') }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="7"
+                       data-shortcut="Alt+7"
+                       aria-label="Settings - Press Alt+7">
+                        <span class="w-5 mr-3" aria-hidden="true">⚙️</span>
+                        Settings
                     </a>
-                    <a href="{{ url_for('main.system_status') }}" class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors">
-                        <span class="w-5 mr-3">🖥️</span>
+                    <a href="{{ url_for('main.system_status') }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="8"
+                       data-shortcut="Alt+8"
+                       aria-label="System Status - Press Alt+8">
+                        <span class="w-5 mr-3" aria-hidden="true">🖥️</span>
                         System Status
                     </a>
                     {% endif %}
@@ -199,11 +243,19 @@
                     </div>
                     
                     <div class="mt-3 space-y-1">
-                        <a href="{{ url_for('auth.profile') }}" class="block px-3 py-2 text-sm text-gray-700 rounded hover:bg-orange-100 transition-colors">
-                            <span class="mr-2">👤</span> Profile
+                        <a href="{{ url_for('auth.profile') }}"
+                           class="block px-3 py-2 text-sm text-gray-700 rounded hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                           accesskey="p"
+                           data-shortcut="Alt+P"
+                           aria-label="User Profile - Press Alt+P">
+                            <span class="mr-2" aria-hidden="true">👤</span> Profile
                         </a>
-                        <a href="{{ url_for('auth.logout') }}" class="block px-3 py-2 text-sm text-red-600 rounded hover:bg-red-50 transition-colors">
-                            <span class="mr-2">🚪</span> Logout
+                        <a href="{{ url_for('auth.logout') }}"
+                           class="block px-3 py-2 text-sm text-red-600 rounded hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+                           accesskey="l"
+                           data-shortcut="Alt+L"
+                           aria-label="Logout - Press Alt+L">
+                            <span class="mr-2" aria-hidden="true">🚪</span> Logout
                         </a>
                     </div>
                 </div>
@@ -215,16 +267,22 @@
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Top Navigation Bar -->
             {% if current_user.is_authenticated %}
-            <header class="bg-white shadow-sm border-b bg-gradient-to-r from-orange-50 to-amber-50">
+            <header class="bg-white shadow-sm border-b bg-gradient-to-r from-orange-50 to-amber-50" role="banner">
                 <div class="flex items-center justify-between h-16 px-4">
-                    <button @click="toggleSidebar()" class="lg:hidden">
-                        <i class="fas fa-bars text-gray-500"></i>
+                    <button @click="toggleSidebar()"
+                            class="lg:hidden p-2 rounded-lg hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            aria-label="Toggle sidebar menu"
+                            accesskey="b"
+                            data-shortcut="Ctrl+B">
+                        <i class="fas fa-bars text-gray-500" aria-hidden="true"></i>
                     </button>
                     
                     <div class="flex items-center space-x-4">
                         <!-- Search Bar -->
-                        <div class="relative" x-data="{ searchOpen: false }">
+                        <div class="relative" x-data="{ searchOpen: false }" role="search">
+                            <label for="global-search" class="sr-only">Search menu, orders, tables...</label>
                             <input
+                                id="global-search"
                                 type="text"
                                 x-model="searchQuery"
                                 @input.debounce.300ms="performSearch()"
@@ -232,8 +290,10 @@
                                 @blur="setTimeout(() => searchOpen = false, 200)"
                                 placeholder="Search menu, orders, tables..."
                                 class="w-full sm:w-48 md:w-64 px-4 py-2 border border-orange-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white"
-                            >
-                            <span class="absolute right-3 top-3 text-gray-400">🔍</span>
+                                accesskey="k"
+                                data-shortcut="Ctrl+K"
+                                aria-label="Search - Press Ctrl+K">
+                            <span class="absolute right-3 top-3 text-gray-400" aria-hidden="true">🔍</span>
                             
                             <!-- Search Results Dropdown -->
                             <div x-show="searchOpen && searchResults.length > 0"
@@ -274,16 +334,20 @@
                         {% if current_user.role == 'cashier' %}
                         <div class="relative">
                             <button
-                                class="p-2 text-gray-500 hover:text-gray-700 relative"
+                                class="p-2 text-gray-500 hover:text-gray-700 relative focus:outline-none focus:ring-2 focus:ring-orange-500 rounded-lg"
                                 hx-get="/api/cart/count"
                                 hx-target="#cart-count"
                                 hx-trigger="load, every 30s"
-                                hx-swap="innerHTML">
-                                <span class="text-lg">🛒</span>
+                                hx-swap="innerHTML"
+                                aria-label="Shopping cart"
+                                accesskey="c"
+                                data-shortcut="Ctrl+C">
+                                <span class="text-lg" aria-hidden="true">🛒</span>
                                 <span id="cart-count"
                                       x-show="cartCount > 0"
                                       x-text="cartCount"
-                                      class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                      class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
+                                      aria-label="Cart item count">
                                 </span>
                             </button>
                         </div>
@@ -291,11 +355,16 @@
                         
                         <!-- Notifications -->
                         <div class="relative" x-data="{ notificationsOpen: false }">
-                            <button @click="notificationsOpen = !notificationsOpen" class="p-2 text-gray-500 hover:text-orange-600 transition-colors">
-                                <span class="text-lg">🔔</span>
+                            <button @click="notificationsOpen = !notificationsOpen"
+                                    class="p-2 text-gray-500 hover:text-orange-600 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 rounded-lg"
+                                    aria-label="Notifications"
+                                    accesskey="n"
+                                    data-shortcut="Ctrl+N">
+                                <span class="text-lg" aria-hidden="true">🔔</span>
                                 <span x-show="notifications.length > 0"
                                       x-text="notifications.length"
-                                      class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                      class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
+                                      aria-label="Notification count">
                                 </span>
                             </button>
                             
@@ -339,10 +408,19 @@
                         </div>
                         
                         <!-- Current Time -->
-                        <div class="text-sm text-gray-600 flex items-center">
-                            <span class="mr-1">🕐</span>
-                            <span x-text="new Date().toLocaleTimeString()"></span>
+                        <div class="text-sm text-gray-600 flex items-center" aria-label="Current time">
+                            <span class="mr-1" aria-hidden="true">🕐</span>
+                            <span x-text="new Date().toLocaleTimeString()" aria-live="polite" aria-atomic="true"></span>
                         </div>
+                        
+                        <!-- Keyboard Shortcuts Help -->
+                        <button onclick="window.keyboardNav.showHelpModal()"
+                                class="p-2 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500 rounded-lg"
+                                aria-label="Keyboard shortcuts help"
+                                accesskey="/"
+                                data-shortcut="Ctrl+/">
+                            <i class="fas fa-keyboard" aria-hidden="true"></i>
+                        </button>
                     </div>
                 </div>
             </header>

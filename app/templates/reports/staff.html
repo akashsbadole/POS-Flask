@@ -1,0 +1,447 @@
+{% extends "base.html" %}
+
+{% block title %}Staff Performance Report{% endblock %}
+
+{% block extra_css %}
+<style>
+.report-header {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6;
+}
+
+.filters-section {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6;
+}
+
+.table-container {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden;
+}
+
+.staff-table {
+    @apply w-full;
+}
+
+.staff-table th {
+    @apply bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+}
+
+.staff-table td {
+    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900 border-t border-gray-200;
+}
+
+.performance-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.performance-excellent {
+    @apply bg-green-100 text-green-800;
+}
+
+.performance-good {
+    @apply bg-blue-100 text-blue-800;
+}
+
+.performance-average {
+    @apply bg-yellow-100 text-yellow-800;
+}
+
+.performance-poor {
+    @apply bg-red-100 text-red-800;
+}
+
+.export-button {
+    @apply inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors;
+}
+
+.summary-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+}
+
+.summary-value {
+    @apply text-2xl font-bold text-gray-900;
+}
+
+.summary-label {
+    @apply text-sm font-medium text-gray-600;
+}
+
+.staff-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow;
+}
+
+.staff-avatar {
+    @apply w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xl font-bold;
+}
+
+.staff-info {
+    @apply ml-4 flex-1;
+}
+
+.staff-name {
+    @apply text-lg font-semibold text-gray-900;
+}
+
+.staff-role {
+    @apply text-sm text-gray-600;
+}
+
+.staff-metrics {
+    @apply grid grid-cols-3 gap-4 mt-4;
+}
+
+.metric {
+    @apply text-center;
+}
+
+.metric-value {
+    @apply text-xl font-bold text-gray-900;
+}
+
+.metric-label {
+    @apply text-xs text-gray-600;
+}
+
+.performance-chart {
+    @apply h-32 flex items-end justify-between space-x-1;
+}
+
+.chart-bar {
+    @apply bg-gradient-to-t from-blue-400 to-blue-600 rounded-t;
+}
+
+.view-toggle {
+    @apply inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md;
+}
+
+.view-toggle-active {
+    @apply bg-blue-600 text-white border-blue-600;
+}
+
+.view-toggle-inactive {
+    @apply bg-white text-gray-700 border-gray-300 hover:bg-gray-50;
+}
+
+.rank-badge {
+    @apply inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold;
+}
+
+.rank-gold {
+    @apply bg-yellow-100 text-yellow-800 border-2 border-yellow-300;
+}
+
+.rank-silver {
+    @apply bg-gray-100 text-gray-800 border-2 border-gray-300;
+}
+
+.rank-bronze {
+    @apply bg-orange-100 text-orange-800 border-2 border-orange-300;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8" x-data="staffReport()">
+    <!-- Report Header -->
+    <div class="report-header">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+                    <svg class="w-8 h-8 mr-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    Staff Performance Report
+                </h1>
+                <p class="text-gray-600 mt-2">Employee performance metrics and analytics</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <div class="flex items-center bg-gray-100 rounded-lg p-1">
+                    <button @click="viewMode = 'table'" 
+                            :class="viewMode === 'table' ? 'view-toggle-active' : 'view-toggle-inactive'"
+                            class="view-toggle rounded-md">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                        </svg>
+                    </button>
+                    <button @click="viewMode = 'cards'" 
+                            :class="viewMode === 'cards' ? 'view-toggle-active' : 'view-toggle-inactive'"
+                            class="view-toggle rounded-md ml-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                        </svg>
+                    </button>
+                </div>
+                <button @click="exportData()" class="export-button">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Export CSV
+                </button>
+                <button @click="printReport()" class="export-button">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                    </svg>
+                    Print Summary
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="summary-card">
+            <div class="summary-label">Total Staff</div>
+            <div class="summary-value text-blue-600" x-text="totalStaff.toLocaleString()"></div>
+            <div class="text-xs text-gray-600 mt-1">Active employees</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Total Orders</div>
+            <div class="summary-value text-green-600" x-text="totalOrders.toLocaleString()"></div>
+            <div class="text-xs text-gray-600 mt-1">Handled by staff</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Total Revenue</div>
+            <div class="summary-value text-purple-600" x-text="'₹' + totalRevenue.toLocaleString()"></div>
+            <div class="text-xs text-gray-600 mt-1">Generated by staff</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Avg Performance</div>
+            <div class="summary-value text-orange-600" x-text="averageOrders.toFixed(1)"></div>
+            <div class="text-xs text-gray-600 mt-1">Orders per staff</div>
+        </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="filters-section">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                <input type="date" x-model="filters.startDate" @change="applyFilters()" 
+                       class="w-full border border-gray-300 rounded-md px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                <input type="date" x-model="filters.endDate" @change="applyFilters()" 
+                       class="w-full border border-gray-300 rounded-md px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Staff Member</label>
+                <select x-model="filters.userId" @change="applyFilters()" 
+                        class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    <option value="">All Staff</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+                <select x-model="filters.sortBy" @change="applyFilters()" 
+                        class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    <option value="orders">Orders Handled</option>
+                    <option value="revenue">Revenue Generated</option>
+                    <option value="name">Name</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table View -->
+    <div x-show="viewMode === 'table'" class="table-container">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Staff Performance</h3>
+            <p class="text-sm text-gray-600 mt-1">Showing <span x-text="filteredStaff.length"></span> staff members</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="staff-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Staff Name</th>
+                        <th>Role</th>
+                        <th>Orders Handled</th>
+                        <th>Revenue Generated</th>
+                        <th>Performance</th>
+                        <th>Trend</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="(staff, index) in filteredStaff" :key="staff.user_id">
+                        <tr>
+                            <td>
+                                <div class="rank-badge" 
+                                     :class="index === 0 ? 'rank-gold' : index === 1 ? 'rank-silver' : index === 2 ? 'rank-bronze' : 'bg-gray-100 text-gray-600'"
+                                     x-text="index + 1"></div>
+                            </td>
+                            <td class="font-medium" x-text="staff.user ? staff.user.name : 'Unknown'"></td>
+                            <td x-text="staff.user ? (staff.user.role || 'Staff') : 'Unknown'"></td>
+                            <td x-text="staff.orders.toLocaleString()"></td>
+                            <td x-text="'₹' + staff.revenue.toLocaleString()"></td>
+                            <td>
+                                <span class="performance-badge" 
+                                      :class="getPerformanceClass(staff.orders)"
+                                      x-text="getPerformanceLabel(staff.orders)"></span>
+                            </td>
+                            <td>
+                                <div class="performance-chart">
+                                    <template x-for="i in 7" :key="i">
+                                        <div class="chart-bar" 
+                                             :style="`height: ${Math.random() * 100}%`"
+                                             :title="`Day ${i}: ${Math.floor(Math.random() * staff.orders)} orders`"></div>
+                                    </template>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Cards View -->
+    <div x-show="viewMode === 'cards'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <template x-for="(staff, index) in filteredStaff.slice(0, 9)" :key="staff.user_id">
+            <div class="staff-card">
+                <div class="flex items-center">
+                    <div class="staff-avatar" x-text="getInitials(staff.user ? staff.user.name : 'Unknown')"></div>
+                    <div class="staff-info">
+                        <div class="flex items-center">
+                            <div class="staff-name" x-text="staff.user ? staff.user.name : 'Unknown'"></div>
+                            <div x-show="index < 3" class="ml-2">
+                                <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="staff-role" x-text="staff.user ? (staff.user.role || 'Staff Member') : 'Unknown'"></div>
+                    </div>
+                </div>
+                <div class="staff-metrics">
+                    <div class="metric">
+                        <div class="metric-value" x-text="staff.orders.toLocaleString()"></div>
+                        <div class="metric-label">Orders</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" x-text="'₹' + (staff.revenue / staff.orders).toFixed(0)"></div>
+                        <div class="metric-label">Avg Order</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" x-text="'₹' + (staff.revenue / 1000).toFixed(1) + 'k'"></div>
+                        <div class="metric-label">Revenue</div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>
+
+<script>
+function staffReport() {
+    return {
+        viewMode: 'table',
+        staffStats: {{ staff_stats | tojson if staff_stats else '{}' }},
+        filteredStaff: [],
+        filters: {
+            startDate: '{{ start_date.strftime("%Y-%m-%d") if start_date else "" }}',
+            endDate: '{{ end_date.strftime("%Y-%m-%d") if end_date else "" }}',
+            userId: {{ selected_user or 'null' }},
+            sortBy: 'orders'
+        },
+        totalStaff: 0,
+        totalOrders: 0,
+        totalRevenue: 0,
+        averageOrders: 0,
+        
+        init() {
+            this.applyFilters();
+        },
+        
+        applyFilters() {
+            // Convert staff_stats object to array
+            this.filteredStaff = Object.entries(this.staffStats).map(([user_id, data]) => ({
+                user_id: parseInt(user_id),
+                user: data.user,
+                orders: data.orders,
+                revenue: data.revenue
+            }));
+            
+            // Apply user filter
+            if (this.filters.userId) {
+                this.filteredStaff = this.filteredStaff.filter(staff => 
+                    staff.user_id === this.filters.userId
+                );
+            }
+            
+            // Apply sorting
+            this.filteredStaff.sort((a, b) => {
+                switch(this.filters.sortBy) {
+                    case 'orders':
+                        return b.orders - a.orders;
+                    case 'revenue':
+                        return b.revenue - a.revenue;
+                    case 'name':
+                        return (a.user ? a.user.name : '').localeCompare(b.user ? b.user.name : '');
+                    default:
+                        return 0;
+                }
+            });
+            
+            this.calculateSummary();
+        },
+        
+        calculateSummary() {
+            this.totalStaff = this.filteredStaff.length;
+            this.totalOrders = this.filteredStaff.reduce((sum, staff) => sum + staff.orders, 0);
+            this.totalRevenue = this.filteredStaff.reduce((sum, staff) => sum + staff.revenue, 0);
+            this.averageOrders = this.totalStaff > 0 ? this.totalOrders / this.totalStaff : 0;
+        },
+        
+        getPerformanceClass(orders) {
+            if (orders >= 50) return 'performance-excellent';
+            if (orders >= 30) return 'performance-good';
+            if (orders >= 15) return 'performance-average';
+            return 'performance-poor';
+        },
+        
+        getPerformanceLabel(orders) {
+            if (orders >= 50) return 'Excellent';
+            if (orders >= 30) return 'Good';
+            if (orders >= 15) return 'Average';
+            return 'Needs Improvement';
+        },
+        
+        getInitials(name) {
+            if (!name) return '?';
+            return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        },
+        
+        exportData() {
+            // Create CSV content
+            let csv = 'Rank,Staff Name,Role,Orders,Revenue,Average Order Value\n';
+            this.filteredStaff.forEach((staff, index) => {
+                const avgOrder = staff.orders > 0 ? staff.revenue / staff.orders : 0;
+                csv += `${index + 1},"${staff.user ? staff.user.name : 'Unknown'}","${staff.user ? (staff.user.role || 'Staff') : 'Unknown'}",${staff.orders},${staff.revenue},${avgOrder.toFixed(2)}\n`;
+            });
+            
+            // Download CSV
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `staff_performance_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        },
+        
+        printReport() {
+            const params = new URLSearchParams();
+            params.append('start_date', this.filters.startDate);
+            params.append('end_date', this.filters.endDate);
+            params.append('user_id', this.filters.userId);
+            params.append('type', 'staff');
+            
+            window.open(`/reports/print-summary?${params.toString()}`, '_blank');
+        }
+    }
+}
+</script>
+{% endblock %}

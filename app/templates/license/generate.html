@@ -13,10 +13,11 @@
 
     <div class="bg-white rounded-lg shadow">
         <form method="POST" class="p-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <!-- Template Selection -->
             <div class="mb-8">
                 <h3 class="text-lg font-semibold text-gray-900 mb-4">Select Template</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border border-dotted p-4">
                     {% for template in templates %}
                     <label class="border-2 border-gray-200 rounded-lg p-4 cursor-pointer hover:border-blue-500 transition-colors">
                         <input type="radio" name="template_id" value="{{ template.id }}" required class="sr-only">

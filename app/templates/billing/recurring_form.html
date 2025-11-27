@@ -15,6 +15,7 @@
 
     <div class="bg-white rounded-lg shadow">
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <!-- Customer Information -->
             <div class="p-6 border-b border-gray-200">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Customer Information</h2>

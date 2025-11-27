@@ -32,6 +32,7 @@
     <!-- Ingredients Form -->
     <div class="bg-white rounded-lg shadow-sm border">
         <form method="POST" class="p-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-3">Ingredients Used</label>

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Menu Items{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6" x-data="menuItems()">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Menu Items</h1>
+            <p class="text-gray-600">Manage your restaurant's menu items</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <div class="relative">
+                <input type="text"
+                       x-model="searchQuery"
+                       @input.debounce.300ms="performSearch()"
+                       placeholder="Search menu items..."
+                       class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-2a2 2 0 00-2.828 2.828l1.172 1.172H4a2 2 0 00-2.828 2.828L4 7.172V4a2 2 0 012.828 0l1.172-1.172L16 16z"></path>
+                    </svg>
+                </div>
+            </div>
+            <button @click="showAddModal = true"
+                    class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                Add Item
+            </button>
+        </div>
+    </div>
+
+    <!-- Category Filter -->
+    <div class="bg-white rounded-lg shadow mb-6">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">Filter by Category</h2>
+        </div>
+        <div class="p-4">
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ url_for('menu.list_items') }}" 
+                   class="{% if not selected_category %}bg-blue-600 text-white{% else %}bg-gray-200 text-gray-700 hover:bg-gray-300{% endif %} px-3 py-1 rounded-full text-sm">
+                    All Items
+                </a>
+                {% for category in categories %}
+                <a href="{{ url_for('menu.list_items', category_id=category.id) }}" 
+                   class="{% if selected_category == category.id %}bg-blue-600 text-white{% else %}bg-gray-200 text-gray-700 hover:bg-gray-300{% endif %} px-3 py-1 rounded-full text-sm">
+                    {{ category.name }} ({{ category.items|length }})
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Items Grid -->
+    {% if items %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for item in items %}
+        <div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-lg font-medium text-gray-900">{{ item.name }}</h3>
+                    <span class="{% if item.is_available %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %} inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                        {% if item.is_available %}Available{% else %}Unavailable{% endif %}
+                    </span>
+                </div>
+                
+                {% if item.description %}
+                <p class="text-sm text-gray-600 mb-4">{{ item.description }}</p>
+                {% endif %}
+                
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-2xl font-bold text-gray-900">₹{{ "%.2f"|format(item.price) }}</span>
+                    <span class="text-sm text-gray-500">{{ item.category.name if item.category else 'Uncategorized' }}</span>
+                </div>
+                
+                {% if item.preparation_time %}
+                <div class="flex items-center text-sm text-gray-500 mb-4">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    {{ item.preparation_time }} mins
+                </div>
+                {% endif %}
+                
+                <div class="flex justify-between items-center">
+                    <div class="flex space-x-2">
+                        <a href="{{ url_for('menu.edit_item', item_id=item.id) }}" 
+                           class="text-blue-600 hover:text-blue-900 text-sm">
+                            Edit
+                        </a>
+                        <form method="POST" action="{{ url_for('menu.toggle_availability', item_id=item.id) }}"
+                              class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit"
+                                    class="{% if item.is_available %}text-yellow-600 hover:text-yellow-900{% else %}text-green-600 hover:text-green-900{% endif %} text-sm">
+                                {% if item.is_available %}Disable{% else %}Enable{% endif %}
+                            </button>
+                        </form>
+                    </div>
+                    <span class="text-xs text-gray-400">Order: {{ item.display_order }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow">
+        <div class="p-12 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">
+                {% if selected_category %}No items in this category{% else %}No menu items{% endif %}
+            </h3>
+            <p class="mt-1 text-sm text-gray-500">
+                {% if selected_category %}Add items to this category to see them here.{% else %}Get started by creating your first menu item.{% endif %}
+            </p>
+            <div class="mt-6">
+                <a href="{{ url_for('menu.create_item') }}" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Add Item
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+<script>
+function menuItems() {
+    return {
+        searchQuery: '',
+        showAddModal: false,
+        
+        performSearch() {
+            // This would typically trigger an HTMX request to filter items
+            console.log('Searching for:', this.searchQuery);
+        },
+        
+        showAddItemModal() {
+            this.showAddModal = true;
+        }
+    }
+}
+</script>

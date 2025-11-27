@@ -159,6 +159,7 @@
                             </a>
                             {% if subscription.status == 'cancelled' and current_user.is_super_admin() or (not current_user.is_super_admin() and subscription.restaurant_id == current_user.restaurant_id) %}
                             <form method="POST" action="{{ url_for('subscription.reactivate_subscription', subscription_id=subscription.id) }}" class="inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="text-green-600 hover:text-green-900 ml-2">
                                     Reactivate
                                 </button>
