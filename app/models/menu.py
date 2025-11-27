@@ -128,6 +128,33 @@ class ItemVariant(db.Model):
     def __repr__(self):
         return f'<ItemVariant {self.name} (+${self.price_modifier})>'
 
+class AddOnCategory(db.Model):
+    __tablename__ = 'addon_categories'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    description = db.Column(db.Text)
+    display_order = db.Column(db.Integer, default=0)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    add_ons = db.relationship('AddOn', backref='category', lazy=True)
+    
+    def to_dict(self):
+        """Convert add-on category to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'display_order': self.display_order,
+            'is_active': self.is_active,
+            'addon_count': len([addon for addon in self.add_ons.all() if addon.is_active])
+        }
+    
+    def __repr__(self):
+        return f'<AddOnCategory {self.name}>'
+
 class AddOn(db.Model):
     __tablename__ = 'add_ons'
     
@@ -137,6 +164,7 @@ class AddOn(db.Model):
     price = db.Column(db.Numeric(10, 2), default=0.00)
     display_order = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('addon_categories.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def to_dict(self):
@@ -147,7 +175,9 @@ class AddOn(db.Model):
             'description': self.description,
             'price': float(self.price),
             'display_order': self.display_order,
-            'is_active': self.is_active
+            'is_active': self.is_active,
+            'category_id': self.category_id,
+            'category_name': self.category.name if self.category else None
         }
     
     def __repr__(self):

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Variants for {{ item.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-6">
+    <div class="mb-6">
+        <nav class="flex mb-4" aria-label="Breadcrumb">
+            <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                <li class="inline-flex items-center">
+                    <a href="{{ url_for('menu.list_items') }}" class="text-gray-700 hover:text-gray-900">
+                        Menu Items
+                    </a>
+                </li>
+                <li>
+                    <div class="flex items-center">
+                        <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                        </svg>
+                        <a href="{{ url_for('menu.edit_item', item_id=item.id) }}" class="ml-1 text-gray-700 hover:text-gray-900 md:ml-2">
+                            {{ item.name }}
+                        </a>
+                    </div>
+                </li>
+                <li>
+                    <div class="flex items-center">
+                        <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="ml-1 text-gray-500 md:ml-2">Variants</span>
+                    </div>
+                </li>
+            </ol>
+        </nav>
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Item Variants</h1>
+                <p class="text-gray-600">Manage variants for: {{ item.name }} (₹{{ "%.2f"|format(item.price) }})</p>
+            </div>
+            <a href="{{ url_for('menu.create_variant', item_id=item.id) }}"
+               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+               accesskey="a" data-shortcut="Ctrl+N" aria-label="Add new variant">
+                <i class="fas fa-plus mr-2"></i>Add Variant
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border">
+        <div class="p-6">
+            {% if variants %}
+            <div class="space-y-4">
+                {% for variant in variants %}
+                <div class="bg-gray-50 rounded-lg p-4 border-l-4 {% if variant.is_available %}border-green-500{% else %}border-red-500{% endif %}" hx-target="this">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-medium text-gray-900">{{ variant.name }}</h3>
+                            <div class="mt-1 flex items-center space-x-4">
+                                <span class="{% if variant.is_available %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %} inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                                    {% if variant.is_available %}Available{% else %}Unavailable{% endif %}
+                                </span>
+                                <span class="text-sm text-gray-600">
+                                    {% if variant.price_modifier > 0 %}
+                                        +₹{{ "%.2f"|format(variant.price_modifier) }} (₹{{ "%.2f"|format(item.price + variant.price_modifier) }} total)
+                                    {% elif variant.price_modifier < 0 %}
+                                        -₹{{ "%.2f"|format(variant.price_modifier|abs) }} (₹{{ "%.2f"|format(item.price + variant.price_modifier) }} total)
+                                    {% else %}
+                                        No price change (₹{{ "%.2f"|format(item.price) }})
+                                    {% endif %}
+                                </span>
+                                <span class="text-xs text-gray-400">Order: {{ variant.display_order }}</span>
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <a href="{{ url_for('menu.edit_variant', variant_id=variant.id) }}" 
+                               class="text-blue-600 hover:text-blue-900 text-sm font-medium">
+                                Edit
+                            </a>
+                            <form method="POST" action="{{ url_for('menu.toggle_variant_availability', variant_id=variant.id) }}"
+                                  class="inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit"
+                                        class="{% if variant.is_available %}text-yellow-600 hover:text-yellow-900{% else %}text-green-600 hover:text-green-900{% endif %} text-sm font-medium">
+                                    {% if variant.is_available %}Disable{% else %}Enable{% endif %}
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('menu.delete_variant', variant_id=variant.id) }}"
+                                  class="inline"
+                                  onsubmit="return confirm('Are you sure you want to delete this variant?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit"
+                                        class="text-red-600 hover:text-red-900 text-sm font-medium">
+                                    Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-12">
+                <i class="fas fa-tags text-gray-400 text-5xl mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No variants yet</h3>
+                <p class="text-gray-600 mb-6">Add variants to offer different sizes, spice levels, or other options for this menu item.</p>
+                <a href="{{ url_for('menu.create_variant', item_id=item.id) }}"
+                   class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i class="fas fa-plus mr-2"></i>Add Your First Variant
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Item Information -->
+    <div class="mt-6 bg-white rounded-lg shadow-sm border p-6">
+        <h2 class="text-lg font-semibold mb-4">Item Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <p class="text-sm font-medium text-gray-600">Item Name</p>
+                <p class="text-lg font-semibold">{{ item.name }}</p>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-600">Base Price</p>
+                <p class="text-lg font-semibold">₹{{ "%.2f"|format(item.price) }}</p>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-600">Category</p>
+                <p class="text-lg font-semibold">
+                    {{ item.category.name if item.category else 'Uncategorized' }}
+                </p>
+            </div>
+        </div>
+        
+        {% if item.description %}
+        <div class="mt-4">
+            <p class="text-sm font-medium text-gray-600">Description</p>
+            <p class="text-gray-700">{{ item.description }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

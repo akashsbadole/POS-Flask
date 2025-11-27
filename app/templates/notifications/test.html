@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Test Notifications{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Test Notifications</h1>
+        <a href="{{ url_for('notifications.dashboard') }}" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+            Back to Dashboard
+        </a>
+    </div>
+
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <form method="POST" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Email Tests -->
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Email Notifications</h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label for="email_receipt" class="block text-sm font-medium text-gray-700">Test Order Receipt Email</label>
+                                <div class="mt-1 space-y-2">
+                                    <input type="email" name="recipient" placeholder="Enter email address" required
+                                           class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                                    <input type="hidden" name="notification_type" value="email_receipt">
+                                    <button type="submit" class="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium w-full">
+                                        Send Test Receipt Email
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="email_confirmation" class="block text-sm font-medium text-gray-700">Test Order Confirmation Email</label>
+                                <div class="mt-1 space-y-2">
+                                    <input type="email" name="recipient" placeholder="Enter email address" required
+                                           class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                                    <input type="hidden" name="notification_type" value="email_confirmation">
+                                    <button type="submit" class="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium w-full">
+                                        Send Test Confirmation Email
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="email_low_stock" class="block text-sm font-medium text-gray-700">Test Low Stock Alert Email</label>
+                                <div class="mt-1 space-y-2">
+                                    <input type="email" name="recipient" placeholder="Enter email address" required
+                                           class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                                    <input type="hidden" name="notification_type" value="email_low_stock">
+                                    <button type="submit" class="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium w-full">
+                                        Send Test Low Stock Alert
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="email_license" class="block text-sm font-medium text-gray-700">Test License Renewal Email</label>
+                                <div class="mt-1 space-y-2">
+                                    <input type="email" name="recipient" placeholder="Enter email address" required
+                                           class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                                    <input type="hidden" name="notification_type" value="email_license">
+                                    <button type="submit" class="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium w-full">
+                                        Send Test License Renewal
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SMS Tests -->
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">SMS Notifications</h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label for="sms_receipt" class="block text-sm font-medium text-gray-700">Test Order Receipt SMS</label>
+                                <div class="mt-1 space-y-2">
+                                    <input type="tel" name="recipient" placeholder="Enter phone number (e.g., +1234567890)" required
+                                           class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                                    <input type="hidden" name="notification_type" value="sms_receipt">
+                                    <button type="submit" class="mt-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium w-full">
+                                        Send Test Receipt SMS
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="sms_confirmation" class="block text-sm font-medium text-gray-700">Test Order Confirmation SMS</label>
+                                <div class="mt-1 space-y-2">
+                                    <input type="tel" name="recipient" placeholder="Enter phone number (e.g., +1234567890)" required
+                                           class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                                    <input type="hidden" name="notification_type" value="sms_confirmation">
+                                    <button type="submit" class="mt-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium w-full">
+                                        Send Test Confirmation SMS
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Configuration Status -->
+    <div class="mt-8 bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Configuration Status</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h4 class="text-md font-medium text-gray-900 mb-2">Email Configuration</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Email Notifications:</span>
+                            <span class="text-sm font-medium {% if config.ENABLE_EMAIL_NOTIFICATIONS %}text-green-600{% else %}text-red-600{% endif %}">
+                                {% if config.ENABLE_EMAIL_NOTIFICATIONS %}Enabled{% else %}Disabled{% endif %}
+                            </span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">SMTP Server:</span>
+                            <span class="text-sm font-medium text-gray-900">{{ config.MAIL_SERVER or 'Not configured' }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">SMTP Port:</span>
+                            <span class="text-sm font-medium text-gray-900">{{ config.MAIL_PORT or 'Not configured' }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">From Address:</span>
+                            <span class="text-sm font-medium text-gray-900">{{ config.MAIL_DEFAULT_SENDER or 'Not configured' }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h4 class="text-md font-medium text-gray-900 mb-2">SMS Configuration</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">SMS Notifications:</span>
+                            <span class="text-sm font-medium {% if config.ENABLE_SMS_NOTIFICATIONS %}text-green-600{% else %}text-red-600{% endif %}">
+                                {% if config.ENABLE_SMS_NOTIFICATIONS %}Enabled{% else %}Disabled{% endif %}
+                            </span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">SMS Provider:</span>
+                            <span class="text-sm font-medium text-gray-900">{{ config.SMS_PROVIDER or 'Not configured' }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">From Number:</span>
+                            <span class="text-sm font-medium text-gray-900">{{ config.SMS_FROM_NUMBER or 'Not configured' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

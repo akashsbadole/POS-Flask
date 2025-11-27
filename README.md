@@ -4,6 +4,10 @@
 
 This is a comprehensive Restaurant Point-of-Sale (POS) system built with modern web technologies designed for efficiency, reliability, and ease of use in restaurant environments.
 
+## Screenshot
+![dashboard](dashboard.png "POS Dashboard")
+
+
 ## Technology Stack
 
 - **Backend**: Flask (Python), SQLAlchemy, Flask-SocketIO

@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}{% if addon %}Edit{% else %}Add{% endif %} Add-on{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-6">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">
+            {% if addon %}Edit Add-on{% else %}Add New Add-on{% endif %}
+        </h1>
+        <p class="text-gray-600">
+            {% if addon %}Update add-on information{% else %}Create a new add-on for menu items{% endif %}
+        </p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border">
+        <form method="POST" class="p-6" data-validate="true" aria-label="Add-on form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="md:col-span-2">
+                    <label for="addon_name" class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                    <input id="addon_name" type="text"
+                           name="name"
+                           value="{{ addon.name if addon else '' }}"
+                           required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           accesskey="n" data-field="name" aria-describedby="addon-name-help">
+                    <span id="addon-name-help" class="sr-only">Enter add-on name</span>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label for="addon_description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea id="addon_description" name="description"
+                              rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              accesskey="d" data-field="description" aria-describedby="addon-description-help">{{ addon.description if addon else '' }}</textarea>
+                    <span id="addon-description-help" class="sr-only">Enter add-on description</span>
+                </div>
+
+                <div>
+                    <label for="addon_price" class="block text-sm font-medium text-gray-700 mb-1">Price (₹)</label>
+                    <input id="addon_price" type="number"
+                           name="price"
+                           value="{{ addon.price if addon else '0.00' }}"
+                           step="0.01"
+                           min="0"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           accesskey="p" data-field="price" aria-describedby="addon-price-help">
+                    <span id="addon-price-help" class="sr-only">Enter add-on price</span>
+                </div>
+
+                <div>
+                    <label for="addon_category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <select id="addon_category" name="category_id"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            accesskey="c" data-field="category_id" aria-describedby="addon-category-help">
+                        <option value="">No category</option>
+                        {% for category in addon_categories %}
+                        <option value="{{ category.id }}" {% if addon and addon.category_id == category.id %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <span id="addon-category-help" class="sr-only">Select add-on category</span>
+                </div>
+
+                <div>
+                    <label for="display_order" class="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
+                    <input id="display_order" type="number"
+                           name="display_order"
+                           value="{{ addon.display_order if addon else '0' }}"
+                           min="0"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           accesskey="o" data-field="display_order" aria-describedby="display-order-help">
+                    <span id="display-order-help" class="sr-only">Enter display order</span>
+                </div>
+
+                {% if addon %}
+                <div class="md:col-span-2">
+                    <label class="flex items-center">
+                        <input id="is_active" type="checkbox"
+                               name="is_active"
+                               {% if addon.is_active %}checked{% endif %}
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                               accesskey="a" data-field="is_active" aria-describedby="active-help">
+                        <span class="ml-2 text-sm text-gray-700">Active for ordering</span>
+                    </label>
+                    <span id="active-help" class="sr-only">Toggle add-on availability</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="mt-6 flex justify-end space-x-3">
+                <a href="{{ url_for('menu.list_addons') }}"
+                   class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                   accesskey="c" data-shortcut="Escape" aria-label="Cancel and return to add-ons list">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        accesskey="s" data-shortcut="Ctrl+S" aria-label="Save add-on">
+                    {% if addon %}Update Add-on{% else %}Add Add-on{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Add-on Information -->
+    {% if addon %}
+    <div class="mt-6 bg-white rounded-lg shadow-sm border p-6">
+        <h2 class="text-lg font-semibold mb-4">Add-on Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <p class="text-sm font-medium text-gray-600">Status</p>
+                <p class="text-lg font-semibold">
+                    {% if addon.is_active %}
+                    <span class="text-green-600">Active</span>
+                    {% else %}
+                    <span class="text-red-600">Inactive</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div>
+                <p class="text-sm font-medium text-gray-600">Price</p>
+                <p class="text-lg font-semibold">
+                    {% if addon.price > 0 %}
+                        ₹{{ "%.2f"|format(addon.price) }}
+                    {% else %}
+                        No charge
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <p class="text-sm font-medium text-gray-600">Created</p>
+            <p class="text-lg font-semibold">
+                {{ addon.created_at.strftime('%m/%d/%Y') if addon.created_at else 'Unknown' }}
+            </p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

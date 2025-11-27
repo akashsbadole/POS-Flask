@@ -1,5 +1,19 @@
-<div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow border-l-4 {% if item.is_available %}border-green-500{% else %}border-red-500{% endif %}" hx-target="this">
+<div class="menu-item-card bg-white rounded-lg shadow hover:shadow-lg transition-shadow border-l-4 {% if item.is_available %}border-green-500{% else %}border-red-500{% endif %} draggable"
+     data-item-id="{{ item.id }}"
+     tabindex="0"
+     role="button"
+     aria-label="Menu item: {{ item.name }}"
+     hx-target="this">
     <div class="p-6">
+        <!-- Drag Handle -->
+        <div class="drag-handle absolute top-2 left-2 opacity-0 hover:opacity-100 transition-opacity">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-5 h-5 text-gray-400">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+            </svg>
+        </div>
+
+        <!-- Order Indicator -->
+        <div class="order-indicator" data-order-indicator>{{ item.display_order + 1 }}</div>
         <div class="flex justify-between items-start mb-4">
             <h3 class="text-lg font-medium text-gray-900">{{ item.name }}</h3>
             <span class="{% if item.is_available %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %} inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
@@ -12,7 +26,19 @@
         {% endif %}
         
         <div class="flex justify-between items-center mb-4">
-            <span class="text-2xl font-bold text-gray-900">₹{{ "%.2f"|format(item.price) }}</span>
+            <div>
+                <span class="text-2xl font-bold text-gray-900">₹{{ "%.2f"|format(item.price) }}</span>
+                {% if item.variants %}
+                <span class="text-xs text-gray-500 block">
+                    {% set available_variants = item.variants|selectattr('is_available')|list %}
+                    {% if available_variants %}
+                        {{ available_variants|length }} option{{ 's' if available_variants|length != 1 else '' }} available
+                    {% else %}
+                        No options available
+                    {% endif %}
+                </span>
+                {% endif %}
+            </div>
             <span class="text-sm text-gray-500">{{ item.category.name if item.category else 'Uncategorized' }}</span>
         </div>
         
@@ -25,12 +51,60 @@
         </div>
         {% endif %}
         
+        {% if item.variants %}
+        <div class="mb-4">
+            <p class="text-xs font-medium text-gray-600 mb-2">Options:</p>
+            <div class="flex flex-wrap gap-1">
+                {% for variant in item.variants[:3] %}
+                    <span class="{% if not variant.is_available %}text-gray-400 line-through{% else %}text-gray-700{% endif %} text-xs bg-gray-100 px-2 py-1 rounded">
+                        {{ variant.name }}
+                        {% if variant.price_modifier != 0 %}
+                            ({{ '+' if variant.price_modifier > 0 else '' }}₹{{ "%.2f"|format(variant.price_modifier) }})
+                        {% endif %}
+                    </span>
+                {% endfor %}
+                {% if item.variants|length > 3 %}
+                    <span class="text-xs text-gray-500">+{{ item.variants|length - 3 }} more</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if item.add_ons %}
+        <div class="mb-4">
+            <p class="text-xs font-medium text-gray-600 mb-2">Add-ons:</p>
+            <div class="flex flex-wrap gap-1">
+                {% for addon in item.add_ons[:3] %}
+                    <span class="{% if not addon.is_active %}text-gray-400 line-through{% else %}text-gray-700{% endif %} text-xs bg-gray-100 px-2 py-1 rounded">
+                        {{ addon.name }}
+                        {% if addon.price > 0 %}
+                            (+₹{{ "%.2f"|format(addon.price) }})
+                        {% endif %}
+                    </span>
+                {% endfor %}
+                {% if item.add_ons|length > 3 %}
+                    <span class="text-xs text-gray-500">+{{ item.add_ons|length - 3 }} more</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
         <div class="flex justify-between items-center">
             <div class="flex space-x-2">
-                <a href="{{ url_for('menu.edit_item', item_id=item.id) }}" 
+                <a href="{{ url_for('menu.edit_item', item_id=item.id) }}"
                    class="text-blue-600 hover:text-blue-900 text-sm">
                     Edit
                 </a>
+                {% if item.id %}
+                <a href="{{ url_for('menu.list_variants', item_id=item.id) }}"
+                   class="text-purple-600 hover:text-purple-900 text-sm">
+                    Variants
+                </a>
+                <a href="{{ url_for('menu.manage_item_addons', item_id=item.id) }}"
+                   class="text-green-600 hover:text-green-900 text-sm">
+                    Add-ons
+                </a>
+                {% endif %}
                 <form method="POST" action="{{ url_for('menu.toggle_availability', item_id=item.id) }}"
                       class="inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -40,7 +114,16 @@
                     </button>
                 </form>
             </div>
-            <span class="text-xs text-gray-400">Order: {{ item.display_order }}</span>
+            <div class="flex items-center space-x-2">
+                <span class="text-xs text-gray-400">Order: {{ item.display_order }}</span>
+                <!-- Bulk selection checkbox -->
+                <input type="checkbox"
+                       class="bulk-checkbox hidden"
+                       x-show="bulkMode"
+                       x-model="selectedItems"
+                       value="{{ item.id }}"
+                       @change="updateBulkSelection()">
+            </div>
         </div>
     </div>
 </div>

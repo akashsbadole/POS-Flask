@@ -2,6 +2,10 @@
 
 {% block title %}Menu Items{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/drag-drop.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 py-6" x-data="menuItems()">
     <div class="flex justify-between items-center mb-6">
@@ -32,6 +36,54 @@
         </div>
     </div>
 
+    <!-- Reordering Tools -->
+    <div class="reorder-tools mb-6" x-show="reorderMode">
+        <h3>Reordering Tools</h3>
+        <div class="button-group">
+            <button @click="toggleBulkMode()"
+                    :class="bulkMode ? 'btn-primary' : 'btn-outline'"
+                    class="flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                <span x-text="bulkMode ? 'Exit Bulk Mode' : 'Bulk Select'"></span>
+            </button>
+            <button @click="resetToAlphabetical()" class="btn-outline">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                </svg>
+                Reset to Alphabetical
+            </button>
+            <button @click="sortByPrice()" class="btn-outline">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Sort by Price
+            </button>
+            <button @click="togglePreviewMode()"
+                    :class="previewMode ? 'btn-primary' : 'btn-outline'"
+                    class="flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>
+                <span x-text="previewMode ? 'Exit Preview' : 'Preview Order'"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Reorder Mode Toggle -->
+    <div class="mb-6">
+        <button @click="toggleReorderMode()"
+                :class="reorderMode ? 'btn-primary' : 'btn-secondary'"
+                class="flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+            <span x-text="reorderMode ? 'Exit Reorder Mode' : 'Enable Reorder Mode'"></span>
+        </button>
+    </div>
+
     <!-- Category Filter -->
     <div class="bg-white rounded-lg shadow mb-6">
         <div class="px-6 py-4 border-b border-gray-200">
@@ -55,10 +107,29 @@
 
     <!-- Items Grid -->
     {% if items %}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div id="menu-items-container"
+         class="menu-items-container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+         :class="{ 'bulk-reorder-mode': bulkMode, 'preview-mode': previewMode }"
+         data-category-id="{{ selected_category or '' }}">
         {% for item in items %}
-        <div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
+        <div class="menu-item-card bg-white rounded-lg shadow hover:shadow-lg transition-shadow draggable"
+             data-item-id="{{ item.id }}"
+             tabindex="0"
+             role="button"
+             aria-label="Menu item: {{ item.name }}">
             <div class="p-6">
+                <!-- Drag Handle (visible in reorder mode) -->
+                <div class="drag-handle absolute top-2 left-2 opacity-0 hover:opacity-100 transition-opacity"
+                     x-show="reorderMode"
+                     x-transition>
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-5 h-5 text-gray-400">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+                    </svg>
+                </div>
+
+                <!-- Order Indicator -->
+                <div class="order-indicator" data-order-indicator>{{ item.display_order + 1 }}</div>
+
                 <div class="flex justify-between items-start mb-4">
                     <h3 class="text-lg font-medium text-gray-900">{{ item.name }}</h3>
                     <span class="{% if item.is_available %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %} inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
@@ -86,7 +157,7 @@
                 
                 <div class="flex justify-between items-center">
                     <div class="flex space-x-2">
-                        <a href="{{ url_for('menu.edit_item', item_id=item.id) }}" 
+                        <a href="{{ url_for('menu.edit_item', item_id=item.id) }}"
                            class="text-blue-600 hover:text-blue-900 text-sm">
                             Edit
                         </a>
@@ -99,7 +170,16 @@
                             </button>
                         </form>
                     </div>
-                    <span class="text-xs text-gray-400">Order: {{ item.display_order }}</span>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xs text-gray-400">Order: {{ item.display_order }}</span>
+                        <!-- Bulk selection checkbox -->
+                        <input type="checkbox"
+                               class="bulk-checkbox hidden"
+                               x-show="bulkMode"
+                               x-model="selectedItems"
+                               value="{{ item.id }}"
+                               @change="updateBulkSelection()">
+                    </div>
                 </div>
             </div>
         </div>
@@ -137,6 +217,113 @@ function menuItems() {
     return {
         searchQuery: '',
         showAddModal: false,
+        reorderMode: false,
+        bulkMode: false,
+        previewMode: false,
+        selectedItems: [],
+        dragDropInstance: null,
+        
+        init() {
+            // Initialize drag-drop when reorder mode is enabled
+            this.$watch('reorderMode', (value) => {
+                if (value) {
+                    this.initDragDrop();
+                } else if (this.dragDropInstance) {
+                    this.dragDropInstance.destroy();
+                    this.dragDropInstance = null;
+                }
+            });
+        },
+        
+        initDragDrop() {
+            if (window.MenuDragDrop) {
+                this.dragDropInstance = window.MenuDragDrop.init({
+                    containerSelector: '#menu-items-container',
+                    itemSelector: '.menu-item-card',
+                    handleSelector: '.drag-handle'
+                });
+            }
+        },
+        
+        toggleReorderMode() {
+            this.reorderMode = !this.reorderMode;
+            if (!this.reorderMode) {
+                this.bulkMode = false;
+                this.previewMode = false;
+            }
+        },
+        
+        toggleBulkMode() {
+            this.bulkMode = !this.bulkMode;
+            if (this.bulkMode) {
+                this.previewMode = false;
+            }
+        },
+        
+        togglePreviewMode() {
+            this.previewMode = !this.previewMode;
+            if (this.previewMode) {
+                this.bulkMode = false;
+            }
+        },
+        
+        async resetToAlphabetical() {
+            try {
+                const response = await fetch('/api/menu/bulk-reorder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                    },
+                    body: JSON.stringify({
+                        operation: 'reset_alphabetical',
+                        category_id: {{ selected_category or 'null' }}
+                    })
+                });
+                
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    const error = await response.json();
+                    this.showNotification(error.error || 'Failed to reset order', 'error');
+                }
+            } catch (error) {
+                console.error('Error resetting order:', error);
+                this.showNotification('Error resetting order', 'error');
+            }
+        },
+        
+        async sortByPrice() {
+            try {
+                const response = await fetch('/api/menu/bulk-reorder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                    },
+                    body: JSON.stringify({
+                        operation: 'sort_by_price',
+                        category_id: {{ selected_category or 'null' }},
+                        ascending: true
+                    })
+                });
+                
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    const error = await response.json();
+                    this.showNotification(error.error || 'Failed to sort by price', 'error');
+                }
+            } catch (error) {
+                console.error('Error sorting by price:', error);
+                this.showNotification('Error sorting by price', 'error');
+            }
+        },
+        
+        updateBulkSelection() {
+            // Handle bulk selection logic
+            console.log('Selected items:', this.selectedItems);
+        },
         
         performSearch() {
             // This would typically trigger an HTMX request to filter items
@@ -145,6 +332,13 @@ function menuItems() {
         
         showAddItemModal() {
             this.showAddModal = true;
+        },
+        
+        showNotification(message, type = 'info') {
+            // Dispatch event for global notification system
+            window.dispatchEvent(new CustomEvent('showNotification', {
+                detail: { message, type }
+            }));
         }
     }
 }

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Low Stock Alert - {{ ingredient.name }}</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background-color: #e74c3c;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .alert-box {
+            background-color: #fadbd8;
+            border-left: 4px solid #e74c3c;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 5px 5px 0;
+        }
+        .alert-box h2 {
+            margin: 0 0 10px 0;
+            color: #e74c3c;
+        }
+        .ingredient-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .ingredient-info p {
+            margin: 5px 0;
+        }
+        .stock-level {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+        }
+        .stock-bar {
+            flex: 1;
+            height: 30px;
+            background-color: #ecf0f1;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-right: 15px;
+        }
+        .stock-level-low {
+            height: 100%;
+            background-color: #e74c3c;
+            width: {{ (current_stock / threshold * 100)|round(0) }}%;
+        }
+        .stock-text {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        .action-buttons {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 5px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+        }
+        @media only screen and (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .content {
+                padding: 20px;
+            }
+            .stock-level {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .stock-bar {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+            .stock-text {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚠️ Low Stock Alert</h1>
+            <p>Inventory Management System</p>
+        </div>
+        
+        <div class="content">
+            <div class="alert-box">
+                <h2>Action Required</h2>
+                <p>An ingredient has fallen below the minimum stock threshold and needs immediate attention.</p>
+            </div>
+            
+            <div class="ingredient-info">
+                <p><strong>Ingredient:</strong> {{ ingredient.name }}</p>
+                <p><strong>Category:</strong> {{ ingredient.category.name if ingredient.category else 'Uncategorized' }}</p>
+                <p><strong>Unit:</strong> {{ ingredient.unit }}</p>
+                <p><strong>Threshold:</strong> {{ threshold }} {{ ingredient.unit }}</p>
+                <p><strong>Current Stock:</strong> {{ current_stock }} {{ ingredient.unit }}</p>
+                <p><strong>Shortage:</strong> {{ shortage }} {{ ingredient.unit }}</p>
+            </div>
+            
+            <div class="stock-level">
+                <div class="stock-bar">
+                    <div class="stock-level-low"></div>
+                </div>
+                <div class="stock-text">{{ (current_stock / threshold * 100)|round(0) }}%</div>
+            </div>
+            
+            <div class="action-buttons">
+                <a href="{{ url_for('inventory.adjust_stock', ingredient_id=ingredient.id) }}" class="btn btn-primary">
+                    Adjust Stock Now
+                </a>
+                <a href="{{ url_for('inventory.ingredients') }}" class="btn btn-secondary">
+                    View All Ingredients
+                </a>
+            </div>
+            
+            <h3>Recommended Actions</h3>
+            <ul>
+                <li>Update the stock level immediately to avoid service disruptions</li>
+                <li>Consider increasing the minimum stock threshold for this ingredient</li>
+                <li>Review recent usage patterns to optimize inventory levels</li>
+                <li>Contact suppliers if this is a frequently used ingredient</li>
+            </ul>
+            
+            <p><strong>Alert generated on:</strong> {{ alert_date }}</p>
+        </div>
+        
+        <div class="footer">
+            <p>This is an automated alert from the Restaurant POS System</p>
+            <p>If you believe this is an error, please contact your system administrator</p>
+        </div>
+    </div>
+</body>
+</html>

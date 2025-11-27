@@ -6,7 +6,9 @@ from app.models.menu import MenuItem, ItemVariant, AddOn
 from app.models.table import Table
 from app.models.inventory import MenuItemIngredient
 from app.receipt_printer import ReceiptPrinter, print_kitchen_ticket, open_cash_drawer
+from app.notifications.service import notification_service
 from app import db
+from app.socketio_events import emit_new_order, emit_kitchen_stats
 from datetime import datetime
 
 @bp.route('/cart')
@@ -24,11 +26,20 @@ def view_cart():
 @login_required
 def add_to_cart():
     """Add item to cart"""
-    item_id = request.form.get('item_id', type=int)
-    quantity = request.form.get('quantity', type=int, default=1)
-    variant_id = request.form.get('variant_id', type=int)
-    add_on_ids = request.form.getlist('add_ons')
-    notes = request.form.get('notes', '')
+    # Handle both form data and JSON data
+    if request.is_json:
+        data = request.get_json()
+        item_id = data.get('item_id', type=int)
+        quantity = data.get('quantity', 1, type=int)
+        variant_id = data.get('variant_id', type=int)
+        add_on_ids = data.get('add_ons', [])
+        notes = data.get('notes', '')
+    else:
+        item_id = request.form.get('item_id', type=int)
+        quantity = request.form.get('quantity', type=int, default=1)
+        variant_id = request.form.get('variant_id', type=int)
+        add_on_ids = request.form.getlist('add_ons')
+        notes = request.form.get('notes', '')
     
     # Get menu item
     menu_item = MenuItem.query.get_or_404(item_id)
@@ -37,40 +48,54 @@ def add_to_cart():
     cart = session.get('cart', {})
     
     # Create cart item key
-    cart_key = f"{item_id}_{variant_id or '0'}_{'_'.join(add_on_ids)}"
+    cart_key = f"{item_id}_{variant_id or '0'}_{'_'.join(map(str, add_on_ids))}"
     
     if cart_key in cart:
         cart[cart_key]['quantity'] += quantity
     else:
         # Calculate price
         unit_price = float(menu_item.price)
+        variant_name = None
+        variant_price_modifier = 0
         
         # Add variant price
         if variant_id:
             variant = ItemVariant.query.get(variant_id)
             if variant:
                 unit_price += float(variant.price_modifier)
+                variant_name = variant.name
+                variant_price_modifier = float(variant.price_modifier)
         
         # Add add-on prices
+        add_on_details = []
         for add_on_id in add_on_ids:
             add_on = AddOn.query.get(add_on_id)
             if add_on:
                 unit_price += float(add_on.price)
+                add_on_details.append({
+                    'id': add_on.id,
+                    'name': add_on.name,
+                    'price': float(add_on.price)
+                })
         
         cart[cart_key] = {
             'item_id': item_id,
             'item_name': menu_item.name,
             'quantity': quantity,
             'unit_price': unit_price,
+            'base_price': float(menu_item.price),
             'variant_id': variant_id,
-            'variant_name': ItemVariant.query.get(variant_id).name if variant_id else None,
-            'add_ons': add_on_ids,
+            'variant_name': variant_name,
+            'variant_price_modifier': variant_price_modifier,
+            'add_ons': add_on_details,
             'notes': notes
         }
     
     session['cart'] = cart
     
-    if request.headers.get('HX-Request'):
+    if request.headers.get('HX-Request') or request.is_json:
+        if request.is_json:
+            return jsonify({'success': True, 'message': f'Added {menu_item.name} to cart'})
         return render_template('orders/partials/cart.html', cart=cart)
     
     flash(f'Added {menu_item.name} to cart', 'success')
@@ -136,7 +161,13 @@ def create_order():
         )
         
         # Add add-ons
-        for add_on_id in cart_item['add_ons']:
+        for add_on_detail in cart_item['add_ons']:
+            # Handle both ID-only and detail objects
+            if isinstance(add_on_detail, dict):
+                add_on_id = add_on_detail.get('id')
+            else:
+                add_on_id = add_on_detail
+                
             add_on = AddOn.query.get(add_on_id)
             if add_on:
                 order_item.add_ons.append(add_on)
@@ -168,6 +199,19 @@ def create_order():
                         print(f"Error deducting ingredient {item_ingredient.ingredient.name}: {e}")
     
     db.session.commit()
+    
+    # Emit new order notification to kitchen via WebSocket
+    emit_new_order(order)
+    
+    # Update kitchen stats
+    emit_kitchen_stats()
+    
+    # Print kitchen ticket if configured
+    try:
+        print_kitchen_ticket(order)
+    except Exception as e:
+        # Log error but don't fail the order
+        print(f"Error printing kitchen ticket: {e}")
     
     # Clear cart
     session.pop('cart', None)
@@ -226,6 +270,9 @@ def process_payment(order_id):
     
     payment_method = request.form.get('payment_method')
     amount = request.form.get('amount', type=float)
+    customer_email = request.form.get('customer_email')
+    customer_phone = request.form.get('customer_phone')
+    send_receipt = request.form.get('send_receipt') == 'on'
     
     if not payment_method or not amount:
         flash('Payment details required', 'error')
@@ -243,10 +290,44 @@ def process_payment(order_id):
     
     # Check if order is fully paid
     if order.is_fully_paid():
+        old_status = order.status
         order.status = OrderStatus.CONFIRMED
         db.session.commit()
         
+        # Emit order status update to kitchen
+        from app.socketio_events import emit_order_status_update
+        emit_order_status_update(order, old_status)
+        
+        # Update kitchen stats
+        emit_kitchen_stats()
+        
+        # Send order confirmation notification
+        try:
+            notification_service.send_order_confirmation(
+                order,
+                email=customer_email,
+                phone=customer_phone
+            )
+        except Exception as e:
+            # Log error but don't fail the payment
+            print(f"Error sending order confirmation: {e}")
+        
         flash(f'Order {order.order_number} paid successfully', 'success')
+        
+        # If order is completed and receipt requested, send it
+        if send_receipt and (customer_email or customer_phone):
+            try:
+                notification_service.send_order_receipt(
+                    order,
+                    email=customer_email,
+                    phone=customer_phone
+                )
+                flash('Receipt sent successfully', 'success')
+            except Exception as e:
+                # Log error but don't fail the payment
+                print(f"Error sending receipt: {e}")
+                flash('Receipt could not be sent', 'warning')
+        
         return redirect(url_for('orders.order_details', order_id=order_id))
     
     flash('Partial payment processed', 'success')
@@ -360,8 +441,16 @@ def process_split_payment(order_id):
     
     # Check if order is fully paid
     if order.is_fully_paid():
+        old_status = order.status
         order.status = OrderStatus.CONFIRMED
         db.session.commit()
+        
+        # Emit order status update to kitchen
+        from app.socketio_events import emit_order_status_update
+        emit_order_status_update(order, old_status)
+        
+        # Update kitchen stats
+        emit_kitchen_stats()
         
         flash(f'Order {order.order_number} paid successfully with split payment', 'success')
         return redirect(url_for('orders.order_details', order_id=order_id))
@@ -433,6 +522,29 @@ def api_menu_search():
     
     return jsonify({'items': api_items, 'query': query})
 
+@bp.route('/api/item/<int:item_id>/variants')
+@login_required
+def api_item_variants(item_id):
+    """API endpoint to get variants for a specific menu item"""
+    item = MenuItem.query.get_or_404(item_id)
+    variants = ItemVariant.query.filter_by(item_id=item_id, is_available=True).order_by(ItemVariant.display_order).all()
+    
+    return jsonify({
+        'item': {
+            'id': item.id,
+            'name': item.name,
+            'price': float(item.price)
+        },
+        'variants': [
+            {
+                'id': v.id,
+                'name': v.name,
+                'price_modifier': float(v.price_modifier),
+                'total_price': float(item.price) + float(v.price_modifier)
+            } for v in variants
+        ]
+    })
+
 @bp.route('/print/receipt/<int:order_id>')
 @login_required
 def print_receipt(order_id):
@@ -459,6 +571,52 @@ def print_receipt(order_id):
         flash(f'Error printing receipt: {str(e)}', 'error')
         # Fallback to browser print
         return render_template('orders/receipt_print.html', order=order)
+    
+    return redirect(url_for('orders.order_details', order_id=order_id))
+
+@bp.route('/email/receipt/<int:order_id>', methods=['POST'])
+@login_required
+def email_receipt(order_id):
+    """Email receipt for an order"""
+    order = Order.query.get_or_404(order_id)
+    
+    if not order.is_fully_paid():
+        flash('Order must be fully paid before emailing receipt', 'error')
+        return redirect(url_for('orders.checkout', order_id=order_id))
+    
+    customer_email = request.form.get('customer_email')
+    if not customer_email:
+        flash('Customer email is required', 'error')
+        return redirect(url_for('orders.order_details', order_id=order_id))
+    
+    try:
+        notification_service.send_order_receipt(order, email=customer_email)
+        flash('Receipt emailed successfully', 'success')
+    except Exception as e:
+        flash(f'Error emailing receipt: {str(e)}', 'error')
+    
+    return redirect(url_for('orders.order_details', order_id=order_id))
+
+@bp.route('/sms/receipt/<int:order_id>', methods=['POST'])
+@login_required
+def sms_receipt(order_id):
+    """SMS receipt for an order"""
+    order = Order.query.get_or_404(order_id)
+    
+    if not order.is_fully_paid():
+        flash('Order must be fully paid before SMSing receipt', 'error')
+        return redirect(url_for('orders.checkout', order_id=order_id))
+    
+    customer_phone = request.form.get('customer_phone')
+    if not customer_phone:
+        flash('Customer phone number is required', 'error')
+        return redirect(url_for('orders.order_details', order_id=order_id))
+    
+    try:
+        notification_service.send_order_receipt(order, phone=customer_phone)
+        flash('Receipt sent via SMS successfully', 'success')
+    except Exception as e:
+        flash(f'Error sending SMS receipt: {str(e)}', 'error')
     
     return redirect(url_for('orders.order_details', order_id=order_id))
 

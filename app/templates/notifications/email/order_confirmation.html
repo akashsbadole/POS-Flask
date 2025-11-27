@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmation - {{ order.order_number }}</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background-color: #27ae60;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .confirmation-box {
+            background-color: #e8f5e8;
+            border-left: 4px solid #27ae60;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 5px 5px 0;
+        }
+        .confirmation-box h2 {
+            margin: 0 0 10px 0;
+            color: #27ae60;
+        }
+        .order-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .order-info p {
+            margin: 5px 0;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .items-table th,
+        .items-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .items-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .items-table .item-name {
+            font-weight: bold;
+        }
+        .items-table .item-details {
+            font-size: 0.9em;
+            color: #666;
+        }
+        .totals {
+            text-align: right;
+            margin-top: 20px;
+        }
+        .totals p {
+            margin: 5px 0;
+            font-size: 16px;
+        }
+        .totals .total {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+            border-top: 2px solid #2c3e50;
+            padding-top: 10px;
+        }
+        .estimated-time {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .estimated-time h3 {
+            margin: 0 0 5px 0;
+            color: #856404;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+        }
+        @media only screen and (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .content {
+                padding: 20px;
+            }
+            .items-table {
+                font-size: 14px;
+            }
+            .items-table th,
+            .items-table td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Order Confirmed!</h1>
+            <p>{{ restaurant.name if restaurant else 'Restaurant POS' }}</p>
+        </div>
+        
+        <div class="content">
+            <div class="confirmation-box">
+                <h2>Thank you for your order!</h2>
+                <p>Your order has been received and is being prepared. We'll notify you when it's ready for pickup/delivery.</p>
+            </div>
+            
+            <div class="order-info">
+                <p><strong>Order Number:</strong> {{ order.order_number }}</p>
+                <p><strong>Order Date:</strong> {{ order.created_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                <p><strong>Status:</strong> {{ order.status.title() }}</p>
+                {% if order.table %}
+                <p><strong>Table:</strong> {{ order.table.number }}</p>
+                {% endif %}
+            </div>
+            
+            <div class="estimated-time">
+                <h3>Estimated Preparation Time</h3>
+                <p style="font-size: 18px; margin: 10px 0;">{{ estimated_time }}</p>
+                <p>We'll send you another notification when your order is ready!</p>
+            </div>
+            
+            <h3>Order Summary</h3>
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Qty</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in order_items %}
+                    <tr>
+                        <td>
+                            <div class="item-name">{{ item.menu_item.name }}</div>
+                            {% if item.variant %}
+                            <div class="item-details">{{ item.variant.name }}</div>
+                            {% endif %}
+                            {% if item.notes %}
+                            <div class="item-details">Notes: {{ item.notes }}</div>
+                            {% endif %}
+                            {% if item.add_ons %}
+                            <div class="item-details">
+                                Add-ons: {{ item.add_ons|map(attribute='name')|join(', ') }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.quantity }}</td>
+                        <td>${{ "%.2f"|format(item.get_total_price()) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <div class="totals">
+                <p><strong>Subtotal:</strong> ${{ "%.2f"|format(order.subtotal) }}</p>
+                {% if order.discount_amount > 0 %}
+                <p><strong>Discount:</strong> ${{ "%.2f"|format(order.discount_amount) }}</p>
+                {% endif %}
+                <p><strong>Tax ({{ (order.tax_rate * 100)|round(1) }}%):</strong> ${{ "%.2f"|format(order.tax_amount) }}</p>
+                {% if order.service_charge > 0 %}
+                <p><strong>Service Charge:</strong> ${{ "%.2f"|format(order.service_charge) }}</p>
+                {% endif %}
+                <p class="total"><strong>Total:</strong> ${{ "%.2f"|format(order.total) }}</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>This confirmation was generated on {{ current_date }}</p>
+            <p>{{ restaurant.name if restaurant else 'Restaurant POS' }}</p>
+            {% if restaurant and restaurant.address %}
+            <p>{{ restaurant.address }}</p>
+            {% endif %}
+            {% if restaurant and restaurant.phone %}
+            <p>Phone: {{ restaurant.phone }}</p>
+            {% endif %}
+            <p>Questions about your order? Please contact us.</p>
+        </div>
+    </div>
+</body>
+</html>

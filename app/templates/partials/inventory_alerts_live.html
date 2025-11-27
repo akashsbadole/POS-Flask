@@ -1,0 +1,139 @@
+<!-- Live Inventory Alerts -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6" data-live-update="inventory-stats">
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center">
+            <div class="p-3 bg-green-100 rounded-full">
+                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <p class="text-sm font-medium text-green-700">Total Items</p>
+                <p class="text-2xl font-bold text-green-900 value-change" data-live-update="total-ingredients">{{ stats.total_ingredients }}</p>
+                <div class="mt-2">
+                    <span class="value-label">Total Value:</span>
+                    <span class="value-display text-green-800" data-live-update="total-value">₹{{ "%.2f"|format(stats.total_value) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center">
+            <div class="p-3 bg-yellow-100 rounded-full">
+                <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <p class="text-sm font-medium text-yellow-700">Low Stock</p>
+                <p class="text-2xl font-bold text-yellow-900 value-change {{ 'critical-update' if stats.low_stock_count > 5 else '' }}" data-live-update="low-stock-count">{{ stats.low_stock_count }}</p>
+                <div class="mt-2">
+                    <span class="value-label">Items need restocking</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center">
+            <div class="p-3 bg-red-100 rounded-full">
+                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <p class="text-sm font-medium text-red-700">Out of Stock</p>
+                <p class="text-2xl font-bold text-red-900 value-change {{ 'critical-update' if stats.out_of_stock_count > 0 else '' }}" data-live-update="out-of-stock-count">{{ stats.out_of_stock_count }}</p>
+                <div class="mt-2">
+                    <span class="value-label">Critical - Order immediately</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center">
+            <div class="p-3 bg-blue-100 rounded-full">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <p class="text-sm font-medium text-gray-700">Stock Health</p>
+                <p class="text-2xl font-bold text-gray-900" data-live-update="stock-health">
+                    {% set healthy_percentage = ((stats.total_ingredients - stats.low_stock_count - stats.out_of_stock_count) / stats.total_ingredients * 100) if stats.total_ingredients > 0 else 0 %}
+                    {{ "%.1f"|format(healthy_percentage) }}%
+                </p>
+                <div class="mt-2">
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-green-500 h-2 rounded-full transition-all duration-300" 
+                             style="width: {{ healthy_percentage }}%"
+                             data-live-update="stock-health-bar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Low Stock Items Alert -->
+{% if stats.low_stock_items %}
+<div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4" data-live-update="low-stock-alert">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+        </div>
+        <div class="ml-3">
+            <p class="text-sm text-yellow-700">
+                <strong>Low Stock Alert:</strong> {{ stats.low_stock_count }} ingredients are running low
+            </p>
+            <div class="mt-2">
+                {% for item in stats.low_stock_items[:5] %}
+                <span class="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded mr-1 mb-1">
+                    {{ item.name }} ({{ item.current_stock }} {{ item.unit }})
+                </span>
+                {% endfor %}
+                {% if stats.low_stock_items|length > 5 %}
+                <span class="text-xs text-yellow-600">and {{ stats.low_stock_items|length - 5 }} more...</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Out of Stock Items Alert -->
+{% if stats.out_of_stock_items %}
+<div class="bg-red-50 border-l-4 border-red-400 p-4 mb-4" data-live-update="out-of-stock-alert">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            </svg>
+        </div>
+        <div class="ml-3">
+            <p class="text-sm text-red-700">
+                <strong>Out of Stock:</strong> {{ stats.out_of_stock_count }} ingredients are completely out of stock
+            </p>
+            <div class="mt-2">
+                {% for item in stats.out_of_stock_items[:5] %}
+                <span class="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded mr-1 mb-1">
+                    {{ item.name }}
+                </span>
+                {% endfor %}
+                {% if stats.out_of_stock_items|length > 5 %}
+                <span class="text-xs text-red-600">and {{ stats.out_of_stock_items|length - 5 }} more...</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Last Update Timestamp -->
+<div class="mt-4 text-xs text-gray-500 text-right">
+    Last updated: {{ stats.last_updated }}
+</div>

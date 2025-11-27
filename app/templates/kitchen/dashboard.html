@@ -1,0 +1,777 @@
+{% extends "base.html" %}
+
+{% block title %}Kitchen Dashboard{% endblock %}
+
+{% block head %}
+{{ super() }}
+<!-- Socket.IO Client -->
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<!-- Kitchen Socket Manager -->
+<script src="{{ url_for('static', filename='js/socket-manager.js') }}"></script>
+<!-- Countdown Timer Component -->
+<script src="{{ url_for('static', filename='js/countdown-timer.js') }}"></script>
+<style>
+    .order-card {
+        transition: all 0.3s ease;
+    }
+    .order-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 9999px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .status-pending { background-color: #fef3c7; color: #92400e; }
+    .status-confirmed { background-color: #dbeafe; color: #1e40af; }
+    .status-preparing { background-color: #e0e7ff; color: #3730a3; }
+    .status-ready { background-color: #d1fae5; color: #065f46; }
+    .status-served { background-color: #f3f4f6; color: #374151; }
+    .status-cancelled { background-color: #fee2e2; color: #991b1b; }
+    
+    .kitchen-stats {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    .connection-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+    }
+    .connection-connected { background-color: #10b981; }
+    .connection-disconnected { background-color: #ef4444; }
+    .connection-connecting { background-color: #f59e0b; }
+    
+    /* Timer styles */
+    .timer-container {
+        transition: all 0.3s ease;
+    }
+    .timer-progress {
+        transition: width 1s linear, background-color 0.3s ease;
+    }
+    .timer-normal { background-color: #10b981; }
+    .timer-warning { background-color: #f59e0b; }
+    .timer-critical { background-color: #ef4444; }
+    .timer-overdue { background-color: #dc2626; animation: pulse 1s infinite; }
+    
+    .timer-controls {
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+    .order-card:hover .timer-controls {
+        opacity: 1;
+    }
+    
+    .timer-urgency-border {
+        transition: border-color 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Kitchen Dashboard</h1>
+        <div class="flex items-center space-x-4">
+            <div id="connection-status" class="flex items-center">
+                <span id="connection-indicator" class="connection-indicator connection-connecting"></span>
+                <span id="connection-text" class="text-sm text-gray-600">Connecting...</span>
+            </div>
+            <button onclick="refreshOrders()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Kitchen Stats -->
+    <div class="kitchen-stats rounded-lg p-6 mb-6 text-white">
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div class="text-center">
+                <div id="pending-count" class="text-3xl font-bold">{{ stats.pending_orders }}</div>
+                <div class="text-sm opacity-90">Pending</div>
+            </div>
+            <div class="text-center">
+                <div id="preparing-count" class="text-3xl font-bold">{{ stats.preparing_orders }}</div>
+                <div class="text-sm opacity-90">Preparing</div>
+            </div>
+            <div class="text-center">
+                <div id="ready-count" class="text-3xl font-bold">{{ stats.ready_orders }}</div>
+                <div class="text-sm opacity-90">Ready</div>
+            </div>
+            <div class="text-center">
+                <div id="completed-count" class="text-3xl font-bold">{{ stats.completed_today }}</div>
+                <div class="text-sm opacity-90">Completed Today</div>
+            </div>
+            <div class="text-center">
+                <div id="total-count" class="text-3xl font-bold">{{ stats.total_today }}</div>
+                <div class="text-sm opacity-90">Total Today</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Filters -->
+    <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+        <div class="flex flex-wrap gap-2 mb-4">
+            <button onclick="filterOrders('all')" class="filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors">
+                All Orders
+            </button>
+            <button onclick="filterOrders('pending')" class="filter-btn px-4 py-2 rounded-lg bg-yellow-100 text-yellow-800 hover:bg-yellow-200 transition-colors">
+                Pending
+            </button>
+            <button onclick="filterOrders('confirmed')" class="filter-btn px-4 py-2 rounded-lg bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors">
+                Confirmed
+            </button>
+            <button onclick="filterOrders('preparing')" class="filter-btn px-4 py-2 rounded-lg bg-indigo-100 text-indigo-800 hover:bg-indigo-200 transition-colors">
+                Preparing
+            </button>
+            <button onclick="filterOrders('ready')" class="filter-btn px-4 py-2 rounded-lg bg-green-100 text-green-800 hover:bg-green-200 transition-colors">
+                Ready
+            </button>
+        </div>
+        
+        <!-- Sort Options -->
+        <div class="flex items-center space-x-4">
+            <label class="text-sm font-medium text-gray-700">Sort by:</label>
+            <select onchange="sortOrders(this.value)" class="px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="status">Status</option>
+                <option value="time">Time Created</option>
+                <option value="timer">Time Remaining</option>
+                <option value="items">Number of Items</option>
+                <option value="total">Order Total</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Orders Container -->
+    <div id="orders-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Orders will be dynamically loaded here -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="text-center py-12 hidden">
+        <svg class="w-24 h-24 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+        </svg>
+        <h3 class="text-xl font-semibold text-gray-600 mb-2">No orders yet</h3>
+        <p class="text-gray-500">New orders will appear here in real-time</p>
+    </div>
+</div>
+
+<!-- Order Details Modal -->
+<div id="order-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-screen overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h2 id="modal-order-number" class="text-2xl font-bold"></h2>
+            <button onclick="closeOrderModal()" class="text-gray-500 hover:text-gray-700">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <div id="modal-order-content">
+            <!-- Order details will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let currentFilter = 'all';
+let orders = [];
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    // Load initial orders
+    loadOrders();
+    
+    // Set up Socket.IO event listeners
+    if (window.socketManager) {
+        setupSocketListeners();
+    }
+    
+    // Auto-refresh every 30 seconds as fallback
+    setInterval(refreshOrders, 30000);
+});
+
+function setupSocketListeners() {
+    // Connection status
+    window.socketManager.on('socket:connected', function() {
+        updateConnectionStatus(true);
+        window.socketManager.requestKitchenOrders();
+    });
+    
+    window.socketManager.on('socket:disconnected', function() {
+        updateConnectionStatus(false);
+    });
+    
+    window.socketManager.on('socket:reconnected', function() {
+        updateConnectionStatus(true);
+        window.socketManager.requestKitchenOrders();
+    });
+    
+    // Kitchen events
+    window.socketManager.on('kitchen:new_order', function(data) {
+        addOrUpdateOrder(data.order);
+        showOrderNotification(data.order, 'New Order Received');
+    });
+    
+    window.socketManager.on('kitchen:order_status_update', function(data) {
+        addOrUpdateOrder(data.order);
+        showOrderNotification(data.order, `Status updated to ${data.new_status}`);
+    });
+    
+    window.socketManager.on('kitchen:stats_update', function(data) {
+        updateStats(data);
+    });
+    
+    window.socketManager.on('kitchen:orders_received', function(data) {
+        orders = data.orders;
+        renderOrders();
+    });
+    
+    // Timer event listeners
+    window.socketManager.on('kitchen:timer_update', function(data) {
+        const orderIndex = orders.findIndex(o => o.id === data.order.id);
+        if (orderIndex !== -1) {
+            orders[orderIndex] = data.order;
+            renderOrders();
+        }
+    });
+    
+    window.socketManager.on('kitchen:timer_completed', function(data) {
+        const orderIndex = orders.findIndex(o => o.id === data.order.id);
+        if (orderIndex !== -1) {
+            orders[orderIndex] = data.order;
+            renderOrders();
+        }
+    });
+}
+
+function updateConnectionStatus(connected) {
+    const indicator = document.getElementById('connection-indicator');
+    const text = document.getElementById('connection-text');
+    
+    if (connected) {
+        indicator.className = 'connection-indicator connection-connected';
+        text.textContent = 'Connected';
+    } else {
+        indicator.className = 'connection-indicator connection-disconnected';
+        text.textContent = 'Disconnected';
+    }
+}
+
+function loadOrders() {
+    // Load recent orders from the page
+    {% for order in recent_orders %}
+    orders.push({
+        id: {{ order.id }},
+        order_number: '{{ order.order_number }}',
+        status: '{{ order.status.value }}',
+        created_at: '{{ order.created_at.isoformat() }}',
+        total: {{ order.total }},
+        table_number: '{{ order.table.number if order.table else "N/A" }}',
+        items: []
+    });
+    {% endfor %}
+    
+    renderOrders();
+}
+
+function refreshOrders() {
+    if (window.socketManager && window.socketManager.isSocketConnected()) {
+        window.socketManager.requestKitchenOrders();
+    } else {
+        // Fallback to HTTP request
+        fetch('/kitchen/api/orders')
+            .then(response => response.json())
+            .then(data => {
+                orders = data;
+                renderOrders();
+            })
+            .catch(error => console.error('Error refreshing orders:', error));
+    }
+}
+
+function filterOrders(status) {
+    currentFilter = status;
+    renderOrders();
+    
+    // Update filter button styles
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('ring-2', 'ring-blue-500');
+    });
+    event.target.classList.add('ring-2', 'ring-blue-500');
+}
+
+function renderOrders() {
+    const container = document.getElementById('orders-container');
+    const emptyState = document.getElementById('empty-state');
+    
+    // Filter orders
+    let filteredOrders = orders;
+    if (currentFilter !== 'all') {
+        filteredOrders = orders.filter(order => order.status === currentFilter);
+    }
+    
+    if (filteredOrders.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+    }
+    
+    emptyState.classList.add('hidden');
+    
+    // Sort orders
+    sortOrdersArray(filteredOrders, currentSort);
+    
+    container.innerHTML = filteredOrders.map(order => createOrderCard(order)).join('');
+}
+
+let currentSort = 'status';
+
+function sortOrders(sortBy) {
+    currentSort = sortBy;
+    renderOrders();
+}
+
+function sortOrdersArray(ordersArray, sortBy) {
+    ordersArray.sort((a, b) => {
+        switch (sortBy) {
+            case 'status':
+                const statusPriority = {
+                    'pending': 0,
+                    'confirmed': 1,
+                    'preparing': 2,
+                    'ready': 3,
+                    'served': 4,
+                    'cancelled': 5
+                };
+                
+                if (statusPriority[a.status] !== statusPriority[b.status]) {
+                    return statusPriority[a.status] - statusPriority[b.status];
+                }
+                return new Date(a.created_at) - new Date(b.created_at);
+                
+            case 'time':
+                return new Date(a.created_at) - new Date(b.created_at);
+                
+            case 'timer':
+                // Sort by time remaining (orders with less time first)
+                const aTimeRemaining = getTimeRemaining(a);
+                const bTimeRemaining = getTimeRemaining(b);
+                return aTimeRemaining - bTimeRemaining;
+                
+            case 'items':
+                const aItems = a.items ? a.items.length : 0;
+                const bItems = b.items ? b.items.length : 0;
+                return bItems - aItems; // More items first
+                
+            case 'total':
+                return b.total - a.total; // Higher total first
+                
+            default:
+                return 0;
+        }
+    });
+}
+
+function getTimeRemaining(order) {
+    // Get timer state from localStorage
+    try {
+        const timerState = localStorage.getItem(`timer_${order.id}`);
+        if (timerState) {
+            const state = JSON.parse(timerState);
+            if (state.isRunning && !state.isPaused && state.endTime) {
+                const now = Date.now();
+                const endTimeMs = new Date(state.endTime).getTime();
+                return Math.max(0, Math.floor((endTimeMs - now) / 1000));
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to get timer state:', e);
+    }
+    
+    // Fallback to estimated time
+    return order.estimated_preparation_time || 999999;
+}
+
+function createOrderCard(order) {
+    const statusClass = `status-${order.status}`;
+    const isUrgent = (Date.now() - new Date(order.created_at)) > 15 * 60 * 1000; // 15 minutes
+    const urgentClass = isUrgent ? 'pulse-animation border-red-500' : '';
+    
+    // Calculate estimated preparation time if not provided
+    const estimatedTime = order.estimated_preparation_time || calculateOrderPreparationTime(order);
+    
+    return `
+        <div class="order-card bg-white rounded-lg shadow-md p-4 border-l-4 ${urgentClass} ${getStatusBorderColor(order.status)}"
+             x-data="countdownTimer(${order.id}, ${estimatedTime})"
+             @timer-completed.window="handleTimerCompleted($event.detail)">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <h3 class="font-bold text-lg">${order.order_number}</h3>
+                    <p class="text-sm text-gray-600">Table: ${order.table_number}</p>
+                    <p class="text-xs text-gray-500">${formatTime(order.created_at)}</p>
+                </div>
+                <span class="status-badge ${statusClass}">${order.status}</span>
+            </div>
+            
+            <!-- Timer Section -->
+            <div class="mb-3 timer-container" x-show="order.status === 'confirmed' || order.status === 'preparing'">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-lg" x-text="urgencyIcon"></span>
+                        <span class="font-mono font-bold text-lg" x-text="formattedTime"></span>
+                        <span class="text-xs text-gray-500">/ <span x-text="formattedDuration"></span></span>
+                    </div>
+                    <div class="timer-controls flex space-x-1">
+                        <button x-show="!isRunning && !isCompleted"
+                                @click="start()"
+                                class="p-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                                title="Start Timer">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"/>
+                            </svg>
+                        </button>
+                        <button x-show="isRunning && !isPaused"
+                                @click="pause()"
+                                class="p-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition-colors"
+                                title="Pause Timer">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"/>
+                            </svg>
+                        </button>
+                        <button x-show="isRunning && isPaused"
+                                @click="resume()"
+                                class="p-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                                title="Resume Timer">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"/>
+                            </svg>
+                        </button>
+                        <button x-show="isRunning"
+                                @click="adjustTime(60)"
+                                class="p-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                                title="Add 1 Minute">
+                            +1m
+                        </button>
+                        <button x-show="isRunning"
+                                @click="adjustTime(-60)"
+                                class="p-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                                title="Remove 1 Minute">
+                            -1m
+                        </button>
+                        <button x-show="isRunning || isCompleted"
+                                @click="stop(); clearTimerState()"
+                                class="p-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                                title="Stop Timer">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                    <div class="timer-progress h-2 rounded-full"
+                         :class="{
+                             'timer-normal': urgencyLevel === 'normal',
+                             'timer-warning': urgencyLevel === 'warning',
+                             'timer-critical': urgencyLevel === 'critical',
+                             'timer-overdue': urgencyLevel === 'overdue'
+                         }"
+                         :style="`width: ${progressPercentage}%`">
+                    </div>
+                </div>
+                
+                <!-- Urgency Badge -->
+                <div class="flex justify-between items-center">
+                    <span class="text-xs px-2 py-1 rounded-full border"
+                          :class="urgencyClass"
+                          x-text="urgencyLevel.charAt(0).toUpperCase() + urgencyLevel.slice(1)">
+                    </span>
+                    <span class="text-xs text-gray-500" x-show="isPaused">Paused</span>
+                    <span class="text-xs text-gray-500" x-show="isCompleted">Completed</span>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <p class="text-sm font-semibold">Items: ${order.items ? order.items.length : 0}</p>
+                <p class="text-lg font-bold">₹${order.total.toFixed(2)}</p>
+            </div>
+            
+            <div class="flex space-x-2">
+                <button onclick="viewOrderDetails(${order.id})" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors">
+                    View Details
+                </button>
+                ${getActionButtons(order)}
+            </div>
+        </div>
+    `;
+}
+
+function getStatusBorderColor(status) {
+    const colors = {
+        'pending': 'border-yellow-500',
+        'confirmed': 'border-blue-500',
+        'preparing': 'border-indigo-500',
+        'ready': 'border-green-500',
+        'served': 'border-gray-500',
+        'cancelled': 'border-red-500'
+    };
+    return colors[status] || 'border-gray-500';
+}
+
+function getActionButtons(order) {
+    switch (order.status) {
+        case 'pending':
+            return `
+                <button onclick="updateOrderStatus(${order.id}, 'confirmed')" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors">
+                    Confirm
+                </button>
+            `;
+        case 'confirmed':
+            return `
+                <button onclick="updateOrderStatus(${order.id}, 'preparing')" class="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded text-sm transition-colors">
+                    Start Prep
+                </button>
+            `;
+        case 'preparing':
+            return `
+                <button onclick="updateOrderStatus(${order.id}, 'ready')" class="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm transition-colors">
+                    Mark Ready
+                </button>
+            `;
+        case 'ready':
+            return `
+                <button onclick="updateOrderStatus(${order.id}, 'served')" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm transition-colors">
+                    Mark Served
+                </button>
+            `;
+        default:
+            return '';
+    }
+}
+
+function addOrUpdateOrder(orderData) {
+    const existingIndex = orders.findIndex(order => order.id === orderData.id);
+    
+    if (existingIndex !== -1) {
+        orders[existingIndex] = orderData;
+    } else {
+        orders.unshift(orderData); // Add to beginning for new orders
+    }
+    
+    renderOrders();
+}
+
+function updateOrderStatus(orderId, newStatus) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/kitchen/order/${orderId}/update-status`;
+    
+    const statusField = document.createElement('input');
+    statusField.type = 'hidden';
+    statusField.name = 'status';
+    statusField.value = newStatus;
+    
+    form.appendChild(statusField);
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function viewOrderDetails(orderId) {
+    if (window.socketManager && window.socketManager.isSocketConnected()) {
+        window.socketManager.requestOrderDetails(orderId);
+        
+        // Listen for the response
+        window.socketManager.on('kitchen:order_details', function(data) {
+            if (data.order.id === orderId) {
+                showOrderModal(data.order);
+            }
+        });
+    } else {
+        // Fallback to HTTP request
+        fetch(`/kitchen/api/order/${orderId}`)
+            .then(response => response.json())
+            .then(order => {
+                showOrderModal(order);
+            })
+            .catch(error => console.error('Error fetching order details:', error));
+    }
+}
+
+function showOrderModal(order) {
+    const modal = document.getElementById('order-modal');
+    const orderNumber = document.getElementById('modal-order-number');
+    const content = document.getElementById('modal-order-content');
+    
+    orderNumber.textContent = `Order ${order.order_number}`;
+    
+    content.innerHTML = `
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-600">Status</p>
+                    <p class="font-semibold">${order.status}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Table</p>
+                    <p class="font-semibold">${order.table_number || 'N/A'}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Created</p>
+                    <p class="font-semibold">${formatTime(order.created_at)}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Total</p>
+                    <p class="font-semibold">₹${order.total.toFixed(2)}</p>
+                </div>
+            </div>
+            
+            <div>
+                <h3 class="font-semibold mb-2">Order Items</h3>
+                <div class="space-y-2">
+                    ${order.items ? order.items.map(item => `
+                        <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                            <div>
+                                <p class="font-medium">${item.quantity}x ${item.item_name}</p>
+                                ${item.notes ? `<p class="text-sm text-gray-600">${item.notes}</p>` : ''}
+                                ${item.add_ons && item.add_ons.length > 0 ? `
+                                    <p class="text-xs text-gray-500">
+                                        Add-ons: ${item.add_ons.map(addon => addon.name).join(', ')}
+                                    </p>
+                                ` : ''}
+                            </div>
+                            <p class="font-semibold">₹${item.total_price.toFixed(2)}</p>
+                        </div>
+                    `).join('') : '<p class="text-gray-500">No items found</p>'}
+                </div>
+            </div>
+            
+            ${order.notes ? `
+                <div>
+                    <h3 class="font-semibold mb-2">Notes</h3>
+                    <p class="text-gray-700">${order.notes}</p>
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    modal.classList.remove('hidden');
+}
+
+function closeOrderModal() {
+    document.getElementById('order-modal').classList.add('hidden');
+}
+
+function updateStats(stats) {
+    document.getElementById('pending-count').textContent = stats.pending_orders;
+    document.getElementById('preparing-count').textContent = stats.preparing_orders;
+    document.getElementById('ready-count').textContent = stats.ready_orders;
+    document.getElementById('completed-count').textContent = stats.completed_today;
+    document.getElementById('total-count').textContent = stats.total_today;
+}
+
+function showOrderNotification(order, message) {
+    if (window.socketManager) {
+        window.socketManager.showNotification(
+            `Order ${order.order_number}`,
+            message,
+            order.status === 'pending' ? 'info' : 'success'
+        );
+    }
+}
+
+function formatTime(isoString) {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+    });
+}
+
+// Close modal when clicking outside
+document.getElementById('order-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeOrderModal();
+    }
+});
+
+// Calculate order preparation time based on complexity
+function calculateOrderPreparationTime(order) {
+    if (!order || !order.items) return 900; // Default 15 minutes
+    
+    let baseTime = 300; // 5 minutes base time
+    let complexityMultiplier = 1;
+    
+    // Calculate based on number of items
+    const itemCount = order.items.length;
+    if (itemCount > 5) complexityMultiplier += 0.5;
+    if (itemCount > 10) complexityMultiplier += 0.5;
+    
+    // Calculate based on item complexity (would need recipe data)
+    order.items.forEach(item => {
+        // Add time based on menu item preparation time if available
+        if (item.preparation_time) {
+            baseTime += item.preparation_time * 60; // Convert to seconds
+        }
+        
+        // Add time for add-ons
+        if (item.add_ons && item.add_ons.length > 0) {
+            baseTime += item.add_ons.length * 30; // 30 seconds per add-on
+        }
+    });
+    
+    // Consider current kitchen workload
+    const currentOrders = orders.filter(o => o.status === 'confirmed' || o.status === 'preparing').length;
+    const workloadMultiplier = 1 + (currentOrders * 0.1); // 10% increase per active order
+    
+    return Math.floor(baseTime * complexityMultiplier * workloadMultiplier);
+}
+
+// Handle timer completion events
+function handleTimerCompleted(event) {
+    if (event && event.orderId) {
+        // Find the order and update its status
+        const order = orders.find(o => o.id === event.orderId);
+        if (order) {
+            // Show notification
+            if (window.socketManager) {
+                window.socketManager.showNotification(
+                    `Order ${order.order_number}`,
+                    'Preparation time completed!',
+                    'warning'
+                );
+            }
+            
+            // Update order status to ready if it was preparing
+            if (order.status === 'preparing') {
+                updateOrderStatus(order.id, 'ready');
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

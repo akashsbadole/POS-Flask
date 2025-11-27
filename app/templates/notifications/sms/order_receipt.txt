@@ -1,0 +1,1 @@
+Your order {{ order.order_number }} is complete. Total: ${{ "%.2f"|format(order.total) }}. Thank you for your purchase!

@@ -141,7 +141,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8" x-data="inventoryManager()">
+<div class="container mx-auto px-4 py-8">
     <div class="flex items-center justify-between mb-8">
         <div>
             <h1 class="text-3xl font-bold text-gray-900 flex items-center">
@@ -207,74 +207,18 @@
         </div>
     </div>
 
-    <!-- Inventory Statistics -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-4 border border-dashed shadow p-1">
-        <div class="inventory-stat-card stock-normal">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-green-700 flex items-center">
-                        <span class="mr-2">📦</span> Total Items
-                    </p>
-                    <p class="text-2xl font-bold text-green-900" x-text="stats.total_ingredients || 0"></p>
-                    <div class="mt-2">
-                        <span class="value-label">Total Value:</span>
-                        <span class="value-display text-green-800" x-text="'₹' + (stats.total_value || 0).toLocaleString()"></span>
-                    </div>
-                </div>
-                <div class="bg-green-100 p-3 rounded-full">
-                    <span class="text-2xl">📋</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="inventory-stat-card stock-low">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-yellow-700 flex items-center">
-                        <span class="mr-2">⚠️</span> Low Stock
-                    </p>
-                    <p class="text-2xl font-bold text-yellow-900" x-text="stats.low_stock_count || 0"></p>
-                    <div class="mt-2">
-                        <span class="value-label">Items need restocking</span>
-                    </div>
-                </div>
-                <div class="bg-yellow-100 p-3 rounded-full stock-warning">
-                    <span class="text-2xl">⚡</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="inventory-stat-card stock-out">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-red-700 flex items-center">
-                        <span class="mr-2">❌</span> Out of Stock
-                    </p>
-                    <p class="text-2xl font-bold text-red-900" x-text="stats.out_of_stock || 0"></p>
-                    <div class="mt-2">
-                        <span class="value-label">Critical - Order immediately</span>
-                    </div>
-                </div>
-                <div class="bg-red-100 p-3 rounded-full">
-                    <span class="text-2xl">🚨</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="inventory-stat-card">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-700 flex items-center">
-                        <span class="mr-2">📊</span> Recent Adjustments
-                    </p>
-                    <p class="text-2xl font-bold text-gray-900" x-text="stats.recent_adjustments || 0"></p>
-                    <div class="mt-2">
-                        <span class="value-label">Last 7 days</span>
-                    </div>
-                </div>
-                <div class="bg-blue-100 p-3 rounded-full">
-                    <span class="text-2xl">🔄</span>
-                </div>
+    <!-- Live Polling Inventory Statistics -->
+    <div x-data="livePollManager('{{ url_for("api.get_live_inventory_alerts") }}', 10, 'inventory-stats-content')"
+         x-init="initPolling()">
+        {% include 'partials/live_poll.html' %}
+        <div id="inventory-stats-content">
+            <!-- Initial stats will be loaded by live polling -->
+            <div class="text-center py-8 text-gray-500">
+                <svg class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-2">Loading inventory statistics...</p>
             </div>
         </div>
     </div>

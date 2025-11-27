@@ -101,6 +101,92 @@
                     <span id="available-help" class="sr-only">Toggle item availability</span>
                 </div>
                 {% endif %}
+
+                {% if item and item.id %}
+                <div class="md:col-span-2">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h3 class="text-sm font-medium text-gray-700">Item Variants</h3>
+                                <p class="text-xs text-gray-500">
+                                    {% set variant_count = item.variants|length %}
+                                    {% if variant_count > 0 %}
+                                        {{ variant_count }} variant{{ 's' if variant_count != 1 else '' }} configured
+                                    {% else %}
+                                        No variants configured
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <a href="{{ url_for('menu.list_variants', item_id=item.id) }}"
+                               class="text-blue-600 hover:text-blue-900 text-sm font-medium">
+                                Manage Variants
+                            </a>
+                        </div>
+                        
+                        {% if item.variants %}
+                        <div class="mt-3 space-y-2">
+                            {% for variant in item.variants %}
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="{% if not variant.is_available %}text-gray-400 line-through{% endif %}">
+                                    {{ variant.name }}
+                                </span>
+                                <span class="text-gray-600">
+                                    {% if variant.price_modifier > 0 %}
+                                        +₹{{ "%.2f"|format(variant.price_modifier) }}
+                                    {% elif variant.price_modifier < 0 %}
+                                        -₹{{ "%.2f"|format(variant.price_modifier|abs) }}
+                                    {% else %}
+                                        No change
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="md:col-span-2">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h3 class="text-sm font-medium text-gray-700">Item Add-ons</h3>
+                                <p class="text-xs text-gray-500">
+                                    {% set addon_count = item.add_ons|length %}
+                                    {% if addon_count > 0 %}
+                                        {{ addon_count }} add-on{{ 's' if addon_count != 1 else '' }} configured
+                                    {% else %}
+                                        No add-ons configured
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <a href="{{ url_for('menu.manage_item_addons', item_id=item.id) }}"
+                               class="text-purple-600 hover:text-purple-900 text-sm font-medium">
+                                Manage Add-ons
+                            </a>
+                        </div>
+                        
+                        {% if item.add_ons %}
+                        <div class="mt-3 space-y-2">
+                            {% for addon in item.add_ons %}
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="{% if not addon.is_active %}text-gray-400 line-through{% endif %}">
+                                    {{ addon.name }}
+                                </span>
+                                <span class="text-gray-600">
+                                    {% if addon.price > 0 %}
+                                        +₹{{ "%.2f"|format(addon.price) }}
+                                    {% else %}
+                                        No charge
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <div class="mt-6 flex justify-end space-x-3">

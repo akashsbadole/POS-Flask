@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Add-ons for {{ item.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6">
+    <div class="mb-6">
+        <nav class="flex" aria-label="Breadcrumb">
+            <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                <li class="inline-flex items-center">
+                    <a href="{{ url_for('menu.list_items') }}" class="text-gray-700 hover:text-gray-900">
+                        Menu Items
+                    </a>
+                </li>
+                <li>
+                    <div class="flex items-center">
+                        <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                        </svg>
+                        <a href="{{ url_for('menu.edit_item', item_id=item.id) }}" class="text-gray-700 hover:text-gray-900">
+                            {{ item.name }}
+                        </a>
+                    </div>
+                </li>
+                <li aria-current="page">
+                    <div class="flex items-center">
+                        <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="text-gray-500">Add-ons</span>
+                    </div>
+                </li>
+            </ol>
+        </nav>
+        <h1 class="text-2xl font-bold text-gray-900 mt-4">Manage Add-ons</h1>
+        <p class="text-gray-600">Select add-ons available for "{{ item.name }}"</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow">
+        <form method="POST" action="{{ url_for('menu.update_item_addons', item_id=item.id) }}" class="p-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="mb-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Available Add-ons</h3>
+                
+                {% if all_addons %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for addon in all_addons %}
+                    <div class="border rounded-lg p-4 {% if not addon.is_active %}opacity-60{% endif %}">
+                        <label class="flex items-start space-x-3 cursor-pointer">
+                            <input type="checkbox" 
+                                   name="addon_ids" 
+                                   value="{{ addon.id }}"
+                                   {% if addon in item_addons %}checked{% endif %}
+                                   {% if not addon.is_active %}disabled{% endif %}
+                                   class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="font-medium text-gray-900">{{ addon.name }}</h4>
+                                    <span class="text-sm font-semibold text-blue-600">
+                                        {% if addon.price > 0 %}
+                                            ₹{{ "%.2f"|format(addon.price) }}
+                                        {% else %}
+                                            No charge
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                {% if addon.description %}
+                                <p class="text-sm text-gray-600 mt-1">{{ addon.description }}</p>
+                                {% endif %}
+                                {% if not addon.is_active %}
+                                <p class="text-xs text-red-500 mt-1">This add-on is currently inactive</p>
+                                {% endif %}
+                            </div>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-8">
+                    <i class="fas fa-plus-circle text-4xl text-gray-400 mb-3"></i>
+                    <h3 class="text-lg font-medium text-gray-900 mb-1">No add-ons available</h3>
+                    <p class="text-gray-500 mb-4">Create add-ons first before assigning them to menu items</p>
+                    <a href="{{ url_for('menu.create_addon') }}"
+                       class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        <i class="fas fa-plus mr-2"></i>Create Add-on
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if all_addons %}
+            <div class="flex justify-end space-x-3">
+                <a href="{{ url_for('menu.edit_item', item_id=item.id) }}"
+                   class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Save Add-ons
+                </button>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Current Add-ons Summary -->
+    {% if item_addons %}
+    <div class="mt-6 bg-white rounded-lg shadow">
+        <div class="p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Current Add-ons ({{ item_addons|length }})</h3>
+            <div class="space-y-2">
+                {% for addon in item_addons %}
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
+                    <div>
+                        <h4 class="font-medium text-gray-900">{{ addon.name }}</h4>
+                        {% if addon.description %}
+                        <p class="text-sm text-gray-600">{{ addon.description }}</p>
+                        {% endif %}
+                    </div>
+                    <span class="text-sm font-semibold text-blue-600">
+                        {% if addon.price > 0 %}
+                            ₹{{ "%.2f"|format(addon.price) }}
+                        {% else %}
+                            No charge
+                        {% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

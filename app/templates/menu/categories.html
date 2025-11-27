@@ -2,8 +2,12 @@
 
 {% block title %}Menu Categories{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/drag-drop.css') }}">
+{% endblock %}
+
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 py-6">
+<div class="max-w-7xl mx-auto px-4 py-6" x-data="categoriesManager()">
     <div class="flex justify-between items-center mb-6">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">Menu Categories</h1>
@@ -18,15 +22,67 @@
         </a>
     </div>
 
+    <!-- Reordering Tools -->
+    <div class="reorder-tools mb-6" x-show="reorderMode">
+        <h3>Category Reordering Tools</h3>
+        <div class="button-group">
+            <button @click="resetToAlphabetical()" class="btn-outline">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                </svg>
+                Sort Alphabetically
+            </button>
+            <button @click="togglePreviewMode()"
+                    :class="previewMode ? 'btn-primary' : 'btn-outline'"
+                    class="flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                </svg>
+                <span x-text="previewMode ? 'Exit Preview' : 'Preview Order'"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Reorder Mode Toggle -->
+    <div class="mb-6">
+        <button @click="toggleReorderMode()"
+                :class="reorderMode ? 'btn-primary' : 'btn-secondary'"
+                class="flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+            <span x-text="reorderMode ? 'Exit Reorder Mode' : 'Enable Reorder Mode'"></span>
+        </button>
+    </div>
+
     <div class="bg-white rounded-lg shadow">
         <div class="px-6 py-4 border-b border-gray-200">
             <h2 class="text-lg font-semibold text-gray-900">All Categories</h2>
         </div>
         
         {% if categories %}
-        <div class="divide-y divide-gray-200">
+        <div id="categories-container"
+             class="categories-container divide-y divide-gray-200"
+             :class="{ 'preview-mode': previewMode }">
             {% for category in categories %}
-            <div class="p-6 hover:bg-gray-50 transition-colors">
+            <div class="category-item p-6 hover:bg-gray-50 transition-colors draggable"
+                 data-category-id="{{ category.id }}"
+                 tabindex="0"
+                 role="button"
+                 aria-label="Category: {{ category.name }}">
+                <!-- Drag Handle (visible in reorder mode) -->
+                <div class="drag-handle absolute top-2 left-2 opacity-0 hover:opacity-100 transition-opacity"
+                     x-show="reorderMode"
+                     x-transition>
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-5 h-5 text-gray-400">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+                    </svg>
+                </div>
+
+                <!-- Order Indicator -->
+                <div class="order-indicator" data-order-indicator>{{ category.display_order + 1 }}</div>
+
                 <div class="flex items-center justify-between">
                     <div class="flex-1">
                         <div class="flex items-center">
@@ -82,4 +138,79 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+function categoriesManager() {
+    return {
+        reorderMode: false,
+        previewMode: false,
+        dragDropInstance: null,
+        
+        init() {
+            // Initialize drag-drop when reorder mode is enabled
+            this.$watch('reorderMode', (value) => {
+                if (value) {
+                    this.initDragDrop();
+                } else if (this.dragDropInstance) {
+                    this.dragDropInstance.destroy();
+                    this.dragDropInstance = null;
+                }
+            });
+        },
+        
+        initDragDrop() {
+            if (window.MenuDragDrop) {
+                this.dragDropInstance = window.MenuDragDrop.initCategories({
+                    containerSelector: '#categories-container',
+                    itemSelector: '.category-item',
+                    handleSelector: '.drag-handle'
+                });
+            }
+        },
+        
+        toggleReorderMode() {
+            this.reorderMode = !this.reorderMode;
+            if (!this.reorderMode) {
+                this.previewMode = false;
+            }
+        },
+        
+        togglePreviewMode() {
+            this.previewMode = !this.previewMode;
+        },
+        
+        async resetToAlphabetical() {
+            try {
+                const response = await fetch('/api/menu/bulk-reorder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                    },
+                    body: JSON.stringify({
+                        operation: 'sort_categories_alphabetical'
+                    })
+                });
+                
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    const error = await response.json();
+                    this.showNotification(error.error || 'Failed to sort categories', 'error');
+                }
+            } catch (error) {
+                console.error('Error sorting categories:', error);
+                this.showNotification('Error sorting categories', 'error');
+            }
+        },
+        
+        showNotification(message, type = 'info') {
+            // Dispatch event for global notification system
+            window.dispatchEvent(new CustomEvent('showNotification', {
+                detail: { message, type }
+            }));
+        }
+    }
+}
+</script>
 {% endblock %}

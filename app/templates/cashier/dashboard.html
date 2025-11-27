@@ -2,29 +2,99 @@
 
 {% block title %}Cashier Dashboard - Restaurant POS{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/drag-drop.css') }}">
+{% endblock %}
+
 {% block content %}
 <div x-data="cashierDashboard()" x-init="initDashboard()">
     <div class="h-full flex">
         <!-- Left Panel - Menu -->
         <div class="w-2/3 pr-4 overflow-y-auto custom-scrollbar">
-            <!-- Category Tabs -->
+            <!-- Reorder Mode Toggle -->
             <div class="mb-4 bg-white rounded-lg shadow p-4">
-                <div class="flex space-x-2 overflow-x-auto">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-semibold text-gray-900">Menu Categories</h3>
+                    <button @click="toggleReorderMode()"
+                            :class="reorderMode ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'"
+                            class="px-4 py-2 rounded-lg font-medium flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                        <span x-text="reorderMode ? 'Exit Reorder' : 'Reorder Menu'"></span>
+                    </button>
+                </div>
+                
+                <!-- Category Tabs -->
+                <div id="cashier-categories-container"
+                     class="categories-container flex space-x-2 overflow-x-auto mt-4"
+                     :class="{ 'reorder-mode': reorderMode }">
                     <template x-for="category in categories" :key="category.id">
-                        <button @click="selectedCategory = category.id"
-                                :class="selectedCategory === category.id ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'"
-                                class="px-4 py-2 rounded-lg whitespace-nowrap font-medium"
-                                x-text="category.name">
-                        </button>
+                        <div class="category-item relative group"
+                             :class="reorderMode ? 'draggable' : ''"
+                             :data-category-id="category.id"
+                             tabindex="0"
+                             role="button"
+                             :aria-label="reorderMode ? 'Drag to reorder category: ' + category.name : 'Select category: ' + category.name">
+                            
+                            <!-- Drag Handle (visible in reorder mode) -->
+                            <div class="drag-handle absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                 x-show="reorderMode"
+                                 x-transition>
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-4 h-4 text-gray-400">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+                                </svg>
+                            </div>
+
+                            <!-- Order Indicator -->
+                            <div class="order-indicator absolute -top-2 -right-2"
+                                 data-order-indicator
+                                 x-show="reorderMode"
+                                 x-text="category.display_order + 1">
+                            </div>
+
+                            <button @click="!reorderMode && (selectedCategory = category.id)"
+                                    :class="selectedCategory === category.id && !reorderMode ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'"
+                                    class="px-4 py-2 rounded-lg whitespace-nowrap font-medium"
+                                    :disabled="reorderMode"
+                                    x-text="category.name">
+                            </button>
+                        </div>
                     </template>
                 </div>
             </div>
 
             <!-- Menu Items Grid -->
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div id="cashier-menu-items-container"
+                 class="menu-items-container grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+                 :class="{ 'reorder-mode': reorderMode }"
+                 data-category-id="selectedCategory">
                 <template x-for="item in filteredMenuItems" :key="item.id">
-                    <div @click="openItemModal(item)"
-                         class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer p-4">
+                    <div class="menu-item-card bg-white rounded-lg shadow hover:shadow-lg transition-shadow relative group"
+                         :class="reorderMode ? 'draggable' : ''"
+                         :data-item-id="item.id"
+                         tabindex="0"
+                         :role="reorderMode ? 'button' : ''"
+                         :aria-label="reorderMode ? 'Drag to reorder item: ' + item.name : 'Select item: ' + item.name"
+                         @click="!reorderMode && openItemModal(item)">
+                        
+                        <!-- Drag Handle (visible in reorder mode) -->
+                        <div class="drag-handle absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                             x-show="reorderMode"
+                             x-transition>
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-4 h-4 text-gray-400">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+                            </svg>
+                        </div>
+
+                        <!-- Order Indicator -->
+                        <div class="order-indicator absolute -top-2 -right-2"
+                             data-order-indicator
+                             x-show="reorderMode"
+                             x-text="item.display_order + 1">
+                        </div>
+                        
+                        <div class="p-4">
                         <div class="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
                             <img x-show="item.image_url" 
                                  :src="item.image_url" 
@@ -33,9 +103,10 @@
                             <i x-show="!item.image_url" 
                                class="fas fa-utensils text-gray-400 text-3xl"></i>
                         </div>
-                        <h3 class="font-semibold text-gray-900" x-text="item.name"></h3>
-                        <p class="text-lg font-bold text-blue-600" x-text="'$' + item.price.toFixed(2)"></p>
-                        <p x-show="!item.is_available" class="text-sm text-red-500">Sold Out</p>
+                            <h3 class="font-semibold text-gray-900" x-text="item.name"></h3>
+                            <p class="text-lg font-bold text-blue-600" x-text="'₹' + item.price.toFixed(2)"></p>
+                            <p x-show="!item.is_available" class="text-sm text-red-500">Sold Out</p>
+                        </div>
                     </div>
                 </template>
             </div>
@@ -60,16 +131,16 @@
                             <div class="flex justify-between items-start">
                                 <div class="flex-1">
                                     <h4 class="font-semibold" x-text="item.name"></h4>
-                                    <p x-show="item.variant" class="text-sm text-gray-600" x-text="item.variant"></p>
+                                    <p x-show="item.variant_name" class="text-sm text-gray-600" x-text="item.variant_name"></p>
                                     <p x-show="item.notes" class="text-sm text-gray-600" x-text="item.notes"></p>
                                     <div x-show="item.add_ons && item.add_ons.length > 0" class="mt-1">
-                                        <template x-for="addon in item.add_ons" :key="addon.id">
-                                            <span class="text-xs bg-gray-100 px-2 py-1 rounded" x-text="addon.name"></span>
+                                        <template x-for="addon in item.add_ons" :key="addon.id || addon">
+                                            <span class="text-xs bg-gray-100 px-2 py-1 rounded" x-text="addon.name || addon"></span>
                                         </template>
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <p class="font-semibold" x-text="'$' + item.total_price.toFixed(2)"></p>
+                                    <p class="font-semibold" x-text="'₹' + item.total_price.toFixed(2)"></p>
                                     <div class="flex items-center space-x-2 mt-1">
                                         <button @click="updateQuantity(index, item.quantity - 1)"
                                                 class="w-6 h-6 bg-red-500 text-white rounded text-xs hover:bg-red-600">
@@ -98,15 +169,15 @@
                     <div class="space-y-2">
                         <div class="flex justify-between">
                             <span>Subtotal:</span>
-                            <span x-text="'$' + cart.subtotal.toFixed(2)"></span>
+                            <span x-text="'₹' + cart.subtotal.toFixed(2)"></span>
                         </div>
                         <div class="flex justify-between">
                             <span>Tax (8.75%):</span>
-                            <span x-text="'$' + cart.tax.toFixed(2)"></span>
+                            <span x-text="'₹' + cart.tax.toFixed(2)"></span>
                         </div>
                         <div class="flex justify-between text-lg font-bold">
                             <span>Total:</span>
-                            <span x-text="'$' + cart.total.toFixed(2)"></span>
+                            <span x-text="'₹' + cart.total.toFixed(2)"></span>
                         </div>
                     </div>
 
@@ -161,7 +232,7 @@
                                 <input type="radio" :value="variant.id" x-model="selectedVariant" 
                                        class="form-radio text-blue-600">
                                 <span x-text="variant.name"></span>
-                                <span class="text-gray-600" x-text="'+$' + variant.price_modifier.toFixed(2)"></span>
+                                <span class="text-gray-600" x-text="'+₹' + variant.price_modifier.toFixed(2)"></span>
                             </label>
                         </template>
                     </div>
@@ -176,7 +247,7 @@
                                 <input type="checkbox" :value="addon.id" x-model="selectedAddOns" 
                                        class="form-checkbox text-blue-600">
                                 <span x-text="addon.name"></span>
-                                <span class="text-gray-600" x-text="'+$' + addon.price.toFixed(2)"></span>
+                                <span class="text-gray-600" x-text="'+₹' + addon.price.toFixed(2)"></span>
                             </label>
                         </template>
                     </div>
@@ -206,7 +277,7 @@
                 <div class="border-t pt-4 mb-4">
                     <div class="flex justify-between items-center">
                         <span class="font-semibold">Total:</span>
-                        <span class="text-xl font-bold" x-text="'$' + calculateItemTotal().toFixed(2)"></span>
+                        <span class="text-xl font-bold" x-text="'₹' + calculateItemTotal().toFixed(2)"></span>
                     </div>
                 </div>
                 
@@ -274,13 +345,30 @@ function cashierDashboard() {
             }
         },
         
+        async loadItemVariants(itemId) {
+            try {
+                const response = await fetch(`/api/item/${itemId}/variants`);
+                const data = await response.json();
+                return data.variants || [];
+            } catch (error) {
+                console.error('Error loading item variants:', error);
+                return [];
+            }
+        },
+        
         get filteredMenuItems() {
             if (!this.selectedCategory) return this.menuItems;
             return this.menuItems.filter(item => item.category_id === this.selectedCategory);
         },
         
-        openItemModal(item) {
+        async openItemModal(item) {
             this.selectedItem = item;
+            
+            // Load variants if not already loaded
+            if (!item.variants || item.variants.length === 0) {
+                item.variants = await this.loadItemVariants(item.id);
+            }
+            
             this.selectedVariant = item.variants && item.variants.length > 0 ? item.variants[0].id : null;
             this.selectedAddOns = [];
             this.quantity = 1;
@@ -313,14 +401,11 @@ function cashierDashboard() {
         
         async addToCart() {
             const cartItem = {
-                id: this.selectedItem.id,
-                name: this.selectedItem.name,
-                price: this.selectedItem.price,
+                item_id: this.selectedItem.id,
                 quantity: this.quantity,
-                variant: this.selectedVariant ? this.selectedItem.variants.find(v => v.id === this.selectedVariant) : null,
-                add_ons: this.selectedAddOns.map(id => this.selectedItem.add_ons.find(a => a.id === id)).filter(Boolean),
-                notes: this.notes,
-                total_price: this.calculateItemTotal()
+                variant_id: this.selectedVariant,
+                add_ons: this.selectedAddOns,
+                notes: this.notes
             };
             
             try {
@@ -337,6 +422,9 @@ function cashierDashboard() {
                     this.loadCart();
                     this.closeItemModal();
                     this.showNotification('Item added to cart', 'success');
+                } else {
+                    const errorData = await response.json();
+                    this.showNotification(errorData.message || 'Error adding item to cart', 'error');
                 }
             } catch (error) {
                 console.error('Error adding to cart:', error);
@@ -366,6 +454,50 @@ function cashierDashboard() {
                 }
             } catch (error) {
                 console.error('Error clearing cart:', error);
+            }
+        },
+        
+        reorderMode: false,
+        dragDropInstance: null,
+        categoryDragDropInstance: null,
+        
+        toggleReorderMode() {
+            this.reorderMode = !this.reorderMode;
+            
+            if (this.reorderMode) {
+                this.initDragDrop();
+            } else {
+                this.destroyDragDrop();
+            }
+        },
+        
+        initDragDrop() {
+            if (window.MenuDragDrop) {
+                // Initialize categories drag-drop
+                this.categoryDragDropInstance = window.MenuDragDrop.initCategories({
+                    containerSelector: '#cashier-categories-container',
+                    itemSelector: '.category-item',
+                    handleSelector: '.drag-handle'
+                });
+                
+                // Initialize menu items drag-drop
+                this.dragDropInstance = window.MenuDragDrop.init({
+                    containerSelector: '#cashier-menu-items-container',
+                    itemSelector: '.menu-item-card',
+                    handleSelector: '.drag-handle'
+                });
+            }
+        },
+        
+        destroyDragDrop() {
+            if (this.dragDropInstance) {
+                this.dragDropInstance.destroy();
+                this.dragDropInstance = null;
+            }
+            
+            if (this.categoryDragDropInstance) {
+                this.categoryDragDropInstance.destroy();
+                this.categoryDragDropInstance = null;
             }
         },
         

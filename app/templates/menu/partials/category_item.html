@@ -1,4 +1,19 @@
-<div class="p-6 hover:bg-gray-50 transition-colors border-l-4 border-green-500" hx-target="this">
+<div class="category-item p-6 hover:bg-gray-50 transition-colors border-l-4 border-green-500 draggable"
+     data-category-id="{{ category.id }}"
+     tabindex="0"
+     role="button"
+     aria-label="Category: {{ category.name }}"
+     hx-target="this">
+    <!-- Drag Handle -->
+    <div class="drag-handle absolute top-2 left-2 opacity-0 hover:opacity-100 transition-opacity">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-5 h-5 text-gray-400">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+        </svg>
+    </div>
+
+    <!-- Order Indicator -->
+    <div class="order-indicator" data-order-indicator>{{ category.display_order + 1 }}</div>
+
     <div class="flex items-center justify-between">
         <div class="flex-1">
             <div class="flex items-center">

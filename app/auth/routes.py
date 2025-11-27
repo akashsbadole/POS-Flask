@@ -1,4 +1,4 @@
-from flask import render_template, request, redirect, url_for, flash, session, current_app
+from flask import render_template, request, redirect, url_for, flash, session, current_app, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy import not_
 from app.auth import bp
@@ -26,21 +26,38 @@ def login():
                 login_user(user, remember=remember)
                 user.update_last_login()
                 
-                # Set session timeout
-                session.permanent = remember
-                current_app.permanent_session_lifetime = timedelta(minutes=15)
+                # Set session timeout based on remember preference
+                session.permanent = True  # Always make session permanent
+                if remember:
+                    current_app.permanent_session_lifetime = timedelta(days=7)
+                else:
+                    current_app.permanent_session_lifetime = timedelta(hours=2)
                 
-                # Redirect based on role
-                if user.role == 'cashier':
-                    return render_template('auth/partials/cashier_login_success.html')
-                elif user.role == 'kitchen':
-                    return render_template('auth/partials/kitchen_login_success.html')
-                elif user.role in ['manager', 'admin', 'super_admin']:
-                    return render_template('auth/partials/manager_login_success.html')
+                # Check if this is HTMX request
+                if request.headers.get('HX-Request'):
+                    # HTMX request - return success response with redirect info
+                    return jsonify({
+                        'success': True,
+                        'user': user.to_dict(),
+                        'redirect': url_for('main.dashboard'),
+                        'remember': remember
+                    })
+                else:
+                    # Regular form submission - redirect normally
+                    next_page = request.args.get('next')
+                    if not next_page or url_parse(next_page).netloc != '':
+                        next_page = url_for('main.dashboard')
+                    return redirect(next_page)
             else:
-                return render_template('auth/partials/login_form.html', 
-                                   email=email, 
-                                   error='Invalid email or password')
+                if request.headers.get('HX-Request'):
+                    return jsonify({
+                        'success': False,
+                        'message': 'Invalid email or password'
+                    })
+                else:
+                    return render_template('auth/login.html',
+                                       email=email,
+                                       error='Invalid email or password')
         
         # Regular form submission
         user = User.query.filter_by(email=email).first()
@@ -49,9 +66,12 @@ def login():
             login_user(user, remember=remember)
             user.update_last_login()
             
-            # Set session timeout
-            session.permanent = remember
-            current_app.permanent_session_lifetime = timedelta(minutes=15)
+            # Set session timeout based on remember preference
+            session.permanent = True  # Always make session permanent
+            if remember:
+                current_app.permanent_session_lifetime = timedelta(days=7)
+            else:
+                current_app.permanent_session_lifetime = timedelta(hours=2)
             
             next_page = request.args.get('next')
             if not next_page or url_parse(next_page).netloc != '':
@@ -78,9 +98,9 @@ def pin_login():
                 login_user(user, remember=False)
                 user.update_last_login()
                 
-                # Set session timeout for PIN login (shorter)
-                session.permanent = False
-                current_app.permanent_session_lifetime = timedelta(minutes=15)
+                # Set session timeout for PIN login (shorter but persistent)
+                session.permanent = True
+                current_app.permanent_session_lifetime = timedelta(hours=1)
                 
                 if user.role == 'cashier':
                     return render_template('auth/partials/cashier_login_success.html')
@@ -97,9 +117,9 @@ def pin_login():
             login_user(user, remember=False)
             user.update_last_login()
             
-            # Set session timeout for PIN login (shorter)
-            session.permanent = False
-            current_app.permanent_session_lifetime = timedelta(minutes=15)
+            # Set session timeout for PIN login (shorter but persistent)
+            session.permanent = True
+            current_app.permanent_session_lifetime = timedelta(hours=1)
             
             flash(f'Welcome back, {user.name}!', 'success')
             return redirect(url_for('main.dashboard'))
@@ -191,3 +211,24 @@ def inject_auth_helpers():
         can_manage_users=can_manage_users,
         can_manage_menu=can_manage_menu
     )
+
+@bp.route('/status')
+def auth_status():
+    """Check authentication status for API requests"""
+    if current_user.is_authenticated:
+        return jsonify({
+            'authenticated': True,
+            'user': current_user.to_dict(),
+            'remember': session.permanent
+        })
+    else:
+        return jsonify({
+            'authenticated': False,
+            'user': None,
+            'remember': False
+        })
+
+@bp.route('/api/status')
+def api_auth_status():
+    """API endpoint for authentication status"""
+    return auth_status()

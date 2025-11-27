@@ -87,10 +87,18 @@ self.addEventListener('fetch', event => {
 
 // Background sync for offline actions
 self.addEventListener('sync', event => {
-    console.log('Service Worker: Background sync triggered');
+    console.log('Service Worker: Background sync triggered:', event.tag);
     
     if (event.tag === 'offline-mutations') {
         event.waitUntil(syncOfflineMutations());
+    } else if (event.tag === 'order-sync') {
+        event.waitUntil(syncOrderData());
+    } else if (event.tag === 'inventory-sync') {
+        event.waitUntil(syncInventoryData());
+    } else if (event.tag === 'menu-sync') {
+        event.waitUntil(syncMenuData());
+    } else if (event.tag === 'user-sync') {
+        event.waitUntil(syncUserData());
     }
 });
 
@@ -218,23 +226,34 @@ function isCacheableAPIResponse(url) {
 // Handle offline mutations (POST/PUT/DELETE)
 function handleOfflineMutations(request) {
     return new Promise((resolve) => {
+        // Determine priority based on URL and method
+        const priority = determineMutationPriority(request.url, request.method);
+        
         // Store mutation for later sync
         const mutation = {
             url: request.url,
             method: request.method,
             headers: Object.fromEntries(request.headers.entries()),
             body: request.body,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            priority: priority,
+            retry_count: 0,
+            id: generateMutationId()
         };
         
         // Store in IndexedDB for later sync
         storeOfflineMutation(mutation).then(() => {
+            // Register background sync if available
+            registerBackgroundSync(mutation.type || 'offline-mutations');
+            
             // Return immediate response for optimistic UI updates
             resolve(new Response(
-                JSON.stringify({ 
-                    success: true, 
-                    offline: true, 
-                    message: 'Action will be synced when online' 
+                JSON.stringify({
+                    success: true,
+                    offline: true,
+                    message: 'Action will be synced when online',
+                    mutation_id: mutation.id,
+                    priority: priority
                 }),
                 {
                     status: 202,
@@ -244,6 +263,40 @@ function handleOfflineMutations(request) {
             ));
         });
     });
+}
+
+// Determine mutation priority based on URL and method
+function determineMutationPriority(url, method) {
+    // Critical operations that should sync first
+    if (url.includes('/orders') && method === 'POST') {
+        return 'critical';
+    }
+    
+    // High priority operations
+    if (url.includes('/inventory') && method === 'PUT') {
+        return 'high';
+    }
+    
+    // Normal priority for most operations
+    return 'normal';
+}
+
+// Generate unique mutation ID
+function generateMutationId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+// Register background sync if available
+function registerBackgroundSync(tag) {
+    if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
+        self.registration.sync.register(tag)
+            .then(() => {
+                console.log(`Service Worker: Background sync registered for ${tag}`);
+            })
+            .catch(error => {
+                console.error('Service Worker: Background sync registration failed:', error);
+            });
+    }
 }
 
 // Store offline mutations in IndexedDB
@@ -257,6 +310,21 @@ function storeOfflineMutation(mutation) {
             const transaction = db.transaction(['mutations'], 'readwrite');
             const store = transaction.objectStore('mutations');
             
+            // Determine mutation type based on URL
+            if (!mutation.type) {
+                if (mutation.url.includes('/orders')) {
+                    mutation.type = 'order';
+                } else if (mutation.url.includes('/inventory')) {
+                    mutation.type = 'inventory';
+                } else if (mutation.url.includes('/menu')) {
+                    mutation.type = 'menu';
+                } else if (mutation.url.includes('/users')) {
+                    mutation.type = 'user';
+                } else {
+                    mutation.type = 'general';
+                }
+            }
+            
             store.add(mutation);
             
             transaction.oncomplete = () => resolve();
@@ -266,7 +334,12 @@ function storeOfflineMutation(mutation) {
         request.onupgradeneeded = () => {
             const db = request.result;
             if (!db.objectStoreNames.contains('mutations')) {
-                db.createObjectStore('mutations', { keyPath: 'id', autoIncrement: true });
+                const store = db.createObjectStore('mutations', { keyPath: 'id', autoIncrement: true });
+                // Create indexes for better query performance
+                store.createIndex('timestamp', 'timestamp', { unique: false });
+                store.createIndex('priority', 'priority', { unique: false });
+                store.createIndex('type', 'type', { unique: false });
+                store.createIndex('retry_count', 'retry_count', { unique: false });
             }
         };
     });
@@ -287,22 +360,32 @@ function syncOfflineMutations() {
             getAllRequest.onsuccess = () => {
                 const mutations = getAllRequest.result;
                 
-                // Sync each mutation
-                const syncPromises = mutations.map(mutation => {
-                    return fetch(mutation.url, {
-                        method: mutation.method,
-                        headers: mutation.headers,
-                        body: mutation.body
-                    }).then(response => {
-                        if (response.ok) {
-                            // Remove successful mutation from storage
-                            store.delete(mutation.id);
-                        }
-                        return response;
-                    }).catch(error => {
-                        console.error('Failed to sync mutation:', error);
-                        return null;
-                    });
+                if (mutations.length === 0) {
+                    resolve();
+                    return;
+                }
+                
+                // Group mutations by type for priority processing
+                const criticalMutations = mutations.filter(m => m.priority === 'critical');
+                const normalMutations = mutations.filter(m => m.priority !== 'critical');
+                const orderedMutations = [...criticalMutations, ...normalMutations];
+                
+                // Sync each mutation with retry logic
+                const syncPromises = orderedMutations.map(mutation => {
+                    return syncWithRetry(mutation)
+                        .then(response => {
+                            if (response.ok) {
+                                // Remove successful mutation from storage
+                                store.delete(mutation.id);
+                                logSyncSuccess(mutation);
+                            }
+                            return response;
+                        })
+                        .catch(error => {
+                            console.error('Failed to sync mutation:', error);
+                            handleSyncFailure(mutation, error);
+                            return null;
+                        });
                 });
                 
                 Promise.all(syncPromises).then(() => {
@@ -313,6 +396,226 @@ function syncOfflineMutations() {
         
         request.onerror = () => reject(request.error);
     });
+}
+
+// Sync with exponential backoff retry logic
+function syncWithRetry(mutation, maxRetries = 3) {
+    return new Promise((resolve, reject) => {
+        let attempt = 0;
+        
+        function attemptSync() {
+            attempt++;
+            
+            fetch(mutation.url, {
+                method: mutation.method,
+                headers: mutation.headers,
+                body: mutation.body
+            })
+            .then(response => {
+                if (response.ok) {
+                    resolve(response);
+                } else if (response.status >= 400 && response.status < 500) {
+                    // Client error, don't retry
+                    reject(new Error(`Client error: ${response.status}`));
+                } else if (attempt < maxRetries) {
+                    // Server error, retry with exponential backoff
+                    const delay = Math.pow(2, attempt) * 1000; // 2^attempt seconds
+                    setTimeout(attemptSync, delay);
+                } else {
+                    reject(new Error(`Max retries exceeded: ${response.status}`));
+                }
+            })
+            .catch(error => {
+                if (attempt < maxRetries) {
+                    const delay = Math.pow(2, attempt) * 1000;
+                    setTimeout(attemptSync, delay);
+                } else {
+                    reject(error);
+                }
+            });
+        }
+        
+        attemptSync();
+    });
+}
+
+// Handle sync failure
+function handleSyncFailure(mutation, error) {
+    // Update retry count
+    mutation.retry_count = (mutation.retry_count || 0) + 1;
+    
+    // Check if we should give up on this mutation
+    if (mutation.retry_count > 3) {
+        // Move to failed mutations store for manual review
+        moveToFailedMutations(mutation, error);
+    } else {
+        // Update mutation with new retry count
+        updateMutationRetryCount(mutation);
+    }
+}
+
+// Move failed mutations to separate store
+function moveToFailedMutations(mutation, error) {
+    const request = indexedDB.open('offline-mutations', 1);
+    
+    request.onsuccess = () => {
+        const db = request.result;
+        
+        // Create failed mutations store if it doesn't exist
+        if (!db.objectStoreNames.contains('failedMutations')) {
+            const newVersion = db.version + 1;
+            db.close();
+            
+            const upgradeRequest = indexedDB.open('offline-mutations', newVersion);
+            upgradeRequest.onupgradeneeded = (event) => {
+                const upgradedDb = event.target.result;
+                if (!upgradedDb.objectStoreNames.contains('failedMutations')) {
+                    upgradedDb.createObjectStore('failedMutations', { keyPath: 'id', autoIncrement: true });
+                }
+            };
+            upgradeRequest.onsuccess = () => {
+                const finalDb = upgradeRequest.result;
+                const transaction = finalDb.transaction(['failedMutations'], 'readwrite');
+                const store = transaction.objectStore('failedMutations');
+                
+                store.add({
+                    ...mutation,
+                    error: error.message,
+                    failed_at: Date.now()
+                });
+            };
+        } else {
+            const transaction = db.transaction(['failedMutations'], 'readwrite');
+            const store = transaction.objectStore('failedMutations');
+            
+            store.add({
+                ...mutation,
+                error: error.message,
+                failed_at: Date.now()
+            });
+        }
+    };
+}
+
+// Update mutation retry count
+function updateMutationRetryCount(mutation) {
+    const request = indexedDB.open('offline-mutations', 1);
+    
+    request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction(['mutations'], 'readwrite');
+        const store = transaction.objectStore('mutations');
+        
+        store.put(mutation);
+    };
+}
+
+// Log successful sync
+function logSyncSuccess(mutation) {
+    const request = indexedDB.open('offline-mutations', 1);
+    
+    request.onsuccess = () => {
+        const db = request.result;
+        
+        // Create sync log store if it doesn't exist
+        if (!db.objectStoreNames.contains('syncLog')) {
+            const newVersion = db.version + 1;
+            db.close();
+            
+            const upgradeRequest = indexedDB.open('offline-mutations', newVersion);
+            upgradeRequest.onupgradeneeded = (event) => {
+                const upgradedDb = event.target.result;
+                if (!upgradedDb.objectStoreNames.contains('syncLog')) {
+                    const logStore = upgradedDb.createObjectStore('syncLog', { keyPath: 'id', autoIncrement: true });
+                    logStore.createIndex('timestamp', 'timestamp', { unique: false });
+                    logStore.createIndex('type', 'type', { unique: false });
+                }
+            };
+            upgradeRequest.onsuccess = () => {
+                const finalDb = upgradeRequest.result;
+                const transaction = finalDb.transaction(['syncLog'], 'readwrite');
+                const store = transaction.objectStore('syncLog');
+                
+                store.add({
+                    mutation_id: mutation.id,
+                    type: mutation.type || 'unknown',
+                    url: mutation.url,
+                    method: mutation.method,
+                    synced_at: Date.now(),
+                    retry_count: mutation.retry_count || 0
+                });
+            };
+        } else {
+            const transaction = db.transaction(['syncLog'], 'readwrite');
+            const store = transaction.objectStore('syncLog');
+            
+            store.add({
+                mutation_id: mutation.id,
+                type: mutation.type || 'unknown',
+                url: mutation.url,
+                method: mutation.method,
+                synced_at: Date.now(),
+                retry_count: mutation.retry_count || 0
+            });
+        }
+    };
+}
+
+// Specific sync functions for different data types
+function syncOrderData() {
+    console.log('Service Worker: Syncing order data');
+    return syncOfflineMutations();
+}
+
+function syncInventoryData() {
+    console.log('Service Worker: Syncing inventory data');
+    return syncOfflineMutations();
+}
+
+function syncMenuData() {
+    console.log('Service Worker: Syncing menu data');
+    return syncOfflineMutations();
+}
+
+function syncUserData() {
+    console.log('Service Worker: Syncing user data');
+    return syncOfflineMutations();
+}
+
+// Conflict resolution function
+function resolveConflict(localData, serverData, strategy = 'last-write-wins') {
+    switch (strategy) {
+        case 'last-write-wins':
+            return localData.timestamp > serverData.timestamp ? localData : serverData;
+        
+        case 'server-wins':
+            return serverData;
+        
+        case 'client-wins':
+            return localData;
+        
+        case 'merge':
+            return mergeData(localData, serverData);
+        
+        default:
+            return localData.timestamp > serverData.timestamp ? localData : serverData;
+    }
+}
+
+// Simple data merge function
+function mergeData(localData, serverData) {
+    const merged = { ...serverData };
+    
+    // Only merge specific fields that are safe to merge
+    const mergeableFields = ['notes', 'description', 'tags'];
+    
+    mergeableFields.forEach(field => {
+        if (localData[field] && localData[field] !== serverData[field]) {
+            merged[field] = localData[field];
+        }
+    });
+    
+    return merged;
 }
 
 // Periodic cache cleanup

@@ -7,6 +7,7 @@
     
     <!-- TailwindCSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/drag-drop.css') }}">
     
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
@@ -18,16 +19,28 @@
     <!-- App.js - Main application JavaScript -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     
+    <!-- Auth Manager - Login state persistence -->
+    <script src="{{ url_for('static', filename='js/auth-manager.js') }}"></script>
+    
+    <!-- Live Polling JavaScript -->
+    <script src="{{ url_for('static', filename='js/live-polling.js') }}"></script>
+    
     <!-- Alpine.js Setup -->
     <script src="{{ url_for('static', filename='js/alpine-setup.js') }}"></script>
     
     <!-- Keyboard Navigation -->
     <script src="{{ url_for('static', filename='js/keyboard-navigation.js') }}"></script>
     
-    <!-- Accessibility Testing (only in development) -->
+    <!-- Drag and Drop -->
+    <script src="{{ url_for('static', filename='js/drag-drop.js') }}"></script>
+    
+    <!-- Reordering Utilities -->
+    <script src="{{ url_for('static', filename='js/reordering-utils.js') }}"></script>
+    
+    <!-- Accessibility Testing (only in development)
     {% if config.DEBUG %}
     <script src="{{ url_for('static', filename='js/accessibility-test.js') }}"></script>
-    {% endif %}
+    {% endif %} -->
     
     <!-- HTMX Extensions -->
     <script src="https://unpkg.com/htmx.org@1.9.6/dist/ext/response-targets.js"></script>

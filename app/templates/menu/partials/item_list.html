@@ -1,8 +1,25 @@
 {% if items %}
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" hx-target="this">
+<div id="menu-items-container"
+     class="menu-items-container grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+     data-category-id="{{ selected_category or '' }}"
+     hx-target="this">
     {% for item in items %}
-    <div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
+    <div class="menu-item-card bg-white rounded-lg shadow hover:shadow-lg transition-shadow draggable"
+         data-item-id="{{ item.id }}"
+         tabindex="0"
+         role="button"
+         aria-label="Menu item: {{ item.name }}">
         <div class="p-6">
+            <!-- Drag Handle -->
+            <div class="drag-handle absolute top-2 left-2 opacity-0 hover:opacity-100 transition-opacity">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-5 h-5 text-gray-400">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+                </svg>
+            </div>
+
+            <!-- Order Indicator -->
+            <div class="order-indicator" data-order-indicator>{{ item.display_order + 1 }}</div>
+
             <div class="flex justify-between items-start mb-4">
                 <h3 class="text-lg font-medium text-gray-900">{{ item.name }}</h3>
                 <span class="{% if item.is_available %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %} inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
@@ -30,7 +47,7 @@
             
             <div class="flex justify-between items-center">
                 <div class="flex space-x-2">
-                    <a href="{{ url_for('menu.edit_item', item_id=item.id) }}" 
+                    <a href="{{ url_for('menu.edit_item', item_id=item.id) }}"
                        class="text-blue-600 hover:text-blue-900 text-sm">
                         Edit
                     </a>
@@ -43,7 +60,16 @@
                         </button>
                     </form>
                 </div>
-                <span class="text-xs text-gray-400">Order: {{ item.display_order }}</span>
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs text-gray-400">Order: {{ item.display_order }}</span>
+                    <!-- Bulk selection checkbox -->
+                    <input type="checkbox"
+                           class="bulk-checkbox hidden"
+                           x-show="bulkMode"
+                           x-model="selectedItems"
+                           value="{{ item.id }}"
+                           @change="updateBulkSelection()">
+                </div>
             </div>
         </div>
     </div>

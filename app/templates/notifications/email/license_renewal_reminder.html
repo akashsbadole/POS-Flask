@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>License Renewal Reminder - {{ license.license_type }}</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background-color: #f39c12;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header.urgent {
+            background-color: #e74c3c;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .alert-box {
+            background-color: #fef5e7;
+            border-left: 4px solid #f39c12;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 5px 5px 0;
+        }
+        .alert-box.urgent {
+            background-color: #fadbd8;
+            border-left-color: #e74c3c;
+        }
+        .alert-box h2 {
+            margin: 0 0 10px 0;
+            color: #f39c12;
+        }
+        .alert-box.urgent h2 {
+            color: #e74c3c;
+        }
+        .license-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .license-info p {
+            margin: 5px 0;
+        }
+        .countdown {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+        }
+        .countdown-number {
+            font-size: 48px;
+            font-weight: bold;
+            color: #f39c12;
+            margin: 10px 0;
+        }
+        .countdown-number.urgent {
+            color: #e74c3c;
+        }
+        .countdown-text {
+            font-size: 18px;
+            color: #7f8c8d;
+        }
+        .action-buttons {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 5px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        .btn-warning {
+            background-color: #f39c12;
+            color: white;
+        }
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+        }
+        @media only screen and (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .content {
+                padding: 20px;
+            }
+            .countdown-number {
+                font-size: 36px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header {% if days_until_expiry <= 7 %}urgent{% endif %}">
+            <h1>📋 License Renewal Reminder</h1>
+            <p>Restaurant POS System</p>
+        </div>
+        
+        <div class="content">
+            <div class="alert-box {% if days_until_expiry <= 7 %}urgent{% endif %}">
+                <h2>{% if days_until_expiry <= 7 %}Urgent: {% endif %}License Expiring Soon</h2>
+                <p>Your {{ license.license_type }} license is set to expire in {{ days_until_expiry }} days. Please renew it to avoid service interruption.</p>
+            </div>
+            
+            <div class="license-info">
+                <p><strong>License Type:</strong> {{ license.license_type }}</p>
+                <p><strong>License Number:</strong> {{ license.license_number }}</p>
+                <p><strong>Issued To:</strong> {{ license.issued_to }}</p>
+                <p><strong>Issuing Authority:</strong> {{ license.issuing_authority }}</p>
+                <p><strong>Issue Date:</strong> {{ license.issue_date.strftime('%B %d, %Y') }}</p>
+                <p><strong>Expiry Date:</strong> {{ expiry_date }}</p>
+                {% if license.description %}
+                <p><strong>Description:</strong> {{ license.description }}</p>
+                {% endif %}
+            </div>
+            
+            <div class="countdown">
+                <div class="countdown-number {% if days_until_expiry <= 7 %}urgent{% endif %}">
+                    {{ days_until_expiry }}
+                </div>
+                <div class="countdown-text">
+                    {% if days_until_expiry == 1 %}Day remaining{% else %}Days remaining{% endif %}
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <a href="{{ renewal_url }}" class="btn {% if days_until_expiry <= 7 %}btn-danger{% elif days_until_expiry <= 30 %}btn-warning{% else %}btn-primary{% endif %}">
+                    Renew License Now
+                </a>
+                <a href="{{ url_for('license.view', license_id=license.id) }}" class="btn btn-primary">
+                    View License Details
+                </a>
+            </div>
+            
+            <h3>Renewal Information</h3>
+            <p>To renew your license, please follow these steps:</p>
+            <ol>
+                <li>Click the "Renew License Now" button above</li>
+                <li>Review your license information and update if necessary</li>
+                <li>Upload any required documentation</li>
+                <li>Submit the renewal application</li>
+                <li>Pay the renewal fee (if applicable)</li>
+            </ol>
+            
+            {% if days_until_expiry <= 7 %}
+            <div class="alert-box urgent">
+                <h2>⚠️ Action Required Immediately</h2>
+                <p>Your license expires in less than a week! Failure to renew may result in:</p>
+                <ul>
+                    <li>Service interruption</li>
+                    <li>Legal compliance issues</li>
+                    <li>Business operation disruption</li>
+                </ul>
+            </div>
+            {% endif %}
+            
+            <p><strong>Reminder sent on:</strong> {{ reminder_date }}</p>
+        </div>
+        
+        <div class="footer">
+            <p>This is an automated reminder from Restaurant POS System</p>
+            <p>If you have already renewed this license, please disregard this message</p>
+            <p>For assistance, please contact your system administrator</p>
+        </div>
+    </div>
+</body>
+</html>

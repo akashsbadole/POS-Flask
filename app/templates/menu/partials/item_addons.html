@@ -1,0 +1,44 @@
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% for addon in all_addons %}
+    <div class="border rounded-lg p-4 {% if not addon.is_active %}opacity-60{% endif %}">
+        <label class="flex items-start space-x-3 cursor-pointer">
+            <input type="checkbox" 
+                   name="addon_ids" 
+                   value="{{ addon.id }}"
+                   {% if addon in item_addons %}checked{% endif %}
+                   {% if not addon.is_active %}disabled{% endif %}
+                   class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+            <div class="flex-1">
+                <div class="flex items-center justify-between">
+                    <h4 class="font-medium text-gray-900">{{ addon.name }}</h4>
+                    <span class="text-sm font-semibold text-blue-600">
+                        {% if addon.price > 0 %}
+                            ₹{{ "%.2f"|format(addon.price) }}
+                        {% else %}
+                            No charge
+                        {% endif %}
+                    </span>
+                </div>
+                {% if addon.description %}
+                <p class="text-sm text-gray-600 mt-1">{{ addon.description }}</p>
+                {% endif %}
+                {% if not addon.is_active %}
+                <p class="text-xs text-red-500 mt-1">This add-on is currently inactive</p>
+                {% endif %}
+            </div>
+        </label>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not all_addons %}
+<div class="text-center py-8">
+    <i class="fas fa-plus-circle text-4xl text-gray-400 mb-3"></i>
+    <h3 class="text-lg font-medium text-gray-900 mb-1">No add-ons available</h3>
+    <p class="text-gray-500 mb-4">Create add-ons first before assigning them to menu items</p>
+    <a href="{{ url_for('menu.create_addon') }}"
+       class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+        <i class="fas fa-plus mr-2"></i>Create Add-on
+    </a>
+</div>
+{% endif %}

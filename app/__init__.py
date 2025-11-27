@@ -4,6 +4,7 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_socketio import SocketIO
 from flask_wtf.csrf import CSRFProtect
+from flask_mail import Mail
 from config import config
 import os
 
@@ -13,6 +14,7 @@ login_manager = LoginManager()
 migrate = Migrate()
 socketio = SocketIO()
 csrf = CSRFProtect()
+mail = Mail()
 
 def create_app(config_name=None):
     if config_name is None:
@@ -27,6 +29,11 @@ def create_app(config_name=None):
     migrate.init_app(app, db)
     socketio.init_app(app, cors_allowed_origins="*", async_mode=app.config['SOCKETIO_ASYNC_MODE'])
     csrf.init_app(app)
+    mail.init_app(app)
+    
+    # Initialize notification service
+    from app.notifications.service import notification_service
+    notification_service.init_app(app)
     
     # Enable WAL mode for SQLite
     if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
@@ -102,6 +109,12 @@ def create_app(config_name=None):
     from app.purchase import bp as purchase_bp
     app.register_blueprint(purchase_bp, url_prefix='/purchase')
     
+    from app.notifications import bp as notifications_bp
+    app.register_blueprint(notifications_bp, url_prefix='/notifications')
+    
+    from app.admin import bp as admin_bp
+    app.register_blueprint(admin_bp, url_prefix='/admin')
+    
     # User loader for Flask-Login
     @login_manager.user_loader
     def load_user(user_id):
@@ -145,5 +158,8 @@ def create_app(config_name=None):
         error_id = str(uuid.uuid4())[:8]
         
         return render_template('errors/500.html', error_id=error_id), 500
+    
+    # Import and register Socket.IO event handlers
+    from app import socketio_events
     
     return app

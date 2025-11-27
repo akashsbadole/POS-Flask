@@ -24,22 +24,40 @@
                             <div class="flex-1">
                                 <h3 class="font-medium">{{ item.menu_item.name }}</h3>
                                 <p class="text-sm text-gray-600">
-                                    {{ item.quantity }}x @ ${{ "%.2f"|format(item.unit_price) }}
+                                    {{ item.quantity }}x @ ₹{{ "%.2f"|format(item.unit_price) }}
                                     {% if item.variant %}
                                     - {{ item.variant.name }}
                                     {% endif %}
                                 </p>
                                 {% if item.add_ons %}
-                                <p class="text-sm text-gray-600">
-                                    Add-ons: {{ item.add_ons|map(attribute='name')|join(', ') }}
-                                </p>
+                                <div class="mt-2">
+                                    <p class="text-xs font-medium text-gray-600 mb-1">Add-ons:</p>
+                                    <div class="flex flex-wrap gap-1">
+                                        {% for addon in item.add_ons %}
+                                        <span class="text-xs bg-gray-100 px-2 py-1 rounded">
+                                            {{ addon.name }}
+                                            {% if addon.price > 0 %}
+                                                (+₹{{ "%.2f"|format(addon.price) }})
+                                            {% endif %}
+                                        </span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
                                 {% endif %}
                                 {% if item.notes %}
                                 <p class="text-sm text-gray-600">Notes: {{ item.notes }}</p>
                                 {% endif %}
+                                {% if item.variant %}
+                                <p class="text-xs text-blue-600">
+                                    Variant: {{ item.variant.name }}
+                                    {% if item.variant.price_modifier != 0 %}
+                                        ({{ '+' if item.variant.price_modifier > 0 else '' }}₹{{ "%.2f"|format(item.variant.price_modifier) }})
+                                    {% endif %}
+                                </p>
+                                {% endif %}
                             </div>
                             <div class="text-right">
-                                <p class="font-medium">${{ "%.2f"|format(item.get_total_price()) }}</p>
+                                <p class="font-medium">₹{{ "%.2f"|format(item.get_total_price()) }}</p>
                             </div>
                         </div>
                         {% endfor %}
@@ -93,7 +111,7 @@
                                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                accesskey="a" data-field="amount" aria-describedby="payment-amount-help">
                                             <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                                <span class="text-gray-500 text-sm" aria-hidden="true">$</span>
+                                                <span class="text-gray-500 text-sm" aria-hidden="true">₹</span>
                                             </div>
                                         </div>
                                         <span id="payment-amount-help" class="sr-only">Enter payment amount</span>

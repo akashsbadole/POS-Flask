@@ -1,0 +1,45 @@
+<div class="bg-gray-50 rounded-lg p-4 border-l-4 {% if variant.is_available %}border-green-500{% else %}border-red-500{% endif %}">
+    <div class="flex justify-between items-start">
+        <div class="flex-1">
+            <h3 class="text-lg font-medium text-gray-900">{{ variant.name }}</h3>
+            <div class="mt-1 flex items-center space-x-4">
+                <span class="{% if variant.is_available %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %} inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                    {% if variant.is_available %}Available{% else %}Unavailable{% endif %}
+                </span>
+                <span class="text-sm text-gray-600">
+                    {% if variant.price_modifier > 0 %}
+                        +₹{{ "%.2f"|format(variant.price_modifier) }} (₹{{ "%.2f"|format(item.price + variant.price_modifier) }} total)
+                    {% elif variant.price_modifier < 0 %}
+                        -₹{{ "%.2f"|format(variant.price_modifier|abs) }} (₹{{ "%.2f"|format(item.price + variant.price_modifier) }} total)
+                    {% else %}
+                        No price change (₹{{ "%.2f"|format(item.price) }})
+                    {% endif %}
+                </span>
+                <span class="text-xs text-gray-400">Order: {{ variant.display_order }}</span>
+            </div>
+        </div>
+        <div class="flex space-x-2">
+            <a href="{{ url_for('menu.edit_variant', variant_id=variant.id) }}" 
+               class="text-blue-600 hover:text-blue-900 text-sm font-medium">
+                Edit
+            </a>
+            <form method="POST" action="{{ url_for('menu.toggle_variant_availability', variant_id=variant.id) }}"
+                  class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit"
+                        class="{% if variant.is_available %}text-yellow-600 hover:text-yellow-900{% else %}text-green-600 hover:text-green-900{% endif %} text-sm font-medium">
+                    {% if variant.is_available %}Disable{% else %}Enable{% endif %}
+                </button>
+            </form>
+            <form method="POST" action="{{ url_for('menu.delete_variant', variant_id=variant.id) }}"
+                  class="inline"
+                  onsubmit="return confirm('Are you sure you want to delete this variant?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit"
+                        class="text-red-600 hover:text-red-900 text-sm font-medium">
+                    Delete
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

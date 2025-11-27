@@ -1,0 +1,12 @@
+{% if variants %}
+<div class="space-y-4">
+    {% for variant in variants %}
+        {% include 'menu/partials/variant_card.html' %}
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-8">
+    <i class="fas fa-tags text-gray-400 text-4xl mb-3"></i>
+    <p class="text-gray-500">No variants found</p>
+</div>
+{% endif %}

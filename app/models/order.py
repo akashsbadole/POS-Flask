@@ -53,6 +53,10 @@ class Order(db.Model):
     service_charge = db.Column(db.Numeric(10, 2), default=0.00)
     total = db.Column(db.Numeric(10, 2), nullable=False)
     notes = db.Column(db.Text)
+    estimated_preparation_time = db.Column(db.Integer)  # in seconds
+    actual_preparation_time = db.Column(db.Integer)  # in seconds
+    timer_started_at = db.Column(db.DateTime)
+    timer_completed_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = db.Column(db.DateTime)
@@ -146,8 +150,23 @@ class Order(db.Model):
     
     def update_status(self, new_status):
         """Update order status with timestamp"""
+        old_status = self.status
         self.status = new_status
         self.updated_at = datetime.utcnow()
+        
+        # Handle timer tracking for preparation
+        if new_status == OrderStatus.CONFIRMED and old_status != OrderStatus.CONFIRMED:
+            # Calculate estimated preparation time when order is confirmed
+            self.estimated_preparation_time = self.calculate_preparation_time()
+        elif new_status == OrderStatus.PREPARING and not self.timer_started_at:
+            # Start timer when preparation begins
+            self.timer_started_at = datetime.utcnow()
+        elif new_status == OrderStatus.READY and self.timer_started_at and not self.timer_completed_at:
+            # Complete timer when order is ready
+            self.timer_completed_at = datetime.utcnow()
+            if self.timer_started_at:
+                time_diff = self.timer_completed_at - self.timer_started_at
+                self.actual_preparation_time = int(time_diff.total_seconds())
         
         if new_status in [OrderStatus.SERVED, OrderStatus.CANCELLED, OrderStatus.VOID]:
             self.completed_at = datetime.utcnow()
@@ -159,6 +178,59 @@ class Order(db.Model):
     def can_be_modified(self):
         """Check if order can be modified"""
         return self.status in [OrderStatus.PENDING, OrderStatus.CONFIRMED]
+    
+    def calculate_preparation_time(self):
+        """Calculate estimated preparation time based on order complexity"""
+        # Get order items using direct query
+        from app.models.menu import MenuItem
+        from app.models.recipe import Recipe
+        
+        order_items = OrderItem.query.filter_by(order_id=self.id).all()
+        if not order_items:
+            return 900  # Default 15 minutes
+        
+        base_time = 300  # 5 minutes base time
+        complexity_multiplier = 1
+        
+        # Calculate based on number of items
+        item_count = len(order_items)
+        if item_count > 5:
+            complexity_multiplier += 0.5
+        if item_count > 10:
+            complexity_multiplier += 0.5
+        
+        # Calculate based on item complexity
+        for order_item in order_items:
+            # Get menu item with preparation time
+            menu_item = MenuItem.query.get(order_item.item_id)
+            if menu_item and menu_item.preparation_time:
+                base_time += menu_item.preparation_time * 60  # Convert to seconds
+            
+            # Check recipe difficulty
+            recipe = Recipe.query.filter_by(menu_item_id=order_item.item_id).first()
+            if recipe:
+                if recipe.difficulty_level == 'Easy':
+                    complexity_multiplier += 0.1
+                elif recipe.difficulty_level == 'Medium':
+                    complexity_multiplier += 0.2
+                elif recipe.difficulty_level == 'Hard':
+                    complexity_multiplier += 0.4
+            
+            # Add time for add-ons
+            if order_item.add_ons and len(order_item.add_ons) > 0:
+                base_time += len(order_item.add_ons) * 30  # 30 seconds per add-on
+        
+        # Consider current kitchen workload
+        from datetime import datetime
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        current_orders = Order.query.filter(
+            Order.status.in_([OrderStatus.CONFIRMED, OrderStatus.PREPARING]),
+            Order.created_at >= today
+        ).count()
+        
+        workload_multiplier = 1 + (current_orders * 0.1)  # 10% increase per active order
+        
+        return int(base_time * complexity_multiplier * workload_multiplier)
     
     def to_dict(self, include_items=True, include_payments=True):
         """Convert order to dictionary for API responses"""
@@ -185,6 +257,10 @@ class Order(db.Model):
             'total_paid': self.get_total_paid(),
             'balance_due': self.get_balance_due(),
             'notes': self.notes,
+            'estimated_preparation_time': self.estimated_preparation_time,
+            'actual_preparation_time': self.actual_preparation_time,
+            'timer_started_at': self.timer_started_at.isoformat() if self.timer_started_at else None,
+            'timer_completed_at': self.timer_completed_at.isoformat() if self.timer_completed_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None

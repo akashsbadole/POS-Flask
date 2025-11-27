@@ -1,0 +1,425 @@
+/* Drag and Drop Styles for Menu Reordering */
+
+/* Base draggable items */
+.draggable {
+    position: relative;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.draggable:hover {
+    transform: translateY(-2px);
+}
+
+/* Drag handle styles */
+.drag-handle {
+    cursor: grab;
+    user-select: none;
+    padding: 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.drag-handle:hover {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: #3B82F6;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.drag-handle svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Dragging state */
+.dragging {
+    opacity: 0.8;
+    transform: rotate(2deg);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    border-radius: 8px;
+}
+
+/* Drop zone indicators */
+.drop-zone-active {
+    background-color: rgba(59, 130, 246, 0.05);
+    border: 2px dashed #3B82F6;
+    border-radius: 8px;
+    transform: scale(1.02);
+}
+
+.drop-zone-active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+    border-radius: 8px;
+    pointer-events: none;
+}
+
+/* Placeholder styles */
+.drag-placeholder {
+    background: linear-gradient(45deg, #f3f4f6 25%, transparent 25%, transparent 75%, #f3f4f6 75%, #f3f4f6),
+                linear-gradient(45deg, #f3f4f6 25%, transparent 25%, transparent 75%, #f3f4f6 75%, #f3f4f6);
+    background-size: 20px 20px;
+    background-position: 0 0, 10px 10px;
+    border: 2px dashed #3B82F6;
+    border-radius: 8px;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 0.5;
+    }
+    50% {
+        opacity: 0.8;
+    }
+}
+
+/* Menu item specific drag styles */
+.menu-item-card.draggable {
+    border-left: 4px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.menu-item-card.draggable:hover {
+    border-left-color: #3B82F6;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.menu-item-card.dragging {
+    border-left-color: #3B82F6;
+    background: white;
+}
+
+/* Category specific drag styles */
+.category-item.draggable {
+    border-left: 4px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.category-item.draggable:hover {
+    border-left-color: #10B981;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.category-item.dragging {
+    border-left-color: #10B981;
+    background: white;
+}
+
+/* Touch device optimizations */
+.touch-device .drag-handle {
+    padding: 12px;
+    min-width: 44px;
+    min-height: 44px;
+}
+
+.touch-device .draggable {
+    touch-action: none;
+}
+
+/* Keyboard navigation focus styles */
+.draggable:focus {
+    outline: 2px solid #3B82F6;
+    outline-offset: 2px;
+}
+
+.draggable:focus-within {
+    outline: 2px solid #3B82F6;
+    outline-offset: 2px;
+}
+
+/* Reorder tools styles */
+.reorder-tools {
+    background: white;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 16px;
+}
+
+.reorder-tools h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #1F2937;
+}
+
+.reorder-tools .button-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.reorder-tools button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.reorder-tools button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.reorder-tools .btn-primary {
+    background-color: #3B82F6;
+    color: white;
+    border-color: #3B82F6;
+}
+
+.reorder-tools .btn-primary:hover {
+    background-color: #2563EB;
+    border-color: #2563EB;
+}
+
+.reorder-tools .btn-secondary {
+    background-color: #6B7280;
+    color: white;
+    border-color: #6B7280;
+}
+
+.reorder-tools .btn-secondary:hover {
+    background-color: #4B5563;
+    border-color: #4B5563;
+}
+
+.reorder-tools .btn-outline {
+    background-color: transparent;
+    color: #3B82F6;
+    border-color: #3B82F6;
+}
+
+.reorder-tools .btn-outline:hover {
+    background-color: #3B82F6;
+    color: white;
+}
+
+/* Loading states */
+.reorder-loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.reorder-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #3B82F6;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Success animations */
+.reorder-success {
+    animation: successPulse 0.6s ease-in-out;
+}
+
+@keyframes successPulse {
+    0% {
+        background-color: white;
+        box-shadow: 0 0 0 rgba(16, 185, 129, 0);
+    }
+    50% {
+        background-color: rgba(16, 185, 129, 0.1);
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+    }
+    100% {
+        background-color: white;
+        box-shadow: 0 0 0 rgba(16, 185, 129, 0);
+    }
+}
+
+/* Bulk reorder mode */
+.bulk-reorder-mode .menu-item-card,
+.bulk-reorder-mode .category-item {
+    position: relative;
+}
+
+.bulk-reorder-mode .menu-item-card::before,
+.bulk-reorder-mode .category-item::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #D1D5DB;
+    border-radius: 4px;
+    background-color: white;
+    z-index: 10;
+}
+
+.bulk-reorder-mode .menu-item-card.selected::before,
+.bulk-reorder-mode .category-item.selected::before {
+    background-color: #3B82F6;
+    border-color: #3B82F6;
+}
+
+.bulk-reorder-mode .menu-item-card.selected::after,
+.bulk-reorder-mode .category-item.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 20px;
+    height: 20px;
+    color: white;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 11;
+}
+
+/* Preview mode styles */
+.preview-mode .menu-item-card,
+.preview-mode .category-item {
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.preview-mode .menu-item-card:hover,
+.preview-mode .category-item:hover {
+    opacity: 1;
+}
+
+.preview-mode .drag-handle {
+    display: none;
+}
+
+/* Order indicator styles */
+.order-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    background-color: #F3F4F6;
+    color: #6B7280;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 12px;
+    margin-left: 8px;
+    transition: all 0.2s ease;
+}
+
+.order-indicator.updated {
+    background-color: #3B82F6;
+    color: white;
+    animation: orderUpdate 0.6s ease-in-out;
+}
+
+@keyframes orderUpdate {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .drag-handle {
+        padding: 6px;
+        min-width: 36px;
+        min-height: 36px;
+    }
+    
+    .reorder-tools .button-group {
+        flex-direction: column;
+    }
+    
+    .reorder-tools button {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+    .draggable,
+    .drag-handle,
+    .menu-item-card,
+    .category-item,
+    .reorder-tools button {
+        transition: none;
+    }
+    
+    .drag-placeholder {
+        animation: none;
+    }
+    
+    .reorder-success {
+        animation: none;
+    }
+    
+    .order-indicator.updated {
+        animation: none;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .drag-handle {
+        border: 1px solid currentColor;
+    }
+    
+    .drop-zone-active {
+        border-width: 3px;
+    }
+    
+    .drag-placeholder {
+        border-width: 3px;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .drag-placeholder {
+        background: linear-gradient(45deg, #374151 25%, transparent 25%, transparent 75%, #374151 75%, #374151),
+                    linear-gradient(45deg, #374151 25%, transparent 25%, transparent 75%, #374151 75%, #374151);
+    }
+    
+    .order-indicator {
+        background-color: #4B5563;
+        color: #D1D5DB;
+    }
+    
+    .reorder-tools {
+        background-color: #1F2937;
+        color: #F9FAFB;
+    }
+}
