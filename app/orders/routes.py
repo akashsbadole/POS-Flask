@@ -155,7 +155,7 @@ def create_order():
     # Ensure items are loaded
     if hasattr(order, 'items') and order.items:
         # Convert to list to handle SQLAlchemy relationship
-        items_list = list(order.items) if order.items else []
+        items_list = list(order.items.all()) if order.items else []
         # Deduct ingredients from inventory
         for order_item in items_list:
             menu_item = MenuItem.query.get(order_item.item_id)

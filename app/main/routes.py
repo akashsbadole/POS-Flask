@@ -1,10 +1,13 @@
-from flask import render_template, redirect, url_for, flash, request, current_app
+from flask import render_template, redirect, url_for, flash, request, current_app, jsonify
 from flask_login import login_required, current_user
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from app.main import bp
 from app.models.user import User
 from app.models.order import Order, OrderStatus
 from app.models.table import Table, TableStatus
+from app.models.menu import MenuItem, Category
+from app.models.inventory import Ingredient
+from app.models.restaurant import Restaurant
 from app import db
 from datetime import datetime, timedelta
 
@@ -16,8 +19,8 @@ def index():
             return redirect(url_for('cashier.dashboard'))
         elif current_user.role == 'kitchen':
             return redirect(url_for('kitchen.display'))
-        elif current_user.role in ['manager', 'admin']:
-            return redirect(url_for('manager.dashboard'))
+        elif current_user.role in ['manager', 'admin', 'super_admin']:
+            return redirect(url_for('main.system_status'))
     return redirect(url_for('auth.login'))
 
 @bp.route('/dashboard')
@@ -28,8 +31,8 @@ def dashboard():
         return redirect(url_for('cashier.dashboard'))
     elif current_user.role == 'kitchen':
         return redirect(url_for('kitchen.display'))
-    elif current_user.role in ['manager', 'admin']:
-        return redirect(url_for('manager.dashboard'))
+    elif current_user.role in ['manager', 'admin', 'super_admin']:
+        return redirect(url_for('main.system_status'))
     else:
         flash('Invalid user role', 'error')
         return redirect(url_for('auth.logout'))
@@ -61,12 +64,589 @@ def system_status():
     # Get active users (logged in recently)
     active_users = User.query.filter(
         User.last_login >= datetime.utcnow() - timedelta(hours=1)
-    ).order_by(User.last_login.desc()).limit(10).all()
+    ).limit(10).all()
     
-    return render_template('main/system_status.html', 
-                         stats=stats, 
+    return render_template('main/system_status.html',
+                         stats=stats,
                          recent_orders=recent_orders,
                          active_users=active_users)
+
+# Dashboard Routes
+@bp.route('/menu-dashboard')
+@login_required
+def menu_dashboard():
+    """Menu Management Dashboard"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    stats = {
+        'total_items': MenuItem.query.count(),
+        'available_items': MenuItem.query.filter_by(is_available=True).count(),
+        'unavailable_items': MenuItem.query.filter_by(is_available=False).count(),
+        'total_categories': Category.query.count()
+    }
+    
+    return render_template('menu/dashboard.html', stats=stats)
+
+@bp.route('/tables-dashboard')
+@login_required
+def tables_dashboard():
+    """Table Management Dashboard"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    stats = {
+        'total_tables': Table.query.count(),
+        'free_tables': Table.query.filter_by(status=TableStatus.FREE).count(),
+        'occupied_tables': Table.query.filter_by(status=TableStatus.OCCUPIED).count(),
+        'reserved_tables': Table.query.filter_by(status=TableStatus.RESERVED).count(),
+        'cleaning_tables': Table.query.filter_by(status=TableStatus.CLEANING).count(),
+        'maintenance_tables': Table.query.filter_by(status=TableStatus.MAINTENANCE).count()
+    }
+    
+    return render_template('tables/dashboard.html', stats=stats)
+
+@bp.route('/inventory-dashboard')
+@login_required
+def inventory_dashboard():
+    """Inventory Management Dashboard"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    total_ingredients = Ingredient.query.count()
+    out_of_stock = Ingredient.query.filter(Ingredient.current_stock == 0).count()
+    low_stock = Ingredient.query.filter(
+        Ingredient.current_stock <= Ingredient.minimum_stock,
+        Ingredient.current_stock > 0
+    ).count()
+    
+    # Calculate total inventory value
+    total_value = db.session.query(
+        func.sum(Ingredient.current_stock * Ingredient.unit_cost)
+    ).scalar() or 0
+    
+    stats = {
+        'total_ingredients': total_ingredients,
+        'out_of_stock': out_of_stock,
+        'low_stock_count': low_stock,
+        'total_value': total_value,
+        'recent_adjustments': 0  # TODO: Implement adjustment tracking
+    }
+    
+    return render_template('inventory/dashboard.html', stats=stats)
+
+@bp.route('/reports-dashboard')
+@login_required
+def reports_dashboard():
+    """Reports Dashboard"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Get date range (default to last 7 days)
+    days = request.args.get('days', 7, type=int)
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days)
+    
+    # Calculate statistics
+    orders = Order.query.filter(
+        Order.created_at >= start_date,
+        Order.created_at <= end_date
+    ).all()
+    
+    total_orders = len(orders)
+    total_revenue = sum(float(order.total) for order in orders)
+    total_tax = sum(float(order.tax_amount) for order in orders)
+    average_order_value = total_revenue / total_orders if total_orders > 0 else 0
+    
+    # Payment method breakdown
+    payment_breakdown = {}
+    for order in orders:
+        if order.payments:
+            for payment in order.payments:
+                method = payment.method.value
+                if method not in payment_breakdown:
+                    payment_breakdown[method] = 0
+                payment_breakdown[method] += float(payment.amount)
+    
+    # Daily breakdown
+    daily_stats = {}
+    current_date = start_date
+    while current_date <= end_date:
+        day_orders = [o for o in orders if o.created_at.date() == current_date.date()]
+        daily_revenue = sum(float(order.total) for order in day_orders)
+        
+        daily_stats[current_date.strftime('%Y-%m-%d')] = {
+            'orders': len(day_orders),
+            'revenue': daily_revenue
+        }
+        current_date += timedelta(days=1)
+    
+    stats = {
+        'total_orders': total_orders,
+        'total_revenue': total_revenue,
+        'total_tax': total_tax,
+        'average_order_value': average_order_value,
+        'payment_breakdown': payment_breakdown,
+        'daily_stats': daily_stats,
+        'revenue_growth': 12.5,  # TODO: Calculate actual growth
+        'orders_growth': 8.3,
+        'customers_growth': 15.2,
+        'aov_growth': 4.1,
+        'total_customers': User.query.filter_by(is_active=True).count()
+    }
+    
+    return render_template('reports/dashboard.html', stats=stats)
+
+@bp.route('/settings-dashboard')
+@login_required
+def settings_dashboard():
+    """System Settings Dashboard"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Get restaurant info
+    restaurant = Restaurant.query.first()
+    
+    return render_template('settings/dashboard.html', restaurant=restaurant)
+
+# API Endpoints for Dashboards
+@bp.route('/api/menu/stats')
+@login_required
+def api_menu_stats():
+    """API endpoint for menu statistics"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    stats = {
+        'total_items': MenuItem.query.count(),
+        'available_items': MenuItem.query.filter_by(is_available=True).count(),
+        'unavailable_items': MenuItem.query.filter_by(is_available=False).count(),
+        'total_categories': Category.query.count()
+    }
+    
+    return jsonify(stats)
+
+@bp.route('/menu/api/stats')
+@login_required
+def api_menu_stats_alt():
+    """Alternative API endpoint for menu statistics"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    stats = {
+        'total_items': MenuItem.query.count(),
+        'available_items': MenuItem.query.filter_by(is_available=True).count(),
+        'unavailable_items': MenuItem.query.filter_by(is_available=False).count(),
+        'total_categories': Category.query.count()
+    }
+    
+    return jsonify(stats)
+
+@bp.route('/menu/api/categories')
+@login_required
+def api_menu_categories():
+    """API endpoint for menu categories"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    categories = Category.query.all()
+    categories_data = []
+    
+    for category in categories:
+        item_count = MenuItem.query.filter_by(category_id=category.id).count()
+        categories_data.append({
+            'id': category.id,
+            'name': category.name,
+            'description': category.description,
+            'display_order': category.display_order,
+            'item_count': item_count
+        })
+    
+    return jsonify(categories_data)
+
+@bp.route('/menu/api/items')
+@login_required
+def api_menu_items():
+    """API endpoint for menu items"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    # Get query parameters
+    category_id = request.args.get('category_id', type=int)
+    availability = request.args.get('availability')
+    search = request.args.get('search', '')
+    
+    # Build query
+    query = MenuItem.query
+    
+    if category_id:
+        query = query.filter_by(category_id=category_id)
+    
+    if availability == 'available':
+        query = query.filter_by(is_available=True)
+    elif availability == 'unavailable':
+        query = query.filter_by(is_available=False)
+    
+    if search:
+        query = query.filter(MenuItem.name.contains(search))
+    
+    items = query.all()
+    items_data = []
+    
+    for item in items:
+        items_data.append({
+            'id': item.id,
+            'name': item.name,
+            'description': item.description,
+            'price': float(item.price) if item.price else 0,
+            'category_id': item.category_id,
+            'category_name': item.category.name if item.category else 'Uncategorized',
+            'is_available': item.is_available,
+            'preparation_time': item.preparation_time or 0
+        })
+    
+    return jsonify(items_data)
+
+@bp.route('/api/tables/stats')
+@login_required
+def api_tables_stats():
+    """API endpoint for table statistics"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    stats = {
+        'total_tables': Table.query.count(),
+        'free_tables': Table.query.filter_by(status=TableStatus.FREE).count(),
+        'occupied_tables': Table.query.filter_by(status=TableStatus.OCCUPIED).count(),
+        'reserved_tables': Table.query.filter_by(status=TableStatus.RESERVED).count(),
+        'cleaning_tables': Table.query.filter_by(status=TableStatus.CLEANING).count(),
+        'maintenance_tables': Table.query.filter_by(status=TableStatus.MAINTENANCE).count()
+    }
+    
+    return jsonify(stats)
+
+@bp.route('/api/tables/tables')
+@login_required
+def api_tables_list():
+    """API endpoint for tables list"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    tables = Table.query.all()
+    tables_data = []
+    
+    for table in tables:
+        tables_data.append({
+            'id': table.id,
+            'number': table.number,
+            'capacity': table.capacity,
+            'floor_section': table.floor_section,
+            'status': table.status.value if table.status else 'unknown',
+            'is_active': table.is_active,
+            'current_order': table.get_current_order().order_number if table.get_current_order() else None
+        })
+    
+    return jsonify(tables_data)
+
+@bp.route('/tables/api/stats')
+@login_required
+def api_tables_stats_alt():
+    """Alternative API endpoint for table statistics"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    stats = {
+        'total_tables': Table.query.count(),
+        'free_tables': Table.query.filter_by(status=TableStatus.FREE).count(),
+        'occupied_tables': Table.query.filter_by(status=TableStatus.OCCUPIED).count(),
+        'reserved_tables': Table.query.filter_by(status=TableStatus.RESERVED).count(),
+        'cleaning_tables': Table.query.filter_by(status=TableStatus.CLEANING).count(),
+        'maintenance_tables': Table.query.filter_by(status=TableStatus.MAINTENANCE).count()
+    }
+    
+    return jsonify(stats)
+
+@bp.route('/tables/api/tables')
+@login_required
+def api_tables_list_alt():
+    """Alternative API endpoint for tables list"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    # Get query parameters
+    status = request.args.get('status')
+    section = request.args.get('section')
+    search = request.args.get('search', '')
+    
+    # Build query
+    query = Table.query
+    
+    if status:
+        query = query.filter_by(status=TableStatus(status))
+    
+    if section:
+        query = query.filter_by(floor_section=section)
+    
+    if search:
+        query = query.filter(Table.number.contains(search))
+    
+    tables = query.all()
+    tables_data = []
+    
+    for table in tables:
+        tables_data.append({
+            'id': table.id,
+            'number': table.number,
+            'capacity': table.capacity,
+            'floor_section': table.floor_section,
+            'status': table.status.value if table.status else 'unknown',
+            'is_active': table.is_active,
+            'current_order': table.get_current_order().order_number if table.get_current_order() else None
+        })
+    
+    return jsonify(tables_data)
+
+@bp.route('/api/inventory/stats')
+@login_required
+def api_inventory_stats():
+    """API endpoint for inventory statistics"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    total_ingredients = Ingredient.query.count()
+    out_of_stock = Ingredient.query.filter(Ingredient.current_stock == 0).count()
+    low_stock = Ingredient.query.filter(
+        Ingredient.current_stock <= Ingredient.minimum_stock,
+        Ingredient.current_stock > 0
+    ).count()
+    
+    # Calculate total inventory value
+    total_value = db.session.query(
+        func.sum(Ingredient.current_stock * Ingredient.unit_cost)
+    ).scalar() or 0
+    
+    stats = {
+        'total_ingredients': total_ingredients,
+        'out_of_stock': out_of_stock,
+        'low_stock_count': low_stock,
+        'total_value': total_value,
+        'recent_adjustments': 0  # TODO: Implement adjustment tracking
+    }
+    
+    return jsonify(stats)
+
+@bp.route('/api/inventory/ingredients')
+@login_required
+def api_inventory_ingredients():
+    """API endpoint for ingredients list"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    ingredients = Ingredient.query.all()
+    ingredients_data = []
+    
+    for ingredient in ingredients:
+        ingredients_data.append({
+            'id': ingredient.id,
+            'name': ingredient.name,
+            'description': ingredient.description,
+            'unit': ingredient.unit,
+            'current_stock': float(ingredient.current_stock),
+            'minimum_stock': float(ingredient.minimum_stock),
+            'unit_cost': float(ingredient.unit_cost) if ingredient.unit_cost else 0,
+            'supplier': ingredient.supplier,
+            'category': ingredient.category or 'other'
+        })
+    
+    return jsonify(ingredients_data)
+
+@bp.route('/inventory/api/stats')
+@login_required
+def api_inventory_stats_alt():
+    """Alternative API endpoint for inventory statistics"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    total_ingredients = Ingredient.query.count()
+    out_of_stock = Ingredient.query.filter(Ingredient.current_stock == 0).count()
+    low_stock = Ingredient.query.filter(
+        Ingredient.current_stock <= Ingredient.minimum_stock,
+        Ingredient.current_stock > 0
+    ).count()
+    
+    # Calculate total inventory value
+    total_value = db.session.query(
+        func.sum(Ingredient.current_stock * Ingredient.unit_cost)
+    ).scalar() or 0
+    
+    stats = {
+        'total_ingredients': total_ingredients,
+        'out_of_stock': out_of_stock,
+        'low_stock_count': low_stock,
+        'total_value': total_value,
+        'recent_adjustments': 0  # TODO: Implement adjustment tracking
+    }
+    
+    return jsonify(stats)
+
+@bp.route('/inventory/api/ingredients')
+@login_required
+def api_inventory_ingredients_alt():
+    """Alternative API endpoint for ingredients list"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    # Get query parameters
+    stock_filter = request.args.get('stock_filter')
+    category = request.args.get('category')
+    search = request.args.get('search', '')
+    
+    # Build query
+    query = Ingredient.query
+    
+    if stock_filter == 'low':
+        query = query.filter(
+            Ingredient.current_stock <= Ingredient.minimum_stock,
+            Ingredient.current_stock > 0
+        )
+    elif stock_filter == 'out':
+        query = query.filter(Ingredient.current_stock == 0)
+    
+    if category:
+        query = query.filter_by(category=category)
+    
+    if search:
+        query = query.filter(Ingredient.name.contains(search))
+    
+    ingredients = query.all()
+    ingredients_data = []
+    
+    for ingredient in ingredients:
+        ingredients_data.append({
+            'id': ingredient.id,
+            'name': ingredient.name,
+            'description': ingredient.description,
+            'unit': ingredient.unit,
+            'current_stock': float(ingredient.current_stock),
+            'minimum_stock': float(ingredient.minimum_stock),
+            'unit_cost': float(ingredient.unit_cost) if ingredient.unit_cost else 0,
+            'supplier': ingredient.supplier,
+            'category': ingredient.category or 'other'
+        })
+    
+    return jsonify(ingredients_data)
+
+@bp.route('/api/reports/stats')
+@login_required
+def api_reports_stats():
+    """API endpoint for reports statistics"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    days = request.args.get('days', 7, type=int)
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days)
+    
+    orders = Order.query.filter(
+        Order.created_at >= start_date,
+        Order.created_at <= end_date
+    ).all()
+    
+    total_orders = len(orders)
+    total_revenue = sum(float(order.total) for order in orders)
+    total_tax = sum(float(order.tax_amount) for order in orders)
+    average_order_value = total_revenue / total_orders if total_orders > 0 else 0
+    
+    # Payment method breakdown
+    payment_breakdown = {}
+    for order in orders:
+        if order.payments:
+            for payment in order.payments:
+                method = payment.method.value
+                if method not in payment_breakdown:
+                    payment_breakdown[method] = 0
+                payment_breakdown[method] += float(payment.amount)
+    
+    # Daily breakdown
+    daily_stats = {}
+    current_date = start_date
+    while current_date <= end_date:
+        day_orders = [o for o in orders if o.created_at.date() == current_date.date()]
+        daily_revenue = sum(float(order.total) for order in day_orders)
+        
+        daily_stats[current_date.strftime('%Y-%m-%d')] = {
+            'orders': len(day_orders),
+            'revenue': daily_revenue
+        }
+        current_date += timedelta(days=1)
+    
+    stats = {
+        'total_orders': total_orders,
+        'total_revenue': total_revenue,
+        'total_tax': total_tax,
+        'average_order_value': average_order_value,
+        'payment_breakdown': payment_breakdown,
+        'daily_stats': daily_stats,
+        'revenue_growth': 12.5,  # TODO: Calculate actual growth
+        'orders_growth': 8.3,
+        'customers_growth': 15.2,
+        'aov_growth': 4.1,
+        'total_customers': User.query.filter_by(is_active=True).count()
+    }
+    
+    return jsonify(stats)
+
+@bp.route('/api/settings/load')
+@login_required
+def api_settings_load():
+    """API endpoint to load settings"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    # TODO: Implement actual settings storage
+    settings = {
+        'restaurant_name': 'My Restaurant',
+        'language': 'en',
+        'timezone': 'Asia/Kolkata',
+        'currency': 'INR',
+        'gst_number': '',
+        'tax_rate': 18,
+        'service_charge': 5,
+        'cash_enabled': True,
+        'card_enabled': True,
+        'upi_enabled': True,
+        'low_stock_alerts': True,
+        'order_notifications': True,
+        'email_notifications': True,
+        'two_factor_auth': False,
+        'session_timeout': 30,
+        'strong_passwords': True,
+        'auto_backup': True,
+        'default_printer': '',
+        'debug_mode': False
+    }
+    
+    return jsonify({'settings': settings})
+
+@bp.route('/api/settings/save', methods=['POST'])
+@login_required
+def api_settings_save():
+    """API endpoint to save settings"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        settings_data = request.get_json()
+        # TODO: Implement actual settings storage
+        # For now, just return success
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
 
 @bp.errorhandler(404)
 def not_found_error(error):

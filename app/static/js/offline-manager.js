@@ -1,15 +1,17 @@
-/**
- * Offline Data Manager for Restaurant POS
- * Handles offline storage, sync, and data management
- */
-
 class OfflineDataManager {
     constructor() {
-        this.dbName = 'restaurant-pos-offline';
-        this.dbVersion = 1;
+        this.dbName = 'restaurant_pos_db';
+        this.dbVersion = 2; // Incremented for new stores
         this.db = null;
         this.isOnline = navigator.onLine;
-        this.syncQueue = [];
+        this.isSyncing = false;
+        
+        // Bind methods to preserve 'this' context
+        this.init = this.init.bind(this);
+        this.setupEventListeners = this.setupEventListeners.bind(this);
+        this.syncPendingOperations = this.syncPendingOperations.bind(this);
+        this.showSyncNotification = this.showSyncNotification.bind(this);
+        this.handleSyncComplete = this.handleSyncComplete.bind(this);
         
         this.init();
         this.setupEventListeners();
@@ -17,19 +19,25 @@ class OfflineDataManager {
 
     async init() {
         try {
-            this.db = await this.openDB();
+            await this.openDatabase();
             console.log('Offline Manager: Database initialized');
+            if (this.isOnline) {
+                this.syncPendingOperations();
+            }
         } catch (error) {
-            console.error('Offline Manager: Failed to initialize database', error);
+            console.error('Offline Manager: Initialization failed', error);
         }
     }
 
-    openDB() {
+    openDatabase() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.dbName, this.dbVersion);
             
             request.onerror = () => reject(request.error);
-            request.onsuccess = () => resolve(request.result);
+            request.onsuccess = () => {
+                this.db = request.result;
+                resolve(this.db);
+            };
             
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
@@ -326,54 +334,83 @@ class OfflineDataManager {
 
     // Sync Operations
     async syncPendingOperations() {
+        // Prevent concurrent syncs
+        if (this.isSyncing) {
+            console.log('Offline Manager: Sync already in progress');
+            return;
+        }
+
         if (!this.isOnline) {
             console.log('Offline Manager: Still offline, skipping sync');
             return;
         }
 
         try {
+            this.isSyncing = true;
             const queue = await this.getSyncQueue();
+            
+            if (queue.length === 0) {
+                this.isSyncing = false;
+                return;
+            }
+
             let successCount = 0;
             let failureCount = 0;
             
-            for (const operation of queue) {
-                try {
-                    const result = await this.syncOperation(operation);
-                    await this.removeFromSyncQueue(operation.id);
-                    successCount++;
-                    await this.logSyncOperation(operation, 'success', result);
-                } catch (error) {
-                    console.error('Offline Manager: Sync failed for operation', operation, error);
-                    failureCount++;
-                    
-                    // Update retry count
-                    operation.retry_count = (operation.retry_count || 0) + 1;
-                    
-                    // Remove if too many retries
-                    if (operation.retry_count > 3) {
+            // Process in batches to avoid overwhelming server
+            const batchSize = 5;
+            const batches = [];
+            for (let i = 0; i < queue.length; i += batchSize) {
+                batches.push(queue.slice(i, i + batchSize));
+            }
+
+            for (const batch of batches) {
+                await Promise.all(batch.map(async (operation) => {
+                    try {
+                        const result = await this.syncOperation(operation);
                         await this.removeFromSyncQueue(operation.id);
-                        await this.logSyncOperation(operation, 'failed', error);
-                    } else {
-                        // Update retry count and delay
-                        await this.updateRetryCount(operation);
-                        await this.logSyncOperation(operation, 'retry', error);
+                        successCount++;
+                        await this.logSyncOperation(operation, 'success', result);
+                    } catch (error) {
+                        console.error('Offline Manager: Sync failed for operation', operation, error);
+                        failureCount++;
+                        
+                        // Update retry count
+                        operation.retry_count = (operation.retry_count || 0) + 1;
+                        
+                        // Remove if too many retries
+                        if (operation.retry_count > 3) {
+                            await this.removeFromSyncQueue(operation.id);
+                            await this.logSyncOperation(operation, 'failed', error);
+                        } else {
+                            // Update retry count and delay
+                            await this.updateRetryCount(operation);
+                            await this.logSyncOperation(operation, 'retry', error);
+                        }
                     }
-                }
+                }));
+                
+                // Small delay between batches
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
             
-            console.log(`Offline Manager: Sync completed - ${successCount} success, ${failureCount} failures`);
-            this.showSyncNotification(`Sync completed: ${successCount} items synced`, 'success');
-            
-            // Update UI with sync results
-            this.notifySyncComplete({
-                successCount,
-                failureCount,
-                timestamp: Date.now()
-            });
+            if (successCount > 0 || failureCount > 0) {
+                console.log(`Offline Manager: Sync completed - ${successCount} success, ${failureCount} failures`);
+                this.showSyncNotification(`Sync completed: ${successCount} items synced`, 'success');
+                
+                // Update UI with sync results
+                this.notifySyncComplete({
+                    successCount,
+                    failureCount,
+                    timestamp: Date.now()
+                });
+            }
             
         } catch (error) {
             console.error('Offline Manager: Sync failed', error);
             this.showSyncNotification('Sync failed', 'error');
+        } finally {
+            this.isSyncing = false;
         }
     }
 
@@ -413,9 +450,11 @@ class OfflineDataManager {
             const transaction = this.db.transaction(['orders'], 'readwrite');
             const store = transaction.objectStore('orders');
             const localOrder = await store.get(data.id);
-            localOrder.server_id = result.id;
-            localOrder.sync_status = 'synced';
-            await store.put(localOrder);
+            if (localOrder) {
+                localOrder.server_id = result.id;
+                localOrder.sync_status = 'synced';
+                await store.put(localOrder);
+            }
         }
 
         return result;
@@ -519,6 +558,75 @@ class OfflineDataManager {
             await store.put(operation);
         } catch (error) {
             console.error('Offline Manager: Failed to update retry count', error);
+        }
+    }
+
+    // Show sync notification
+    showSyncNotification(message, type = 'info') {
+        // Use the global notification system if available
+        if (window.RestaurantPOS && window.RestaurantPOS.showNotification) {
+            window.RestaurantPOS.showNotification(message, type);
+        } else {
+            // Fallback to console and basic notification
+            console.log(`Sync [${type}]: ${message}`);
+            
+            // Create a simple notification if no global system available
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm ${
+                type === 'error' ? 'bg-red-100 border-2 border-red-300 text-red-800' :
+                type === 'warning' ? 'bg-yellow-100 border-2 border-yellow-300 text-yellow-800' :
+                type === 'success' ? 'bg-green-100 border-2 border-green-300 text-green-800' :
+                'bg-blue-100 border-2 border-blue-300 text-blue-800'
+            }`;
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <span class="text-xl mr-2">
+                        ${type === 'error' ? '🌶️' :
+                          type === 'warning' ? '⚠️' :
+                          type === 'success' ? '✅' : 'ℹ️'}
+                    </span>
+                    <span class="font-medium">${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+        }
+    }
+
+    // Log sync operation
+    async logSyncOperation(operation, status, result) {
+        try {
+            const transaction = this.db.transaction(['syncLog'], 'readwrite');
+            const store = transaction.objectStore('syncLog');
+            
+            await store.add({
+                operation_id: operation.id,
+                operation_type: operation.type,
+                operation_action: operation.action,
+                status: status,
+                result: result ? JSON.stringify(result) : null,
+                timestamp: Date.now()
+            });
+        } catch (error) {
+            console.error('Offline Manager: Failed to log sync operation', error);
+        }
+    }
+
+    // Save pending data before unload
+    async savePendingData() {
+        try {
+            // This is a placeholder for saving any critical pending data
+            // In a real implementation, you might save cart data, form data, etc.
+            console.log('Offline Manager: Saving pending data before unload');
+        } catch (error) {
+            console.error('Offline Manager: Failed to save pending data', error);
         }
     }
 }

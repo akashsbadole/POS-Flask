@@ -1,0 +1,538 @@
+{% extends "base.html" %}
+
+{% block title %}Table Management Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.table-stat-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow;
+}
+
+.table-status-free {
+    @apply bg-green-50 text-green-700 border-green-200;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.table-status-occupied {
+    @apply bg-red-50 text-red-700 border-red-200;
+    background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+}
+
+.table-status-reserved {
+    @apply bg-blue-50 text-blue-700 border-blue-200;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+.table-status-cleaning {
+    @apply bg-yellow-50 text-yellow-700 border-yellow-200;
+    background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+}
+
+.table-status-maintenance {
+    @apply bg-gray-50 text-gray-700 border-gray-200;
+    background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+}
+
+.table-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all;
+}
+
+.table-card-free {
+    @apply border-green-300 bg-green-50;
+}
+
+.table-card-occupied {
+    @apply border-red-300 bg-red-50;
+}
+
+.table-card-reserved {
+    @apply border-blue-300 bg-blue-50;
+}
+
+.table-card-cleaning {
+    @apply border-yellow-300 bg-yellow-50;
+}
+
+.table-card-maintenance {
+    @apply border-gray-300 bg-gray-50;
+}
+
+.floor-grid {
+    @apply grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 p-4 bg-gray-50 rounded-lg;
+}
+
+.table-shape {
+    @apply relative flex items-center justify-center rounded-lg border-2 font-semibold text-sm transition-all cursor-pointer;
+}
+
+.table-shape-free {
+    @apply border-green-500 bg-green-100 text-green-800 hover:bg-green-200;
+}
+
+.table-shape-occupied {
+    @apply border-red-500 bg-red-100 text-red-800 hover:bg-red-200;
+}
+
+.table-shape-reserved {
+    @apply border-blue-500 bg-blue-100 text-blue-800 hover:bg-blue-200;
+}
+
+.table-shape-cleaning {
+    @apply border-yellow-500 bg-yellow-100 text-yellow-800 hover:bg-yellow-200;
+}
+
+.table-shape-maintenance {
+    @apply border-gray-500 bg-gray-100 text-gray-800 hover:bg-gray-200;
+}
+
+.section-label {
+    @apply text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2;
+}
+
+.status-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.status-free {
+    @apply bg-green-100 text-green-800;
+}
+
+.status-occupied {
+    @apply bg-red-100 text-red-800;
+}
+
+.status-reserved {
+    @apply bg-blue-100 text-blue-800;
+}
+
+.status-cleaning {
+    @apply bg-yellow-100 text-yellow-800;
+}
+
+.status-maintenance {
+    @apply bg-gray-100 text-gray-800;
+}
+
+/* Table animations */
+@keyframes table-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.table-pulse {
+    animation: table-pulse 2s infinite;
+}
+
+/* Floor plan view */
+.floor-plan-container {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+}
+
+.floor-section {
+    @apply mb-6;
+}
+
+.floor-section-title {
+    @apply text-lg font-semibold text-gray-900 mb-3 flex items-center;
+}
+
+.floor-section-grid {
+    @apply grid gap-3;
+}
+
+/* Table shapes for different capacities */
+.table-2-seater { @apply w-16 h-16; }
+.table-4-seater { @apply w-20 h-20; }
+.table-6-seater { @apply w-24 h-24; }
+.table-8-seater { @apply w-28 h-28; }
+.table-large { @apply w-32 h-32; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8" x-data="tableManager()">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+                <svg class="w-8 h-8 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                </svg>
+                Table Management
+            </h1>
+            <p class="text-gray-600 mt-2">Manage restaurant tables and floor plan</p>
+        </div>
+        <div class="flex space-x-3">
+            <button @click="refreshStats()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Refresh
+            </button>
+            <a href="{{ url_for('tables.create_table') }}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Add Table
+            </a>
+            <button @click="toggleView()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                </svg>
+                <span x-text="viewMode === 'floor' ? 'List View' : 'Floor Plan'"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Table Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="table-stat-card table-status-free">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-green-700 flex items-center">
+                        <span class="mr-2">🟢</span> Free Tables
+                    </p>
+                    <p class="text-2xl font-bold text-green-900" x-text="stats.free_tables || 0"></p>
+                </div>
+                <div class="bg-green-100 p-3 rounded-full">
+                    <span class="text-2xl">✅</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-stat-card table-status-occupied">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-red-700 flex items-center">
+                        <span class="mr-2">🔴</span> Occupied
+                    </p>
+                    <p class="text-2xl font-bold text-red-900" x-text="stats.occupied_tables || 0"></p>
+                </div>
+                <div class="bg-red-100 p-3 rounded-full">
+                    <span class="text-2xl">🍽️</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-stat-card table-status-reserved">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-blue-700 flex items-center">
+                        <span class="mr-2">🔵</span> Reserved
+                    </p>
+                    <p class="text-2xl font-bold text-blue-900" x-text="stats.reserved_tables || 0"></p>
+                </div>
+                <div class="bg-blue-100 p-3 rounded-full">
+                    <span class="text-2xl">📅</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-stat-card table-status-cleaning">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-yellow-700 flex items-center">
+                        <span class="mr-2">🟡</span> Cleaning
+                    </p>
+                    <p class="text-2xl font-bold text-yellow-900" x-text="stats.cleaning_tables || 0"></p>
+                </div>
+                <div class="bg-yellow-100 p-3 rounded-full">
+                    <span class="text-2xl">🧹</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-stat-card table-status-maintenance">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-700 flex items-center">
+                        <span class="mr-2">⚫</span> Maintenance
+                    </p>
+                    <p class="text-2xl font-bold text-gray-900" x-text="stats.maintenance_tables || 0"></p>
+                </div>
+                <div class="bg-gray-100 p-3 rounded-full">
+                    <span class="text-2xl">🔧</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floor Plan View -->
+    <div x-show="viewMode === 'floor'" class="floor-plan-container mb-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+            <span class="mr-2">🗺️</span> Floor Plan
+        </h2>
+        
+        <template x-for="section in floorSections" :key="section.name">
+            <div class="floor-section">
+                <h3 class="floor-section-title">
+                    <span class="mr-2">📍</span>
+                    <span x-text="section.name"></span>
+                </h3>
+                <div class="floor-section-grid" :class="getSectionGridClass(section.tables.length)">
+                    <template x-for="table in section.tables" :key="table.id">
+                        <div class="table-shape" 
+                             :class="getTableShapeClass(table)"
+                             @click="selectTable(table)">
+                            <div class="text-center">
+                                <div class="font-bold" x-text="table.number"></div>
+                                <div class="text-xs" x-text="table.capacity + ' seats'"></div>
+                                <div class="text-xs mt-1" x-text="table.status"></div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- List View -->
+    <div x-show="viewMode === 'list'" class="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                    <span class="mr-2">📋</span> Table List
+                </h2>
+                <div class="flex items-center space-x-4">
+                    <select x-model="filters.status" @change="loadTables()" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                        <option value="">All Statuses</option>
+                        <option value="free">🟢 Free</option>
+                        <option value="occupied">🔴 Occupied</option>
+                        <option value="reserved">🔵 Reserved</option>
+                        <option value="cleaning">🟡 Cleaning</option>
+                        <option value="maintenance">⚫ Maintenance</option>
+                    </select>
+                    <select x-model="filters.section" @change="loadTables()" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                        <option value="">All Sections</option>
+                        <template x-for="section in floorSections" :key="section.name">
+                            <option :value="section.name" x-text="section.name"></option>
+                        </template>
+                    </select>
+                    <input type="text" x-model="filters.search" @input="loadTables()" placeholder="Search tables..." class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                </div>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Table</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Capacity</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Order</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" x-show="tables.length > 0">
+                    <template x-for="table in tables" :key="table.id">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900" x-text="table.number"></div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="table.floor_section"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="table.capacity + ' seats'"></td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="status-badge" :class="'status-' + table.status" x-text="table.status"></span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <span x-text="table.current_order || 'None'"></span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button @click="editTable(table)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                                <button @click="updateTableStatus(table)" class="text-green-600 hover:text-green-900 mr-3">Status</button>
+                                <button @click="deleteTable(table)" class="text-red-600 hover:text-red-900">Delete</button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+                <tbody x-show="tables.length === 0">
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                            <div class="flex flex-col items-center">
+                                <span class="text-4xl mb-2">🪑</span>
+                                No tables found
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function tableManager() {
+    return {
+        viewMode: 'floor',
+        stats: {},
+        tables: [],
+        floorSections: [],
+        filters: {
+            status: '',
+            section: '',
+            search: ''
+        },
+        
+        init() {
+            this.loadStats();
+            this.loadTables();
+        },
+        
+        async loadStats() {
+            try {
+                const response = await fetch('/tables/api/stats');
+                const data = await response.json();
+                this.stats = data;
+            } catch (error) {
+                console.error('Error loading table stats:', error);
+            }
+        },
+        
+        async loadTables() {
+            try {
+                const params = new URLSearchParams();
+                if (this.filters.status) params.append('status', this.filters.status);
+                if (this.filters.section) params.append('section', this.filters.section);
+                if (this.filters.search) params.append('search', this.filters.search);
+                
+                const response = await fetch('/tables/api/tables?' + params.toString());
+                const data = await response.json();
+                this.tables = data;
+                this.organizeFloorSections();
+            } catch (error) {
+                console.error('Error loading tables:', error);
+            }
+        },
+        
+        organizeFloorSections() {
+            const sections = {};
+            this.tables.forEach(table => {
+                if (!sections[table.floor_section]) {
+                    sections[table.floor_section] = {
+                        name: table.floor_section,
+                        tables: []
+                    };
+                }
+                sections[table.floor_section].tables.push(table);
+            });
+            this.floorSections = Object.values(sections);
+        },
+        
+        getTableShapeClass(table) {
+            const statusClass = `table-shape-${table.status}`;
+            const capacityClass = this.getCapacityClass(table.capacity);
+            return `${statusClass} ${capacityClass}`;
+        },
+        
+        getCapacityClass(capacity) {
+            if (capacity <= 2) return 'table-2-seater';
+            if (capacity <= 4) return 'table-4-seater';
+            if (capacity <= 6) return 'table-6-seater';
+            if (capacity <= 8) return 'table-8-seater';
+            return 'table-large';
+        },
+        
+        getSectionGridClass(tableCount) {
+            if (tableCount <= 4) return 'grid grid-cols-2';
+            if (tableCount <= 6) return 'grid grid-cols-3';
+            if (tableCount <= 8) return 'grid grid-cols-4';
+            return 'grid grid-cols-5';
+        },
+        
+        selectTable(table) {
+            // Show table details modal or navigate to table details
+            alert(`Table ${table.number}\nStatus: ${table.status}\nCapacity: ${table.capacity} seats\nSection: ${table.floor_section}`);
+        },
+        
+        editTable(table) {
+            window.location.href = `/tables/${table.id}/edit`;
+        },
+        
+        updateTableStatus(table) {
+            const newStatus = prompt('Enter new status (free/occupied/reserved/cleaning/maintenance):', table.status);
+            if (newStatus && ['free', 'occupied', 'reserved', 'cleaning', 'maintenance'].includes(newStatus)) {
+                this.changeTableStatus(table.id, newStatus);
+            }
+        },
+        
+        async changeTableStatus(tableId, newStatus) {
+            try {
+                const response = await fetch(`/tables/${tableId}/status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                if (response.ok) {
+                    this.loadTables();
+                    this.loadStats();
+                    this.showNotification('Table status updated successfully', 'success');
+                }
+            } catch (error) {
+                console.error('Error updating table status:', error);
+                this.showNotification('Failed to update table status', 'error');
+            }
+        },
+        
+        async deleteTable(table) {
+            if (!confirm(`Are you sure you want to delete table ${table.number}?`)) return;
+            
+            try {
+                const response = await fetch(`/tables/${table.id}/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                    }
+                });
+                
+                if (response.ok) {
+                    this.loadTables();
+                    this.loadStats();
+                    this.showNotification(`Table ${table.number} deleted successfully`, 'success');
+                }
+            } catch (error) {
+                console.error('Error deleting table:', error);
+                this.showNotification('Failed to delete table', 'error');
+            }
+        },
+        
+        toggleView() {
+            this.viewMode = this.viewMode === 'floor' ? 'list' : 'floor';
+        },
+        
+        refreshStats() {
+            this.loadStats();
+            this.loadTables();
+        },
+        
+        showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${
+                type === 'success' ? 'bg-green-500 text-white' :
+                type === 'error' ? 'bg-red-500 text-white' :
+                type === 'warning' ? 'bg-yellow-500 text-white' :
+                'bg-blue-500 text-white'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.add('translate-x-0');
+            }, 100);
+            
+            setTimeout(() => {
+                notification.classList.add('translate-x-full');
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+    }
+}
+</script>
+{% endblock %}

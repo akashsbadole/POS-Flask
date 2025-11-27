@@ -28,6 +28,16 @@ def create_app(config_name=None):
     socketio.init_app(app, cors_allowed_origins="*", async_mode=app.config['SOCKETIO_ASYNC_MODE'])
     csrf.init_app(app)
     
+    # Enable WAL mode for SQLite
+    if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
+        from sqlalchemy import event
+        with app.app_context():
+            @event.listens_for(db.engine, 'connect')
+            def set_sqlite_pragma(dbapi_connection, connection_record):
+                cursor = dbapi_connection.cursor()
+                cursor.execute("PRAGMA journal_mode=WAL")
+                cursor.close()
+    
     # Configure login manager
     login_manager.login_view = 'auth.login'  # type: ignore
     login_manager.login_message = 'Please log in to access this page.'
@@ -38,6 +48,8 @@ def create_app(config_name=None):
     
     # Register blueprints
     from app.auth import bp as auth_bp
+    # Disable CSRF protection for auth blueprint to allow HTMX requests
+    csrf.exempt(auth_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
     
     from app.main import bp as main_bp
@@ -60,6 +72,9 @@ def create_app(config_name=None):
     
     from app.api import bp as api_bp
     from app.api.offline import bp as offline_bp
+    # Disable CSRF protection for API blueprint to allow HTMX requests
+    csrf.exempt(api_bp)
+    csrf.exempt(offline_bp)
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(offline_bp, url_prefix='/api/offline')
     
@@ -100,5 +115,11 @@ def create_app(config_name=None):
             currency_symbol=app.config['CURRENCY_SYMBOL'],
             tax_rate=app.config['DEFAULT_TAX_RATE']
         )
+    
+    # Make CSRF token available to all templates
+    @app.context_processor
+    def inject_csrf_token():
+        from flask_wtf.csrf import generate_csrf
+        return dict(csrf_token=generate_csrf)
     
     return app

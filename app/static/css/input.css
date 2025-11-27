@@ -245,23 +245,23 @@
   
   /* Animation utilities */
   .animate-food-bounce {
-    animation: theme('keyframes.food-bounce') 1s infinite;
+    animation: food-bounce 1s infinite;
   }
   
   .animate-plate-spin {
-    animation: theme('keyframes.plate-spin') 2s linear infinite;
+    animation: plate-spin 2s linear infinite;
   }
   
   .animate-ingredient-fall {
-    animation: theme('keyframes.ingredient-fall') 0.5s ease-out;
+    animation: ingredient-fall 0.5s ease-out;
   }
   
   .animate-steam-rise {
-    animation: theme('keyframes.steam-rise') 2s ease-out infinite;
+    animation: steam-rise 2s ease-out infinite;
   }
   
   .animate-float {
-    animation: theme('keyframes.float') 3s ease-in-out infinite;
+    animation: float 3s ease-in-out infinite;
   }
   
   /* Food-themed gradients */

@@ -35,7 +35,7 @@ def login():
                     return render_template('auth/partials/cashier_login_success.html')
                 elif user.role == 'kitchen':
                     return render_template('auth/partials/kitchen_login_success.html')
-                elif user.role in ['manager', 'admin']:
+                elif user.role in ['manager', 'admin', 'super_admin']:
                     return render_template('auth/partials/manager_login_success.html')
             else:
                 return render_template('auth/partials/login_form.html', 

@@ -1,0 +1,82 @@
+<!-- Email/Password Login Form -->
+<div class="bg-white py-8 px-6 shadow rounded-lg">
+    <form method="POST" action="{{ url_for('auth.login') }}"
+          hx-post="{{ url_for('auth.login') }}"
+          hx-target="#login-form-container"
+          hx-swap="innerHTML"
+          id="login-form-container"
+          class="space-y-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        
+        <!-- Email -->
+        <div>
+            <label for="email" class="block text-sm font-medium text-gray-700">
+                Email address
+            </label>
+            <div class="mt-1">
+                <input id="email"
+                       name="email"
+                       type="email"
+                       autocomplete="email"
+                       required
+                       value="{{ email or '' }}"
+                       class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            </div>
+        </div>
+
+        <!-- Password -->
+        <div>
+            <label for="password" class="block text-sm font-medium text-gray-700">
+                Password
+            </label>
+            <div class="mt-1">
+                <input id="password"
+                       name="password"
+                       type="password"
+                       autocomplete="current-password"
+                       required
+                       class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            </div>
+        </div>
+
+        <!-- Remember Me -->
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <input id="remember"
+                       name="remember"
+                       type="checkbox"
+                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                <label for="remember" class="ml-2 block text-sm text-gray-900">
+                    Remember me
+                </label>
+            </div>
+        </div>
+
+        <!-- Error Message -->
+        {% if error %}
+        <div class="rounded-md bg-red-50 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-circle text-red-400"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800">
+                        {{ error }}
+                    </h3>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Submit Button -->
+        <div>
+            <button type="submit"
+                    class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <span class="absolute left-0 inset-y-0 flex items-center pl-3">
+                    <i class="fas fa-lock text-blue-500 group-hover:text-blue-400"></i>
+                </span>
+                Sign in
+            </button>
+        </div>
+    </form>
+</div>

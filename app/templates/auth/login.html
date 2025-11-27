@@ -2,6 +2,7 @@
 
 {% block title %}Login - Restaurant POS{% endblock %}
 
+
 {% block content %}
 <div class="min-h-full flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full space-y-8">
@@ -22,11 +23,13 @@
         <div class="mt-8 space-y-6">
             <!-- Email/Password Login -->
             <div class="bg-white py-8 px-6 shadow rounded-lg">
-                <form hx-post="{{ url_for('auth.login') }}" 
+                <form method="POST" action="{{ url_for('auth.login') }}"
+                      hx-post="{{ url_for('auth.login') }}"
                       hx-target="#login-form-container"
                       hx-swap="innerHTML"
                       id="login-form-container"
                       class="space-y-6">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     
                     <!-- Email -->
                     <div>
@@ -99,6 +102,7 @@
                         </button>
                     </div>
                 </form>
+                </form>
             </div>
 
             <!-- PIN Login -->
@@ -110,11 +114,13 @@
                     </p>
                 </div>
 
-                <form hx-post="{{ url_for('auth.pin_login') }}"
+                <form method="POST" action="{{ url_for('auth.pin_login') }}"
+                      hx-post="{{ url_for('auth.pin_login') }}"
                       hx-target="#pin-form-container"
                       hx-swap="innerHTML"
                       id="pin-form-container"
                       class="space-y-6">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     
                     <!-- PIN Input -->
                     <div>

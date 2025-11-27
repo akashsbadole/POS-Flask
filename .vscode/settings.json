@@ -1,0 +1,26 @@
+{
+    "css.validate": false,
+    "scss.validate": false,
+    "less.validate": false,
+    "files.associations": {
+        "*.css": "tailwindcss"
+    },
+    "tailwindCSS.includeLanguages": [
+        "html",
+        "javascript",
+        "javascriptreact",
+        "typescript",
+        "typescriptreact",
+        "vue",
+        "svelte",
+        "php"
+    ],
+    "tailwindCSS.experimental.classRegex": [
+        ["c-([a-z-]+)", "c-$1"],
+        ["at-([a-z-]+)", "at-$1"]
+    ],
+    "editor.quickSuggestions": {
+        "strings": true
+    },
+    "tailwindCSS.experimental.configFile": "./tailwind.config.js"
+}

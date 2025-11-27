@@ -2,163 +2,444 @@
 
 {% block title %}Reports Dashboard{% endblock %}
 
+{% block extra_css %}
+<style>
+.report-stat-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow;
+}
+
+.revenue-card {
+    @apply bg-gradient-to-br from-green-50 to-emerald-50 border-green-200;
+}
+
+.orders-card {
+    @apply bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200;
+}
+
+.customers-card {
+    @apply bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200;
+}
+
+.profit-card {
+    @apply bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200;
+}
+
+.chart-container {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+}
+
+.chart-title {
+    @apply text-lg font-semibold text-gray-900 mb-4 flex items-center;
+}
+
+.metric-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.metric-success {
+    @apply bg-green-100 text-green-800;
+}
+
+.metric-warning {
+    @apply bg-yellow-100 text-yellow-800;
+}
+
+.metric-error {
+    @apply bg-red-100 text-red-800;
+}
+
+.metric-info {
+    @apply bg-blue-100 text-blue-800;
+}
+
+/* Chart animations */
+@keyframes chart-slide {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.chart-animate {
+    animation: chart-slide 0.5s ease-out;
+}
+
+/* Revenue chart bars */
+.revenue-bar {
+    @apply bg-gradient-to-t from-green-500 to-green-400 rounded-t;
+}
+
+.expense-bar {
+    @apply bg-gradient-to-t from-red-500 to-red-400 rounded-t;
+}
+
+.profit-bar {
+    @apply bg-gradient-to-t from-blue-500 to-blue-400 rounded-t;
+}
+
+/* Payment method icons */
+.payment-icon-cash::before { content: "💵"; }
+.payment-icon-card::before { content: "💳"; }
+.payment-icon-upi::before { content: "📱"; }
+.payment-icon-wallet::before { content: "👛"; }
+
+/* Report type cards */
+.report-type-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all cursor-pointer;
+}
+
+.report-type-card:hover {
+    @apply border-blue-300 bg-blue-50;
+}
+
+/* Date range selector */
+.date-range-selector {
+    @apply flex items-center space-x-2 bg-white rounded-lg shadow-sm border border-gray-200 p-2;
+}
+
+/* Export buttons */
+.export-button {
+    @apply inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors;
+}
+
+.export-button:hover {
+    @apply bg-gray-100;
+}
+
+/* Filter pills */
+.filter-pill {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border;
+}
+
+.filter-pill-active {
+    @apply bg-blue-600 text-white border-blue-600;
+}
+
+.filter-pill-inactive {
+    @apply bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-gray-900">Reports Dashboard</h1>
-        <div class="flex space-x-4">
-            <select id="days-selector" class="border rounded px-3 py-2" onchange="location.href='?days=' + this.value">
-                <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 days</option>
-                <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
-                <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>
-                <option value="365" {% if days == 365 %}selected{% endif %}>Last year</option>
-            </select>
+<div class="container mx-auto px-4 py-8" x-data="reportsManager()">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+                <svg class="w-8 h-8 mr-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                Reports Dashboard
+            </h1>
+            <p class="text-gray-600 mt-2">Business analytics and performance reports</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <div class="date-range-selector">
+                <select x-model="dateRange" @change="loadReports()" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                    <option value="7">Last 7 days</option>
+                    <option value="30">Last 30 days</option>
+                    <option value="90">Last 3 months</option>
+                    <option value="365">Last year</option>
+                </select>
+                <input type="date" x-model="customStartDate" @change="loadReports()" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                <span class="text-gray-500">to</span>
+                <input type="date" x-model="customEndDate" @change="loadReports()" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+            </div>
+            <button @click="refreshReports()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Refresh
+            </button>
         </div>
     </div>
 
-    <!-- Key Metrics -->
+    <!-- Key Performance Indicators -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="flex-shrink-0 bg-blue-500 rounded-md p-3">
-                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                    </svg>
+        <div class="report-stat-card revenue-card">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-green-700 flex items-center">
+                        <span class="mr-2">💰</span> Total Revenue
+                    </p>
+                    <p class="text-2xl font-bold text-green-900" x-text="'₹' + (stats.total_revenue || 0).toLocaleString()"></p>
+                    <div class="flex items-center mt-2">
+                        <span class="metric-badge metric-success" x-text="'+' + (stats.revenue_growth || 0) + '%'"></span>
+                        <span class="text-xs text-gray-600 ml-2">vs last period</span>
+                    </div>
                 </div>
-                <div class="ml-5 w-0 flex-1">
-                    <dl>
-                        <dt class="text-sm font-medium text-gray-500 truncate">Total Orders</dt>
-                        <dd class="text-lg font-medium text-gray-900">{{ stats.total_orders }}</dd>
-                    </dl>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="flex-shrink-0 bg-green-500 rounded-md p-3">
-                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                </div>
-                <div class="ml-5 w-0 flex-1">
-                    <dl>
-                        <dt class="text-sm font-medium text-gray-500 truncate">Total Revenue</dt>
-                        <dd class="text-lg font-medium text-gray-900">₹{{ "%.2f"|format(stats.total_revenue) }}</dd>
-                    </dl>
+                <div class="bg-green-100 p-3 rounded-full">
+                    <span class="text-2xl">📈</span>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="flex-shrink-0 bg-yellow-500 rounded-md p-3">
-                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+        <div class="report-stat-card orders-card">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-blue-700 flex items-center">
+                        <span class="mr-2">📋</span> Total Orders
+                    </p>
+                    <p class="text-2xl font-bold text-blue-900" x-text="(stats.total_orders || 0).toLocaleString()"></p>
+                    <div class="flex items-center mt-2">
+                        <span class="metric-badge metric-info" x-text="'+' + (stats.orders_growth || 0) + '%'"></span>
+                        <span class="text-xs text-gray-600 ml-2">vs last period</span>
+                    </div>
                 </div>
-                <div class="ml-5 w-0 flex-1">
-                    <dl>
-                        <dt class="text-sm font-medium text-gray-500 truncate">Completed Orders</dt>
-                        <dd class="text-lg font-medium text-gray-900">{{ stats.completed_orders }}</dd>
-                    </dl>
+                <div class="bg-blue-100 p-3 rounded-full">
+                    <span class="text-2xl">🛒</span>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="flex-shrink-0 bg-purple-500 rounded-md p-3">
-                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+        <div class="report-stat-card customers-card">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-purple-700 flex items-center">
+                        <span class="mr-2">👥</span> Customers
+                    </p>
+                    <p class="text-2xl font-bold text-purple-900" x-text="(stats.total_customers || 0).toLocaleString()"></p>
+                    <div class="flex items-center mt-2">
+                        <span class="metric-badge metric-success" x-text="'+' + (stats.customers_growth || 0) + '%'"></span>
+                        <span class="text-xs text-gray-600 ml-2">vs last period</span>
+                    </div>
+                </div>
+                <div class="bg-purple-100 p-3 rounded-full">
+                    <span class="text-2xl">👤</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="report-stat-card profit-card">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-yellow-700 flex items-center">
+                        <span class="mr-2">📊</span> Avg Order Value
+                    </p>
+                    <p class="text-2xl font-bold text-yellow-900" x-text="'₹' + (stats.average_order_value || 0).toFixed(2)"></p>
+                    <div class="flex items-center mt-2">
+                        <span class="metric-badge metric-warning" x-text="'+' + (stats.aov_growth || 0) + '%'"></span>
+                        <span class="text-xs text-gray-600 ml-2">vs last period</span>
+                    </div>
+                </div>
+                <div class="bg-yellow-100 p-3 rounded-full">
+                    <span class="text-2xl">💵</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Revenue Chart -->
+        <div class="chart-container chart-animate">
+            <h3 class="chart-title">
+                <span class="mr-2">📈</span> Revenue Trend
+            </h3>
+            <div class="h-64 flex items-end justify-between space-x-2">
+                <template x-for="day in revenueData" :key="day.date">
+                    <div class="flex-1 flex flex-col items-center">
+                        <div class="w-full revenue-bar" 
+                             :style="`height: ${(day.revenue / maxRevenue) * 100}%`"
+                             :title="`${day.date}: ₹${day.revenue}`">
+                        </div>
+                        <span class="text-xs text-gray-600 mt-2" x-text="day.date"></span>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Payment Methods -->
+        <div class="chart-container chart-animate">
+            <h3 class="chart-title">
+                <span class="mr-2">💳</span> Payment Methods
+            </h3>
+            <div class="space-y-3">
+                <template x-for="[method, amount] in Object.entries(paymentBreakdown)" :key="method">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <span class="payment-icon mr-2" :class="'payment-icon-' + method.toLowerCase()"></span>
+                            <span class="capitalize text-sm font-medium text-gray-700" x-text="method"></span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-32 bg-gray-200 rounded-full h-2 mr-3">
+                                <div class="bg-blue-600 h-2 rounded-full" 
+                                     :style="`width: ${(amount / totalPayments) * 100}%`"></div>
+                            </div>
+                            <span class="text-sm font-medium text-gray-900" x-text="'₹' + amount.toLocaleString()"></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Types -->
+    <div class="mb-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+            <span class="mr-2">📊</span> Available Reports
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div @click="openReport('sales')" class="report-type-card">
+                <div class="flex items-center mb-2">
+                    <span class="text-2xl mr-3">💰</span>
+                    <h3 class="font-semibold text-gray-900">Sales Report</h3>
+                </div>
+                <p class="text-sm text-gray-600">Detailed sales analysis and trends</p>
+                <div class="mt-3 flex items-center text-blue-600 text-sm">
+                    <span>View Report</span>
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                     </svg>
                 </div>
-                <div class="ml-5 w-0 flex-1">
-                    <dl>
-                        <dt class="text-sm font-medium text-gray-500 truncate">Avg Order Value</dt>
-                        <dd class="text-lg font-medium text-gray-900">₹{{ "%.2f"|format(stats.average_order_value) }}</dd>
-                    </dl>
+            </div>
+
+            <div @click="openReport('items')" class="report-type-card">
+                <div class="flex items-center mb-2">
+                    <span class="text-2xl mr-3">🍽️</span>
+                    <h3 class="font-semibold text-gray-900">Menu Items</h3>
+                </div>
+                <p class="text-sm text-gray-600">Best selling items and performance</p>
+                <div class="mt-3 flex items-center text-blue-600 text-sm">
+                    <span>View Report</span>
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+            </div>
+
+            <div @click="openReport('staff')" class="report-type-card">
+                <div class="flex items-center mb-2">
+                    <span class="text-2xl mr-3">👥</span>
+                    <h3 class="font-semibold text-gray-900">Staff Performance</h3>
+                </div>
+                <p class="text-sm text-gray-600">Employee performance metrics</p>
+                <div class="mt-3 flex items-center text-blue-600 text-sm">
+                    <span>View Report</span>
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+            </div>
+
+            <div @click="openReport('gst')" class="report-type-card">
+                <div class="flex items-center mb-2">
+                    <span class="text-2xl mr-3">🧾</span>
+                    <h3 class="font-semibold text-gray-900">GST Reports</h3>
+                </div>
+                <p class="text-sm text-gray-600">Tax compliance and GST reports</p>
+                <div class="mt-3 flex items-center text-blue-600 text-sm">
+                    <span>View Report</span>
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Quick Actions -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <a href="{{ url_for('reports.sales_report') }}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Sales Report</h3>
-            <p class="text-sm text-gray-500">Detailed sales analysis and trends</p>
-        </a>
-
-        <a href="{{ url_for('reports.items_report') }}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Menu Performance</h3>
-            <p class="text-sm text-gray-500">Best-selling items and categories</p>
-        </a>
-
-        <a href="{{ url_for('reports.staff_report') }}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Staff Performance</h3>
-            <p class="text-sm text-gray-500">Individual staff metrics and productivity</p>
-        </a>
-
-        <a href="{{ url_for('reports.gst_report') }}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">GST Report</h3>
-            <p class="text-sm text-gray-500">Tax compliance and GST calculations</p>
-        </a>
-
-        <a href="{{ url_for('reports.accounting_report') }}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Accounting</h3>
-            <p class="text-sm text-gray-500">Financial reports and balance sheets</p>
-        </a>
-
-        <a href="{{ url_for('reports.expenses_report') }}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Expenses</h3>
-            <p class="text-sm text-gray-500">Expense tracking and categorization</p>
-        </a>
-
-        {% if current_user.is_super_admin() %}
-        <a href="{{ url_for('reports.restaurant_performance') }}" class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Restaurant Performance</h3>
-            <p class="text-sm text-gray-500">Multi-location performance analysis</p>
-        </a>
-        {% endif %}
-    </div>
-
-    <!-- Payment Method Breakdown -->
-    <div class="bg-white rounded-lg shadow p-6 mb-8">
-        <h2 class="text-xl font-bold text-gray-900 mb-4">Payment Methods</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {% for method, amount in stats.payment_breakdown.items() %}
-            <div class="text-center">
-                <div class="text-2xl font-bold text-gray-900">₹{{ "%.2f"|format(amount) }}</div>
-                <div class="text-sm text-gray-500">{{ method.title() }}</div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-
-    <!-- Daily Stats Chart -->
-    <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-xl font-bold text-gray-900 mb-4">Daily Performance</h2>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Orders</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for date, data in stats.daily_stats.items() %}
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ date }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ data.orders }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{{ "%.2f"|format(data.revenue) }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <span class="mr-2">⚡</span> Quick Actions
+        </h3>
+        <div class="flex flex-wrap gap-3">
+            <button @click="exportReport('sales')" class="export-button">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Export Sales CSV
+            </button>
+            <button @click="exportReport('gst')" class="export-button">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Export GST Report
+            </button>
+            <button @click="printReport()" class="export-button">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                </svg>
+                Print Summary
+            </button>
+            <button @click="scheduleReport()" class="export-button">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                Schedule Report
+            </button>
         </div>
     </div>
 </div>
+
+<script>
+function reportsManager() {
+    return {
+        dateRange: '7',
+        customStartDate: '',
+        customEndDate: '',
+        stats: {{ stats | tojson if stats else '{}' }},
+        revenueData: [],
+        paymentBreakdown: {},
+        maxRevenue: 0,
+        totalPayments: 0,
+        
+        init() {
+            this.loadReports();
+        },
+        
+        async loadReports() {
+            try {
+                const params = new URLSearchParams();
+                params.append('days', this.dateRange);
+                if (this.customStartDate) params.append('start_date', this.customStartDate);
+                if (this.customEndDate) params.append('end_date', this.customEndDate);
+                
+                const response = await fetch('/reports/api/stats?' + params.toString());
+                const data = await response.json();
+                this.stats = data;
+                this.processChartData(data);
+            } catch (error) {
+                console.error('Error loading reports:', error);
+            }
+        },
+        
+        processChartData(data) {
+            // Process revenue data for chart
+            this.revenueData = Object.entries(data.daily_stats || {}).map(([date, stats]) => ({
+                date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                revenue: stats.revenue || 0
+            }));
+            
+            this.maxRevenue = Math.max(...this.revenueData.map(d => d.revenue), 1);
+            
+            // Process payment breakdown
+            this.paymentBreakdown = data.payment_breakdown || {};
+            this.totalPayments = Object.values(this.paymentBreakdown).reduce((sum, amount) => sum + amount, 0) || 1;
+        },
+        
+        openReport(type) {
+            window.location.href = `/reports/${type}`;
+        },
+        
+        exportReport(type) {
+            const params = new URLSearchParams();
+            if (this.customStartDate) params.append('start_date', this.customStartDate);
+            if (this.customEndDate) params.append('end_date', this.customEndDate);
+            
+            window.open(`/reports/export/${type}?${params.toString()}`, '_blank');
+        },
+        
+        printReport() {
+            window.print();
+        },
+        
+        scheduleReport() {
+            alert('Report scheduling feature coming soon!');
+        },
+        
+        refreshReports() {
+            this.loadReports();
+        }
+    }
+}
+</script>
 {% endblock %}
