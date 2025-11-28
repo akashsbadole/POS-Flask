@@ -203,8 +203,33 @@
             {% for payment in order.payments %}
             <p>
                 <span class="capitalize">{{ payment.method.value }}:</span>
-                <span>${{ "%.2f"|format(payment.amount) }}</span>
+                <span>₹{{ "%.2f"|format(payment.amount) }}</span>
             </p>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Split Bill Information -->
+        {% set split_bill = order.split_bills[0] if order.split_bills else none %}
+        {% if split_bill %}
+        <div class="payments">
+            <p><strong>Split Bill Details:</strong></p>
+            <p><strong>Split Type:</strong> {{ split_bill.split_type.title() }}</p>
+            <p><strong>Number of Splits:</strong> {{ split_bill.get_split_count() }}</p>
+            <p><strong>Split Bill ID:</strong> #{{ split_bill.id }}</p>
+            
+            {% set split_details = split_bill.get_split_details() %}
+            {% for split in split_details %}
+            <div style="margin-left: 20px; margin-top: 5px; padding: 5px; background: #f9f9f9; border-radius: 3px;">
+                <p><strong>{{ split.name }}:</strong> ₹{{ "%.2f"|format(split.amount) }} ({{ split.payment_method.title() }})</p>
+                {% if split.items %}
+                <div style="font-size: 12px; margin-top: 5px;">
+                    {% for item in split.items %}
+                    <div>• {{ item.quantity }}x {{ item.name }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
             {% endfor %}
         </div>
         {% endif %}

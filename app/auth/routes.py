@@ -22,7 +22,7 @@ def login():
             # HTMX request - return partial response
             user = User.query.filter_by(email=email).first()
             
-            if user and user.check_password(password) and user.is_active:
+            if user and user.check_password(password) and user.user_active:
                 login_user(user, remember=remember)
                 user.update_last_login()
                 
@@ -62,7 +62,7 @@ def login():
         # Regular form submission
         user = User.query.filter_by(email=email).first()
         
-        if user and user.check_password(password) and user.is_active:
+        if user and user.check_password(password) and user.user_active:
             login_user(user, remember=remember)
             user.update_last_login()
             
@@ -91,7 +91,7 @@ def pin_login():
     
     if request.headers.get('HX-Request'):
         # HTMX request
-        users = User.query.filter(User.pin_code != None, User.is_active == True).all()
+        users = User.query.filter(User.pin_code != None, User.user_active == True).all()
         
         for user in users:
             if user.check_pin(pin):
@@ -110,7 +110,7 @@ def pin_login():
         return render_template('auth/partials/pin_form.html', error='Invalid PIN')
     
     # Regular PIN login
-    users = User.query.filter(User.pin_code != None, User.is_active == True).all()
+    users = User.query.filter(User.pin_code != None, User.user_active == True).all()
     
     for user in users:
         if user.check_pin(pin):

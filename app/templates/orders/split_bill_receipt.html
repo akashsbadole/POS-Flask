@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Split Bill Receipt - Order {{ order.order_number }}</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .receipt {
+            max-width: 450px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 2px dashed #333;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .header p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .order-info {
+            margin-bottom: 20px;
+        }
+        
+        .order-info p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .split-section {
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        
+        .split-header {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+            text-align: center;
+            background-color: #f8f9fa;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        
+        .split-details {
+            margin-bottom: 10px;
+        }
+        
+        .split-person {
+            margin-bottom: 15px;
+            padding: 8px;
+            background-color: #f9f9f9;
+            border-radius: 3px;
+        }
+        
+        .person-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .person-items {
+            font-size: 12px;
+            margin-left: 20px;
+            margin-bottom: 5px;
+        }
+        
+        .person-payment {
+            margin-top: 5px;
+            text-align: right;
+            font-weight: bold;
+        }
+        
+        .totals {
+            border-top: 2px dashed #333;
+            padding-top: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .totals p {
+            margin: 5px 0;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .totals .total {
+            font-weight: bold;
+            font-size: 16px;
+            border-top: 1px solid #333;
+            padding-top: 5px;
+            margin-top: 10px;
+        }
+        
+        .footer {
+            text-align: center;
+            border-top: 2px dashed #333;
+            padding-top: 10px;
+            font-size: 12px;
+        }
+        
+        .footer p {
+            margin: 5px 0;
+        }
+        
+        @media print {
+            body {
+                padding: 0;
+                background: white;
+            }
+            
+            .receipt {
+                box-shadow: none;
+                margin: 0;
+                max-width: 100%;
+            }
+            
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt">
+        <div class="header">
+            <h1>SPLIT BILL RECEIPT</h1>
+            <p>RESTAURANT NAME</p>
+            <p>123 Restaurant Street</p>
+            <p>City, State 12345</p>
+            <p>Tel: (555) 123-4567</p>
+        </div>
+        
+        <div class="order-info">
+            <p><strong>Order #:</strong> {{ order.order_number }}</p>
+            <p><strong>Date:</strong> {{ order.created_at.strftime('%m/%d/%Y %I:%M %p') }}</p>
+            <p><strong>Cashier:</strong> {{ order.user.name if order.user else 'Unknown' }}</p>
+            <p><strong>Split Type:</strong> {{ split_bill.split_type.title() if split_bill else 'N/A' }}</p>
+            <p><strong>Number of Splits:</strong> {{ split_bill.get_split_count() if split_bill else 'N/A' }}</p>
+            {% if order.table %}
+            <p><strong>Table:</strong> {{ order.table.number }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Split Bill Details -->
+        {% if split_bill %}
+        <div class="split-section">
+            <div class="split-header">SPLIT BREAKDOWN</div>
+            
+            {% set split_details = split_bill.get_split_details() %}
+            {% for split in split_details %}
+            <div class="split-person">
+                <div class="person-header">
+                    <span>{{ split.name }}</span>
+                    <span>₹{{ "%.2f"|format(split.amount) }}</span>
+                </div>
+                
+                {% if split.items %}
+                <div class="person-items">
+                    {% for item in split.items %}
+                    <div>
+                        {{ item.quantity }}x {{ item.name }}
+                        {% if item.variant %}
+                        - {{ item.variant.name }}
+                        {% endif %}
+                        {% if item.add_ons %}
+                        ({{ item.add_ons|map(attribute='name')|join(', ') }})
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="person-payment">
+                    Payment: {{ split.payment_method.title() }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Order Items -->
+        <div class="items">
+            {% for item in order.items %}
+            <div style="margin-bottom: 10px; font-size: 14px;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold;">
+                    <span>{{ item.quantity }}x {{ item.menu_item.name }}</span>
+                    <span>₹{{ "%.2f"|format(item.get_total_price()) }}</span>
+                </div>
+                {% if item.variant %}
+                <div style="font-size: 12px; color: #666; margin-left: 10px;">{{ item.variant.name }}</div>
+                {% endif %}
+                {% if item.add_ons %}
+                <div style="font-size: 12px; color: #666; margin-left: 10px;">
+                    Add-ons: {{ item.add_ons|map(attribute='name')|join(', ') }}
+                </div>
+                {% endif %}
+                {% if item.notes %}
+                <div style="font-size: 12px; color: #666; margin-left: 10px;">Notes: {{ item.notes }}</div>
+                {% endif %}
+                <div style="font-size: 12px; color: #666; margin-left: 10px;">₹{{ "%.2f"|format(item.unit_price) }} each</div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Totals -->
+        <div class="totals">
+            <p>
+                <span>Subtotal:</span>
+                <span>₹{{ "%.2f"|format(order.subtotal) }}</span>
+            </p>
+            {% if order.discount_amount > 0 %}
+            <p>
+                <span>Discount ({{ order.discount_type }}):</span>
+                <span>-₹{{ "%.2f"|format(order.discount_amount) }}</span>
+            </p>
+            {% endif %}
+            <p>
+                <span>Tax ({{ "%.2f"|format(order.tax_rate * 100) }}%):</span>
+                <span>₹{{ "%.2f"|format(order.tax_amount) }}</span>
+            </p>
+            {% if order.service_charge > 0 %}
+            <p>
+                <span>Service Charge:</span>
+                <span>₹{{ "%.2f"|format(order.service_charge) }}</span>
+            </p>
+            {% endif %}
+            <p class="total">
+                <span>TOTAL:</span>
+                <span>₹{{ "%.2f"|format(order.total) }}</span>
+            </p>
+        </div>
+        
+        <!-- Payments -->
+        {% if order.payments %}
+        <div class="payments" style="margin-bottom: 20px;">
+            <p style="font-weight: bold; margin-bottom: 10px;">Payments:</p>
+            {% for payment in order.payments %}
+            <p style="display: flex; justify-content: space-between; font-size: 14px;">
+                <span class="capitalize">{{ payment.method.value }}:</span>
+                <span>₹{{ "%.2f"|format(payment.amount) }}</span>
+            </p>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <div class="footer">
+            <p>Thank you for your business!</p>
+            <p>Please come again</p>
+            {% if order.completed_at %}
+            <p>Completed: {{ order.completed_at.strftime('%m/%d/%Y %I:%M %p') }}</p>
+            {% endif %}
+            {% if split_bill %}
+            <p>Split Bill ID: #{{ split_bill.id }}</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="no-print" style="text-align: center; margin-top: 20px;">
+        <button onclick="window.print()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            Print Split Bill Receipt
+        </button>
+        <button onclick="window.close()" style="margin-left: 10px; padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            Close
+        </button>
+    </div>
+    
+    <script>
+        // Auto-print when page loads
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+            }, 500);
+        };
+        
+        // Close window after printing
+        window.onafterprint = function() {
+            setTimeout(function() {
+                window.close();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,331 @@
+<div class="bg-white rounded-lg shadow-sm border p-4" x-data="{ 
+    splitType: 'equal',
+    numberOfSplits: 2,
+    balanceDue: {{ order.get_balance_due() }},
+    orderItems: {{ order.items | tojson | safe }},
+    splits: [],
+    
+    init() {
+        this.initializeSplits();
+    },
+    
+    get remainingBalance() {
+        const totalAllocated = this.splits.reduce((sum, split) => sum + split.amount, 0);
+        return this.balanceDue - totalAllocated;
+    },
+    
+    get isFullyAllocated() {
+        return Math.abs(this.remainingBalance) < 0.01;
+    },
+    
+    initializeSplits() {
+        this.splits = [];
+        
+        if (this.splitType === 'equal') {
+            const equalAmount = this.balanceDue / this.numberOfSplits;
+            for (let i = 0; i < this.numberOfSplits; i++) {
+                this.splits.push({
+                    id: i + 1,
+                    name: `Person ${i + 1}`,
+                    amount: equalAmount,
+                    paymentMethod: 'cash',
+                    items: []
+                });
+            }
+        } else if (this.splitType === 'custom') {
+            for (let i = 0; i < this.numberOfSplits; i++) {
+                this.splits.push({
+                    id: i + 1,
+                    name: `Person ${i + 1}`,
+                    amount: 0,
+                    paymentMethod: 'cash',
+                    items: []
+                });
+            }
+        } else if (this.splitType === 'items') {
+            // Initialize with empty splits for item-based splitting
+            for (let i = 0; i < this.numberOfSplits; i++) {
+                this.splits.push({
+                    id: i + 1,
+                    name: `Person ${i + 1}`,
+                    amount: 0,
+                    paymentMethod: 'cash',
+                    items: []
+                });
+            }
+        }
+    },
+    
+    updateSplitType() {
+        this.initializeSplits();
+    },
+    
+    updateNumberOfSplits() {
+        this.initializeSplits();
+    },
+    
+    updateSplitAmount(splitIndex) {
+        if (this.splitType === 'items') {
+            // Calculate amount based on assigned items
+            let total = 0;
+            this.splits[splitIndex].items.forEach(item => {
+                total += item.price * item.quantity;
+            });
+            this.splits[splitIndex].amount = total;
+        }
+    },
+    
+    assignItemToSplit(itemIndex, splitIndex) {
+        const item = this.orderItems[itemIndex];
+        const existingItemIndex = this.splits[splitIndex].items.findIndex(i => i.id === item.id);
+        
+        if (existingItemIndex >= 0) {
+            // Remove item from split
+            this.splits[splitIndex].items.splice(existingItemIndex, 1);
+        } else {
+            // Add item to split
+            this.splits[splitIndex].items.push({
+                id: item.id,
+                name: item.menu_item.name,
+                quantity: item.quantity,
+                unit_price: parseFloat(item.unit_price),
+                price: parseFloat(item.get_total_price || (item.quantity * item.unit_price)),
+                variant: item.variant || null,
+                add_ons: item.add_ons || []
+            });
+        }
+        
+        this.updateSplitAmount(splitIndex);
+    },
+    
+    isItemAssignedToSplit(itemIndex, splitIndex) {
+        const item = this.orderItems[itemIndex];
+        return this.splits[splitIndex].items.some(i => i.id === item.id);
+    },
+    
+    setMaxAmount(splitIndex) {
+        this.splits[splitIndex].amount = this.remainingBalance + this.splits[splitIndex].amount;
+    },
+    
+    distributeEvenly() {
+        const equalAmount = this.balanceDue / this.numberOfSplits;
+        this.splits.forEach(split => {
+            split.amount = equalAmount;
+        });
+    },
+    
+    validateAndSubmit() {
+        if (!this.isFullyAllocated) {
+            alert('Please allocate the full balance before submitting.');
+            return false;
+        }
+        
+        if (this.splits.some(split => split.amount <= 0)) {
+            alert('All splits must have an amount greater than 0.');
+            return false;
+        }
+        
+        return true;
+    }
+}">
+    
+    <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Split Bill</h3>
+        <button type="button" onclick="this.closest('.bg-white').style.display='none'" 
+                class="text-gray-500 hover:text-gray-700">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+    </div>
+    
+    <!-- Order Summary -->
+    <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+        <div class="flex justify-between items-center">
+            <span class="text-sm font-medium text-gray-700">Order Total:</span>
+            <span class="text-lg font-bold text-gray-900">₹{{ "%.2f"|format(order.get_balance_due()) }}</span>
+        </div>
+        <div class="flex justify-between items-center mt-1">
+            <span class="text-sm font-medium text-gray-700">Allocated:</span>
+            <span class="text-sm font-bold" 
+                  :class="isFullyAllocated ? 'text-green-600' : 'text-red-600'">
+                ₹<span x-text="splits.reduce((sum, split) => sum + split.amount, 0).toFixed(2)"></span>
+            </span>
+        </div>
+        <div class="flex justify-between items-center mt-1">
+            <span class="text-sm font-medium text-gray-700">Remaining:</span>
+            <span class="text-sm font-bold" 
+                  :class="isFullyAllocated ? 'text-green-600' : 'text-red-600'">
+                ₹<span x-text="remainingBalance.toFixed(2)"></span>
+            </span>
+        </div>
+    </div>
+    
+    <!-- Split Type Selection -->
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Split Type</label>
+        <div class="grid grid-cols-3 gap-2">
+            <button type="button" 
+                    @click="splitType = 'equal'; updateSplitType()"
+                    :class="splitType === 'equal' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'"
+                    class="py-2 px-3 rounded-md text-sm font-medium">
+                Equal Split
+            </button>
+            <button type="button" 
+                    @click="splitType = 'custom'; updateSplitType()"
+                    :class="splitType === 'custom' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'"
+                    class="py-2 px-3 rounded-md text-sm font-medium">
+                Custom Amounts
+            </button>
+            <button type="button" 
+                    @click="splitType = 'items'; updateSplitType()"
+                    :class="splitType === 'items' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'"
+                    class="py-2 px-3 rounded-md text-sm font-medium">
+                By Items
+            </button>
+        </div>
+    </div>
+    
+    <!-- Number of Splits -->
+    <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+            Number of Splits: <span x-text="numberOfSplits"></span>
+        </label>
+        <input type="range" 
+               x-model="numberOfSplits"
+               @input="updateNumberOfSplits()"
+               min="2" max="8" step="1"
+               class="w-full">
+    </div>
+    
+    <!-- Item-based Splitting -->
+    <div x-show="splitType === 'items'" class="mb-4">
+        <h4 class="text-sm font-medium text-gray-700 mb-2">Assign Items to Splits</h4>
+        <div class="space-y-2 max-h-40 overflow-y-auto border rounded-md p-2">
+            <template x-for="(item, index) in orderItems" :key="index">
+                <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div class="flex-1">
+                        <span class="text-sm font-medium" x-text="`${item.quantity}x ${item.menu_item.name}`"></span>
+                        <span class="text-xs text-gray-500 ml-2" x-text="`₹${parseFloat(item.get_total_price || (item.quantity * item.unit_price)).toFixed(2)}`"></span>
+                    </div>
+                    <div class="flex space-x-1">
+                        <template x-for="(split, splitIndex) in splits" :key="splitIndex">
+                            <button type="button"
+                                    @click="assignItemToSplit(index, splitIndex)"
+                                    :class="isItemAssignedToSplit(index, splitIndex) ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'"
+                                    class="px-2 py-1 rounded text-xs font-medium"
+                                    x-text="split.id">
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+    
+    <!-- Split Details -->
+    <div class="mb-4 space-y-3 max-h-60 overflow-y-auto">
+        <template x-for="(split, index) in splits" :key="index">
+            <div class="border rounded-lg p-3 bg-gray-50">
+                <div class="flex items-center justify-between mb-2">
+                    <input type="text" 
+                           x-model="split.name"
+                           class="font-medium text-sm bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none"
+                           placeholder="Name">
+                    <span class="text-sm font-bold text-blue-600">
+                        ₹<span x-text="split.amount.toFixed(2)"></span>
+                    </span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Payment Method</label>
+                        <select x-model="split.paymentMethod"
+                                class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
+                            <option value="cash">Cash</option>
+                            <option value="card">Card</option>
+                            <option value="upi">UPI</option>
+                            <option value="wallet">Wallet</option>
+                            <option value="gift_card">Gift Card</option>
+                        </select>
+                    </div>
+                    
+                    <div x-show="splitType === 'custom'">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Amount</label>
+                        <div class="relative">
+                            <input type="number" 
+                                   x-model="split.amount"
+                                   step="0.01"
+                                   min="0"
+                                   :max="remainingBalance + split.amount"
+                                   class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                <span class="text-gray-500 text-xs">₹</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Items assigned to this split (for item-based splitting) -->
+                <div x-show="splitType === 'items' && split.items.length > 0" class="mt-2">
+                    <div class="text-xs font-medium text-gray-600 mb-1">Items:</div>
+                    <div class="space-y-1">
+                        <template x-for="item in split.items" :key="item.id">
+                            <div class="text-xs text-gray-700">
+                                <span x-text="`${item.quantity}x ${item.name}`"></span>
+                                <span class="ml-1" x-text="`₹${item.price.toFixed(2)}`"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="flex space-x-2 mb-3">
+        <button type="button" 
+                x-show="splitType === 'custom'"
+                @click="distributeEvenly()"
+                class="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm">
+            Distribute Evenly
+        </button>
+    </div>
+    
+    <!-- Form Submission -->
+    <form method="POST" action="{{ url_for('orders.process_split_payment', order_id=order.id) }}"
+          hx-post="{{ url_for('orders.process_split_payment', order_id=order.id) }}"
+          hx-target="#order-totals"
+          hx-swap="innerHTML"
+          @submit="return validateAndSubmit()">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="split_type" x-model="splitType">
+        
+        <!-- Hidden inputs for split data -->
+        <template x-for="(split, index) in splits" :key="index">
+            <input type="hidden" :name="`split_name[]`" x-model="split.name">
+            <input type="hidden" :name="`split_amount[]`" x-model="split.amount">
+            <input type="hidden" :name="`split_payment_method[]`" x-model="split.paymentMethod">
+            <input type="hidden" :name="`split_items[]`" :value="JSON.stringify(split.items)">
+        </template>
+        
+        <div class="flex space-x-3">
+            <button type="submit" 
+                    :disabled="!isFullyAllocated"
+                    class="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                Process Split Payment
+            </button>
+            <button type="button" 
+                    onclick="this.closest('.bg-white').style.display='none'"
+                    class="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                Cancel
+            </button>
+        </div>
+        
+        <div x-show="!isFullyAllocated" class="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+            <p class="text-sm text-yellow-800">
+                <span class="font-medium">Note:</span> You must allocate the full balance due (₹<span x-text="remainingBalance.toFixed(2)"></span>) to process the payment.
+            </p>
+        </div>
+    </form>
+</div>

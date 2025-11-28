@@ -1,7 +1,7 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify, make_response
 from flask_login import login_required, current_user
 from app.reports import bp
-from app.models.order import Order, OrderStatus, Payment
+from app.models.order import Order, OrderStatus, Payment, SplitBill
 from app.models.menu import MenuItem, Category
 from app.models.user import User
 from app.models.table import Table
@@ -497,6 +497,36 @@ def restaurant_performance():
                          end_date=end_date,
                          selected_restaurant=restaurant_id)
 
+@bp.route('/split-bills')
+@login_required
+def split_bills_report():
+    """Split bills report"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Get date range
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    else:
+        start_date = datetime.now() - timedelta(days=7)
+    
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    else:
+        end_date = datetime.now()
+    
+    # Get split bills data
+    split_bills_data = get_split_bills_report_data(start_date, end_date)
+    
+    return render_template('reports/split_bills.html',
+                         split_bills_data=split_bills_data,
+                         start_date=start_date,
+                         end_date=end_date)
+
 @bp.route('/export/gst')
 @login_required
 def export_gst():
@@ -595,6 +625,58 @@ def export_accounting():
     output.seek(0)
     response = make_response(output.getvalue())
     response.headers['Content-Disposition'] = f'attachment; filename=accounting_{report_type}_{start_date.strftime("%Y%m%d")}_to_{end_date.strftime("%Y%m%d")}.csv'
+    response.headers['Content-type'] = 'text/csv'
+    
+    return response
+
+@bp.route('/export/split-bills')
+@login_required
+def export_split_bills():
+    """Export split bills data as CSV"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Get date range
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    else:
+        start_date = datetime.now() - timedelta(days=30)
+    
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    else:
+        end_date = datetime.now()
+    
+    # Get split bills data
+    split_bills_data = get_split_bills_report_data(start_date, end_date)
+    
+    # Create CSV
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow(['Date', 'Order Number', 'Split Type', 'Amount', 'Payment Method', 'Staff', 'Details'])
+    
+    # Write data
+    for split_bill in split_bills_data['split_bills']:
+        writer.writerow([
+            split_bill.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            split_bill.order.order_number if split_bill.order else 'N/A',
+            split_bill.split_type,
+            split_bill.amount,
+            split_bill.payment_method,
+            split_bill.user.name if split_bill.user else 'N/A',
+            split_bill.details
+        ])
+    
+    # Create response
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers['Content-Disposition'] = f'attachment; filename=split_bills_{start_date.strftime("%Y%m%d")}_to_{end_date.strftime("%Y%m%d")}.csv'
     response.headers['Content-type'] = 'text/csv'
     
     return response
@@ -760,6 +842,64 @@ def get_restaurant_performance_data(start_date, end_date, restaurant_id=None):
         })
     
     return performance_data
+
+def get_split_bills_report_data(start_date, end_date):
+    """Get split bills report data"""
+    # Get split bills in date range
+    split_bills = SplitBill.query.filter(
+        SplitBill.created_at >= start_date,
+        SplitBill.created_at <= end_date
+    ).order_by(SplitBill.created_at.desc()).all()
+    
+    # Calculate statistics
+    total_split_bills = len(split_bills)
+    total_split_amount = sum(float(sb.amount) for sb in split_bills)
+    
+    # Split type breakdown
+    split_type_counts = {}
+    split_type_amounts = {}
+    for sb in split_bills:
+        split_type = sb.split_type
+        if split_type not in split_type_counts:
+            split_type_counts[split_type] = 0
+            split_type_amounts[split_type] = 0
+        split_type_counts[split_type] += 1
+        split_type_amounts[split_type] += float(sb.amount)
+    
+    # Payment method breakdown
+    payment_method_counts = {}
+    payment_method_amounts = {}
+    for sb in split_bills:
+        payment_method = sb.payment_method
+        if payment_method not in payment_method_counts:
+            payment_method_counts[payment_method] = 0
+            payment_method_amounts[payment_method] = 0
+        payment_method_counts[payment_method] += 1
+        payment_method_amounts[payment_method] += float(sb.amount)
+    
+    # Daily breakdown
+    daily_stats = {}
+    current_date = start_date
+    while current_date <= end_date:
+        day_splits = [sb for sb in split_bills if sb.created_at.date() == current_date.date()]
+        daily_amount = sum(float(sb.amount) for sb in day_splits)
+        
+        daily_stats[current_date.strftime('%Y-%m-%d')] = {
+            'count': len(day_splits),
+            'amount': daily_amount
+        }
+        current_date += timedelta(days=1)
+    
+    return {
+        'split_bills': split_bills,
+        'total_split_bills': total_split_bills,
+        'total_split_amount': total_split_amount,
+        'split_type_counts': split_type_counts,
+        'split_type_amounts': split_type_amounts,
+        'payment_method_counts': payment_method_counts,
+        'payment_method_amounts': payment_method_amounts,
+        'daily_stats': daily_stats
+    }
 
 # Report Scheduling Routes
 

@@ -129,9 +129,14 @@
                         <div>
                             <h3 class="text-md font-medium mb-3">Split Payment</h3>
                             <button onclick="document.getElementById('split-payment-form').style.display='block'"
-                                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
                                     accesskey="s" data-shortcut="Ctrl+Shift+P" aria-label="Open split payment form">
-                                Split Payment
+                                Simple Split
+                            </button>
+                            <button onclick="document.getElementById('split-bill-modal').style.display='block'"
+                                    class="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    accesskey="b" data-shortcut="Ctrl+Shift+B" aria-label="Open split bill modal">
+                                Advanced Split Bill
                             </button>
                         </div>
                     </div>
@@ -220,6 +225,14 @@
     <div class="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div class="p-4">
             {% include 'orders/partials/split_payment_form.html' %}
+        </div>
+    </div>
+</div>
+
+<div id="split-bill-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display: none;">
+    <div class="bg-white rounded-lg shadow-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="p-4">
+            {% include 'orders/partials/split_bill_modal.html' %}
         </div>
     </div>
 </div>

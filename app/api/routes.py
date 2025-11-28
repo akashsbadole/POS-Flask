@@ -258,8 +258,15 @@ def get_live_financial_metrics():
     
     from app.models.order import Order, OrderStatus
     # Import accounting transaction if available
+    accounting_available = False
+    AccountingTransaction = None
     try:
-        from app.models.accounting import AccountingTransaction
+        # Import accounting transaction if available
+        try:
+            from app.models.accounting import Transaction
+            AccountingTransaction = Transaction  # Use Transaction as AccountingTransaction
+        except ImportError:
+            AccountingTransaction = None
         accounting_available = True
     except ImportError:
         accounting_available = False

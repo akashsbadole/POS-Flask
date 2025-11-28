@@ -95,6 +95,7 @@ def test_notification():
                 flash('Invalid email address', 'error')
                 return redirect(url_for('notifications.test_notification'))
             
+            result = None
             if notification_type == 'email_receipt':
                 # Create a test order
                 test_order = create_test_order()
@@ -121,6 +122,7 @@ def test_notification():
                 flash('Phone number must include country code (e.g., +1)', 'error')
                 return redirect(url_for('notifications.test_notification'))
             
+            result = None
             test_order = create_test_order()
             if notification_type == 'sms_receipt':
                 result = notification_service.send_order_receipt(test_order, phone=recipient)
@@ -381,7 +383,11 @@ def create_test_order():
 
 def create_test_ingredient():
     """Create a test ingredient for testing notifications"""
-    from app.models.inventory import Ingredient, IngredientCategory
+    from app.models.inventory import Ingredient
+    try:
+        from app.models.inventory import IngredientCategory
+    except ImportError:
+        IngredientCategory = None
     
     # Get a sample ingredient category
     category = IngredientCategory.query.first()

@@ -333,6 +333,20 @@
                     </svg>
                 </div>
             </div>
+
+            <div @click="openReport('split-bills')" class="report-type-card">
+                <div class="flex items-center mb-2">
+                    <span class="text-2xl mr-3">💸</span>
+                    <h3 class="font-semibold text-gray-900">Split Bills</h3>
+                </div>
+                <p class="text-sm text-gray-600">Split payment analysis and tracking</p>
+                <div class="mt-3 flex items-center text-blue-600 text-sm">
+                    <span>View Report</span>
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -353,6 +367,12 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                 </svg>
                 Export GST Report
+            </button>
+            <button @click="exportReport('split-bills')" class="export-button">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Export Split Bills
             </button>
             <button @click="printReport()" class="export-button">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

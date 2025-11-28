@@ -1,10 +1,12 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from flask_login import login_required, current_user
+import json
 from app.orders import bp
-from app.models.order import Order, OrderItem, Payment, PaymentMethod, OrderStatus
+from app.models.order import Order, OrderItem, Payment, PaymentMethod, OrderStatus, SplitBill
 from app.models.menu import MenuItem, ItemVariant, AddOn
 from app.models.table import Table
 from app.models.inventory import MenuItemIngredient
+from app.models.user import User
 from app.receipt_printer import ReceiptPrinter, print_kitchen_ticket, open_cash_drawer
 from app.notifications.service import notification_service
 from app import db
@@ -305,8 +307,8 @@ def process_payment(order_id):
         try:
             notification_service.send_order_confirmation(
                 order,
-                email=customer_email,
-                phone=customer_phone
+                email=customer_email or '',
+                phone=customer_phone or ''
             )
         except Exception as e:
             # Log error but don't fail the payment
@@ -319,8 +321,8 @@ def process_payment(order_id):
             try:
                 notification_service.send_order_receipt(
                     order,
-                    email=customer_email,
-                    phone=customer_phone
+                    email=customer_email or '',
+                    phone=customer_phone or ''
                 )
                 flash('Receipt sent successfully', 'success')
             except Exception as e:
@@ -402,11 +404,23 @@ def process_split_payment(order_id):
     """Process split payment for an order"""
     order = Order.query.get_or_404(order_id)
     
+    # Check if this is an advanced split bill or simple split payment
+    split_type = request.form.get('split_type')
+    
+    if split_type in ['equal', 'custom', 'items']:
+        return process_advanced_split_payment(order_id, order)
+    else:
+        return process_simple_split_payment(order_id, order)
+
+def process_simple_split_payment(order_id, order):
+    """Process simple split payment (legacy functionality)"""
     # Get split payment data
     payment_methods = request.form.getlist('payment_method[]')
     payment_amounts = request.form.getlist('payment_amount[]')
     
     if not payment_methods or not payment_amounts or len(payment_methods) != len(payment_amounts):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Invalid split payment details'}), 400
         flash('Invalid split payment details', 'error')
         return redirect(url_for('orders.checkout', order_id=order_id))
     
@@ -434,6 +448,8 @@ def process_split_payment(order_id):
             continue
     
     if total_payment <= 0:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'No valid payment amounts provided'}), 400
         flash('No valid payment amounts provided', 'error')
         return redirect(url_for('orders.checkout', order_id=order_id))
     
@@ -452,10 +468,151 @@ def process_split_payment(order_id):
         # Update kitchen stats
         emit_kitchen_stats()
         
-        flash(f'Order {order.order_number} paid successfully with split payment', 'success')
-        return redirect(url_for('orders.order_details', order_id=order_id))
+        response_data = {
+            'success': True,
+            'message': f'Order {order.order_number} paid successfully with split payment',
+            'redirect': url_for('orders.order_details', order_id=order_id),
+            'update_totals': True,
+            'order_data': order.to_dict()
+        }
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify(response_data)
+        
+        flash(response_data['message'], 'success')
+        return redirect(response_data['redirect'])
     
-    flash(f'Split payment processed: ${total_payment:.2f}', 'success')
+    response_data = {
+        'success': True,
+        'message': f'Split payment processed: ₹{total_payment:.2f}',
+        'update_totals': True,
+        'order_data': order.to_dict()
+    }
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify(response_data)
+    
+    flash(response_data['message'], 'success')
+    return redirect(url_for('orders.checkout', order_id=order_id))
+
+def process_advanced_split_payment(order_id, order):
+    """Process advanced split payment with split tracking"""
+    # Get advanced split payment data
+    split_names = request.form.getlist('split_name[]')
+    split_amounts = request.form.getlist('split_amount[]')
+    split_payment_methods = request.form.getlist('split_payment_method[]')
+    split_items = request.form.getlist('split_items[]')
+    split_type = request.form.get('split_type')
+    
+    # Validate input
+    if (not split_names or not split_amounts or not split_payment_methods or
+        len(split_names) != len(split_amounts) or
+        len(split_names) != len(split_payment_methods)):
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Invalid split bill details'}), 400
+        flash('Invalid split bill details', 'error')
+        return redirect(url_for('orders.checkout', order_id=order_id))
+    
+    total_payment = 0.0
+    payments_created = []
+    split_details = []
+    
+    # Process each split
+    for i, name in enumerate(split_names):
+        try:
+            amount = float(split_amounts[i])
+            if amount <= 0:
+                continue
+            
+            # Parse items for this split if provided
+            items_data = []
+            if i < len(split_items) and split_items[i]:
+                try:
+                    items_data = json.loads(split_items[i])
+                except (json.JSONDecodeError, TypeError):
+                    items_data = []
+            
+            # Create payment record
+            payment = Payment(
+                order_id=order_id,
+                amount=amount,
+                method=PaymentMethod(split_payment_methods[i])
+            )
+            
+            db.session.add(payment)
+            payments_created.append(payment)
+            total_payment += amount
+            
+            # Store split details for receipt and reporting
+            split_details.append({
+                'name': name,
+                'amount': amount,
+                'payment_method': split_payment_methods[i],
+                'items': items_data
+            })
+            
+        except (ValueError, TypeError):
+            continue
+    
+    if total_payment <= 0:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'No valid payment amounts provided'}), 400
+        flash('No valid payment amounts provided', 'error')
+        return redirect(url_for('orders.checkout', order_id=order_id))
+    
+    # Create split bill record for tracking
+    split_bill = SplitBill(
+        order_id=order_id,
+        split_type=split_type,
+        total_amount=total_payment,
+        split_details=json.dumps(split_details),
+        created_by=current_user.id
+    )
+    
+    db.session.add(split_bill)
+    db.session.commit()
+    
+    # Check if order is fully paid
+    if order.is_fully_paid():
+        old_status = order.status
+        order.status = OrderStatus.CONFIRMED
+        db.session.commit()
+        
+        # Emit order status update to kitchen
+        from app.socketio_events import emit_order_status_update
+        emit_order_status_update(order, old_status)
+        
+        # Update kitchen stats
+        emit_kitchen_stats()
+        
+        response_data = {
+            'success': True,
+            'message': f'Order {order.order_number} paid successfully with split bill',
+            'redirect': url_for('orders.order_details', order_id=order_id),
+            'update_totals': True,
+            'order_data': order.to_dict(),
+            'split_bill_id': split_bill.id
+        }
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify(response_data)
+        
+        flash(response_data['message'], 'success')
+        return redirect(response_data['redirect'])
+    
+    response_data = {
+        'success': True,
+        'message': f'Split bill processed: ₹{total_payment:.2f}',
+        'update_totals': True,
+        'order_data': order.to_dict(),
+        'split_bill_id': split_bill.id
+    }
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify(response_data)
+    
+    flash(response_data['message'], 'success')
     return redirect(url_for('orders.checkout', order_id=order_id))
 
 # API endpoints
@@ -633,3 +790,288 @@ def print_kitchen_ticket_route(order_id):
         flash(f'Error printing kitchen ticket: {str(e)}', 'error')
     
     return redirect(url_for('orders.order_details', order_id=order_id))
+
+# Split Bill API endpoints
+@bp.route('/api/orders/<int:order_id>/split-bill', methods=['GET'])
+@login_required
+def api_split_bill_calculate(order_id):
+    """API endpoint to calculate split bill options"""
+    order = Order.query.get_or_404(order_id)
+    
+    split_type = request.args.get('type', 'equal')
+    number_of_splits = int(request.args.get('splits', 2))
+    
+    if number_of_splits < 2 or number_of_splits > 8:
+        return jsonify({'error': 'Number of splits must be between 2 and 8'}), 400
+    
+    balance_due = order.get_balance_due()
+    
+    result = {
+        'order_id': order_id,
+        'balance_due': balance_due,
+        'split_type': split_type,
+        'number_of_splits': number_of_splits,
+        'order_items': [item.to_dict() for item in order.items]
+    }
+    
+    if split_type == 'equal':
+        equal_amount = balance_due / number_of_splits
+        result['splits'] = [
+            {
+                'id': i + 1,
+                'name': f'Person {i + 1}',
+                'amount': equal_amount,
+                'payment_method': 'cash'
+            }
+            for i in range(number_of_splits)
+        ]
+    
+    elif split_type == 'items':
+        # Initialize empty splits for item-based splitting
+        result['splits'] = [
+            {
+                'id': i + 1,
+                'name': f'Person {i + 1}',
+                'amount': 0,
+                'payment_method': 'cash',
+                'items': []
+            }
+            for i in range(number_of_splits)
+        ]
+    
+    elif split_type == 'custom':
+        # Initialize with zero amounts for custom splitting
+        result['splits'] = [
+            {
+                'id': i + 1,
+                'name': f'Person {i + 1}',
+                'amount': 0,
+                'payment_method': 'cash'
+            }
+            for i in range(number_of_splits)
+        ]
+    
+    return jsonify(result)
+
+@bp.route('/api/orders/validate-split', methods=['POST'])
+@login_required
+def api_validate_split():
+    """API endpoint to validate split bill data"""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    order_id = data.get('order_id')
+    split_type = data.get('split_type')
+    splits = data.get('splits', [])
+    
+    if not order_id or not split_type or not splits:
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Get order
+    order = Order.query.get(order_id)
+    if not order:
+        return jsonify({'error': 'Order not found'}), 404
+    
+    balance_due = order.get_balance_due()
+    
+    # Validate splits
+    total_allocated = 0
+    for split in splits:
+        amount = split.get('amount', 0)
+        if amount <= 0:
+            return jsonify({'error': f'Invalid amount for {split.get("name", "Unknown")}'}), 400
+        total_allocated += amount
+    
+    # Check if total matches balance due
+    tolerance = 0.01  # Small tolerance for floating point
+    if abs(total_allocated - balance_due) > tolerance:
+        return jsonify({
+            'error': f'Total allocated (₹{total_allocated:.2f}) must equal balance due (₹{balance_due:.2f})',
+            'total_allocated': total_allocated,
+            'balance_due': balance_due,
+            'difference': total_allocated - balance_due
+        }), 400
+    
+    # Validate item-based splits
+    if split_type == 'items':
+        all_items = set(item.id for item in order.items)
+        assigned_items = set()
+        
+        for split in splits:
+            split_items = split.get('items', [])
+            for item in split_items:
+                if 'id' in item:
+                    assigned_items.add(item['id'])
+        
+        if assigned_items != all_items:
+            return jsonify({'error': 'All items must be assigned to splits'}), 400
+    
+    return jsonify({
+        'valid': True,
+        'message': 'Split validation successful',
+        'total_allocated': total_allocated,
+        'balance_due': balance_due
+    })
+
+@bp.route('/api/orders/<int:order_id>/split-history', methods=['GET'])
+@login_required
+def api_split_history(order_id):
+    """API endpoint to get split bill history for an order"""
+    order = Order.query.get_or_404(order_id)
+    
+    split_bills = SplitBill.query.filter_by(order_id=order_id).order_by(SplitBill.created_at.desc()).all()
+    
+    return jsonify({
+        'order_id': order_id,
+        'split_bills': [split_bill.to_dict() for split_bill in split_bills]
+    })
+
+@bp.route('/print/split-bill-receipt/<int:order_id>', methods=['GET'])
+@login_required
+def print_split_bill_receipt(order_id):
+    """Print split bill receipt for an order"""
+    order = Order.query.get_or_404(order_id)
+    
+    if not order.is_fully_paid():
+        flash('Order must be fully paid before printing split bill receipt', 'error')
+        return redirect(url_for('orders.checkout', order_id=order_id))
+    
+    # Get the most recent split bill for this order
+    split_bill = SplitBill.query.filter_by(order_id=order_id).order_by(SplitBill.created_at.desc()).first()
+    
+    if not split_bill:
+        flash('No split bill found for this order', 'error')
+        return redirect(url_for('orders.order_details', order_id=order_id))
+    
+    return render_template('orders/split_bill_receipt.html', order=order, split_bill=split_bill)
+
+@bp.route('/reports/split-bills')
+@login_required
+def split_bills_report():
+    """Split bills report page"""
+    # Get date range from query parameters
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    # Build query
+    query = SplitBill.query.join(Order).join(User)
+    
+    # Filter by date range if provided
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(SplitBill.created_at >= start_dt)
+        except ValueError:
+            flash('Invalid start date format', 'error')
+    
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+            # Add one day to include the entire end date
+            end_dt = end_dt.replace(hour=23, minute=59, second=59)
+            query = query.filter(SplitBill.created_at <= end_dt)
+        except ValueError:
+            flash('Invalid end date format', 'error')
+    
+    # Get split bills
+    split_bills = query.order_by(SplitBill.created_at.desc()).limit(100).all()
+    
+    # Calculate statistics
+    total_split_bills = len(split_bills)
+    total_amount = sum(float(sb.total_amount) for sb in split_bills)
+    
+    # Group by split type
+    split_type_counts = {}
+    split_type_amounts = {}
+    for sb in split_bills:
+        split_type = sb.split_type
+        split_type_counts[split_type] = split_type_counts.get(split_type, 0) + 1
+        split_type_amounts[split_type] = split_type_amounts.get(split_type, 0) + float(sb.total_amount)
+    
+    # Group by payment method
+    payment_method_counts = {}
+    payment_method_amounts = {}
+    for sb in split_bills:
+        details = sb.get_split_details()
+        for detail in details:
+            method = detail.get('payment_method', 'unknown')
+            payment_method_counts[method] = payment_method_counts.get(method, 0) + 1
+            payment_method_amounts[method] = payment_method_amounts.get(method, 0) + float(detail.get('amount', 0))
+    
+    return render_template('orders/split_bills_report.html',
+                        split_bills=split_bills,
+                        total_split_bills=total_split_bills,
+                        total_amount=total_amount,
+                        split_type_counts=split_type_counts,
+                        split_type_amounts=split_type_amounts,
+                        payment_method_counts=payment_method_counts,
+                        payment_method_amounts=payment_method_amounts,
+                        start_date=start_date,
+                        end_date=end_date)
+
+@bp.route('/api/reports/split-bills')
+@login_required
+def api_split_bills_report():
+    """API endpoint for split bills report data"""
+    # Get date range from query parameters
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    # Build query
+    query = SplitBill.query.join(Order).join(User)
+    
+    # Filter by date range if provided
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(SplitBill.created_at >= start_dt)
+        except ValueError:
+            return jsonify({'error': 'Invalid start date format'}), 400
+    
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+            # Add one day to include the entire end date
+            end_dt = end_dt.replace(hour=23, minute=59, second=59)
+            query = query.filter(SplitBill.created_at <= end_dt)
+        except ValueError:
+            return jsonify({'error': 'Invalid end date format'}), 400
+    
+    # Get split bills
+    split_bills = query.order_by(SplitBill.created_at.desc()).limit(200).all()
+    
+    # Calculate statistics
+    total_split_bills = len(split_bills)
+    total_amount = sum(float(sb.total_amount) for sb in split_bills)
+    
+    # Group by split type
+    split_type_counts = {}
+    split_type_amounts = {}
+    for sb in split_bills:
+        split_type = sb.split_type
+        split_type_counts[split_type] = split_type_counts.get(split_type, 0) + 1
+        split_type_amounts[split_type] = split_type_amounts.get(split_type, 0) + float(sb.total_amount)
+    
+    # Group by payment method
+    payment_method_counts = {}
+    payment_method_amounts = {}
+    for sb in split_bills:
+        details = sb.get_split_details()
+        for detail in details:
+            method = detail.get('payment_method', 'unknown')
+            payment_method_counts[method] = payment_method_counts.get(method, 0) + 1
+            payment_method_amounts[method] = payment_method_amounts.get(method, 0) + float(detail.get('amount', 0))
+    
+    return jsonify({
+        'split_bills': [sb.to_dict() for sb in split_bills],
+        'summary': {
+            'total_split_bills': total_split_bills,
+            'total_amount': total_amount,
+            'split_type_counts': split_type_counts,
+            'split_type_amounts': split_type_amounts,
+            'payment_method_counts': payment_method_counts,
+            'payment_method_amounts': payment_method_amounts
+        }
+    })

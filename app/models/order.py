@@ -1,6 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import List, TYPE_CHECKING
+import json
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app import db
 
@@ -388,3 +389,61 @@ class Payment(db.Model):
     
     def __repr__(self):
         return f'<Payment {self.method.value if self.method else "Unknown"} ${self.amount} ({self.status})>'
+
+class SplitBill(db.Model):
+    """Split bill tracking model"""
+    __tablename__ = 'split_bills'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
+    split_type = db.Column(db.Enum('equal', 'custom', 'items'), nullable=False)
+    total_amount = db.Column(db.Numeric(10, 2), nullable=False)
+    split_details = db.Column(db.Text)  # JSON string with split details
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    order = db.relationship('Order', backref='split_bills')
+    creator = db.relationship('User', backref='created_split_bills')
+    
+    def get_split_details(self):
+        """Get split details as dictionary"""
+        if self.split_details:
+            try:
+                return json.loads(self.split_details)
+            except (json.JSONDecodeError, TypeError):
+                return []
+        return []
+    
+    def set_split_details(self, details):
+        """Set split details from dictionary"""
+        self.split_details = json.dumps(details)
+    
+    def get_split_count(self):
+        """Get number of splits"""
+        details = self.get_split_details()
+        return len(details)
+    
+    def get_payment_methods(self):
+        """Get unique payment methods used"""
+        details = self.get_split_details()
+        methods = [detail.get('payment_method') for detail in details if detail.get('payment_method')]
+        return list(set(methods))
+    
+    def to_dict(self):
+        """Convert split bill to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'order_id': self.order_id,
+            'split_type': self.split_type,
+            'total_amount': float(self.total_amount),
+            'split_details': self.get_split_details(),
+            'split_count': self.get_split_count(),
+            'payment_methods': self.get_payment_methods(),
+            'created_by': self.created_by,
+            'creator_name': self.creator.name if self.creator else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+    
+    def __repr__(self):
+        return f'<SplitBill {self.split_type} for Order {self.order_id} ({self.get_split_count()} splits)>'
