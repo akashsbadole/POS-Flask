@@ -1,9 +1,11 @@
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from app.license import bp
 from app.models.license import License, LicenseActivation, LicenseTemplate, LicenseUsage, LicenseViolation
 from app.models.restaurant import Restaurant
 from app.models.user import User
+from app.models.notification import Notification
+from app.models.task import ScheduledTask, TaskLog
 from app import db
 from datetime import datetime, timedelta
 import json
@@ -543,3 +545,143 @@ def get_license_stats():
         'recent_activations': recent_activations,
         'total_violations': total_violations
     }
+
+
+@bp.route('/renewal-reminders')
+@login_required
+def renewal_reminders():
+    """View license renewal reminders dashboard"""
+    if not current_user.is_super_admin():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    # Get recent notifications for license renewals
+    notifications = Notification.query.filter_by(
+        type='license_renewal'
+    ).order_by(Notification.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    # Get renewal statistics
+    from app.services.license_renewal_service import LicenseRenewalService
+    renewal_service = LicenseRenewalService()
+    stats = renewal_service.get_renewal_statistics()
+    
+    return render_template('license/renewal_reminders.html',
+                         notifications=notifications,
+                         stats=stats)
+
+
+@bp.route('/send-renewal-reminders', methods=['POST'])
+@login_required
+def send_renewal_reminders():
+    """Manually trigger renewal reminders"""
+    if not current_user.is_super_admin():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        from app.services.license_renewal_service import LicenseRenewalService
+        renewal_service = LicenseRenewalService()
+        
+        results = renewal_service.send_renewal_reminders()
+        
+        flash(f'Sent {results["sent"]} renewal reminders. {results["skipped"]} already sent.', 'success')
+        return jsonify({
+            'success': True,
+            'results': results
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error sending renewal reminders: {str(e)}")
+        flash(f'Error sending renewal reminders: {str(e)}', 'error')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@bp.route('/schedule-renewal-checks', methods=['POST'])
+@login_required
+def schedule_renewal_checks():
+    """Schedule automatic renewal checks"""
+    if not current_user.is_super_admin():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        # Check if request.json exists before accessing it
+        json_data = request.json if request.json else {}
+        frequency = json_data.get('frequency', 'daily')
+        
+        # Create or update scheduled task
+        task = ScheduledTask.query.filter_by(
+            task_type='license_renewal'
+        ).first()
+        
+        if not task:
+            task = ScheduledTask(
+                name='License Renewal Reminders',
+                description='Send automated license renewal reminders',
+                task_type='license_renewal',
+                frequency=frequency,
+                next_run=datetime.utcnow() + timedelta(days=1)
+            )
+            db.session.add(task)
+        else:
+            task.frequency = frequency
+            task.is_active = True
+            task.next_run = datetime.utcnow() + timedelta(days=1)
+        
+        db.session.commit()
+        
+        flash(f'License renewal checks scheduled to run {frequency}', 'success')
+        return jsonify({
+            'success': True,
+            'task': task.to_dict()
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error scheduling renewal checks: {str(e)}")
+        flash(f'Error scheduling renewal checks: {str(e)}', 'error')
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@bp.route('/api/renewal-stats')
+@login_required
+def api_renewal_stats():
+    """API endpoint for renewal statistics"""
+    if not current_user.is_super_admin():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        from app.services.license_renewal_service import LicenseRenewalService
+        renewal_service = LicenseRenewalService()
+        stats = renewal_service.get_renewal_statistics()
+        return jsonify(stats)
+    except Exception as e:
+        current_app.logger.error(f"Error getting renewal stats: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/renewal-history')
+@login_required
+def renewal_history():
+    """View renewal reminder history"""
+    if not current_user.is_super_admin():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    # Get task logs for renewal reminders
+    logs = TaskLog.query.join(ScheduledTask).filter(
+        ScheduledTask.task_type == 'license_renewal'
+    ).order_by(TaskLog.started_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    return render_template('license/renewal_history.html', logs=logs)

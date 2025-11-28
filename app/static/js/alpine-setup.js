@@ -93,25 +93,14 @@ document.addEventListener('alpine:init', () => {
         },
         
         initHtmxListeners() {
-            // HTMX event listeners for better UX
-            document.body.addEventListener('htmx:beforeRequest', (event) => {
-                this.isLoading = true;
-                // Only show loading notification for long requests to avoid flicker
-                // this.addNotification('Loading...', 'info'); 
-            });
-            
-            document.body.addEventListener('htmx:afterRequest', (event) => {
-                this.isLoading = false;
-            });
-            
-            document.body.addEventListener('htmx:responseError', (event) => {
-                this.addNotification('Request failed', 'error');
-                this.isLoading = false;
-            });
-            
+            // HTMX event listeners are now handled by Body Class Manager to prevent conflicts
+            // Only keep confirm dialog handling
             document.body.addEventListener('htmx:confirm', (event) => {
-                if (!confirm('Are you sure you want to perform this action?')) {
-                    event.preventDefault();
+                // Only show confirmation if there's a specific message
+                if (event.detail.question) {
+                    if (!confirm(event.detail.question)) {
+                        event.preventDefault();
+                    }
                 }
             });
         },
@@ -139,9 +128,18 @@ document.addEventListener('alpine:init', () => {
             if (typeof htmx !== 'undefined') {
                 const target = document.querySelector('#kitchen-orders');
                 if (target) {
+                    // Use centralized HTMX handling to prevent conflicts
+                    if (window.bodyClassManager) {
+                        window.bodyClassManager.addImmediateClass('htmx-request');
+                    }
+                    
                     htmx.ajax('GET', '/api/kitchen/orders', {
                         target: '#kitchen-orders',
                         swap: 'innerHTML'
+                    }).finally(() => {
+                        if (window.bodyClassManager) {
+                            window.bodyClassManager.removeImmediateClass('htmx-request');
+                        }
                     });
                 }
             }
@@ -151,9 +149,18 @@ document.addEventListener('alpine:init', () => {
             if (typeof htmx !== 'undefined') {
                 const target = document.querySelector('#tables-grid');
                 if (target) {
+                    // Use centralized HTMX handling to prevent conflicts
+                    if (window.bodyClassManager) {
+                        window.bodyClassManager.addImmediateClass('htmx-request');
+                    }
+                    
                     htmx.ajax('GET', '/api/tables/status', {
                         target: '#tables-grid',
                         swap: 'innerHTML'
+                    }).finally(() => {
+                        if (window.bodyClassManager) {
+                            window.bodyClassManager.removeImmediateClass('htmx-request');
+                        }
                     });
                 }
             }

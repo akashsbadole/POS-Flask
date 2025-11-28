@@ -3,8 +3,12 @@
  * Handles global functionality and initialization
  */
 
-// Global app state and utilities
-const RestaurantPOS = {
+// Use IIFE to avoid global scope conflicts
+(function() {
+    'use strict';
+    
+    // Global app state and utilities
+    const RestaurantPOS = {
     // Application state
     state: {
         currentUser: null,
@@ -349,34 +353,51 @@ const RestaurantPOS = {
             }
         };
     }
-};
+    };
 
-// Initialize app when DOM is ready
-RestaurantPOS.init();
-
-// Make app available globally
-window.RestaurantPOS = RestaurantPOS;
-
-// Handle Alpine.js initialization
-document.addEventListener('alpine:init', () => {
-    console.log('Alpine.js initialized');
-    
-    // Add Alpine data if needed
-    Alpine.data('app', () => ({
-        // Global app data for Alpine.js
-        notifications: RestaurantPOS.state.notifications,
-        
-        showNotification(message, type = 'info') {
-            RestaurantPOS.showNotification(message, type);
-        },
-        
-        removeNotification(id) {
-            RestaurantPOS.removeNotification(id);
+    // Initialize app when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                RestaurantPOS.init();
+            } catch (error) {
+                console.error('Failed to initialize RestaurantPOS:', error);
+            }
+        });
+    } else {
+        try {
+            RestaurantPOS.init();
+        } catch (error) {
+            console.error('Failed to initialize RestaurantPOS:', error);
         }
-    }));
-});
+    }
 
-// Export for module usage
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = RestaurantPOS;
-}
+    // Handle Alpine.js initialization
+    document.addEventListener('alpine:init', () => {
+        console.log('Alpine.js initialized');
+        
+        // Add Alpine data if needed
+        Alpine.data('app', () => ({
+            // Global app data for Alpine.js
+            notifications: RestaurantPOS.state.notifications,
+            
+            showNotification(message, type = 'info') {
+                RestaurantPOS.showNotification(message, type);
+            },
+            
+            removeNotification(id) {
+                RestaurantPOS.removeNotification(id);
+            }
+        }));
+    });
+
+    // Export for module usage
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = RestaurantPOS;
+    }
+
+    // Make app available globally
+    if (typeof window !== 'undefined') {
+        window.RestaurantPOS = RestaurantPOS;
+    }
+})();

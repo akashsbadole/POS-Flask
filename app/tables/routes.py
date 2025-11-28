@@ -1,7 +1,7 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from app.tables import bp
-from app.models.table import Table, TableStatus, TableSession
+from app.models.table import Table, TableStatus, TableSession, TableMerge
 from app.models.order import Order, OrderStatus
 from app.models.user import User
 from app import db
@@ -123,6 +123,28 @@ def delete_table(table_id):
         return ''
     
     return redirect(url_for('tables.manage_tables'))
+
+
+@bp.route('/<int:table_id>/position', methods=['POST'])
+@login_required
+def update_table_position(table_id):
+    """Update table position on floor plan"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    table = Table.query.get_or_404(table_id)
+    data = request.get_json()
+    
+    if data:
+        table.floor_position_x = int(data.get('x', 0))
+        table.floor_position_y = int(data.get('y', 0))
+        table.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Position updated'})
+    
+    return jsonify({'error': 'Invalid data'}), 400
 
 @bp.route('/<int:table_id>/assign-order', methods=['POST'])
 @login_required
@@ -275,3 +297,115 @@ def partials_table_list():
     tables = query.order_by(Table.number).all()
     
     return render_template('tables/partials/table_list.html', tables=tables)
+
+@bp.route('/merge', methods=['GET', 'POST'])
+@login_required
+def merge_tables():
+    """Merge two or more tables"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    if request.method == 'POST':
+        parent_table_id = request.form.get('parent_table_id', type=int)
+        child_table_ids = request.form.getlist('child_table_ids', type=int)
+        notes = request.form.get('notes', '')
+        
+        if not parent_table_id or not child_table_ids:
+            flash('Please select a parent table and at least one table to merge', 'error')
+            return redirect(url_for('tables.merge_tables'))
+        
+        parent_table = Table.query.get_or_404(parent_table_id)
+        
+        # Check if parent table can be used for merging
+        if not parent_table.can_be_merged():
+            flash(f'Table {parent_table.number} cannot be used for merging', 'error')
+            return redirect(url_for('tables.merge_tables'))
+        
+        # Merge each child table
+        merge_results = []
+        for child_id in child_table_ids:
+            child_table = Table.query.get_or_404(child_id)
+            
+            if not child_table.can_be_merged():
+                merge_results.append(f"Table {child_table.number} cannot be merged (not available)")
+                continue
+            
+            success, message = parent_table.merge_with(child_table, current_user, notes)
+            if success:
+                merge_results.append(message)
+            else:
+                merge_results.append(f"Failed to merge table {child_table.number}: {message}")
+        
+        if all("merged with" in result for result in merge_results):
+            flash('Tables merged successfully', 'success')
+        else:
+            flash('Some merges failed: ' + '; '.join(merge_results), 'warning')
+        
+        return redirect(url_for('tables.floor_plan'))
+    
+    # GET request - show merge form
+    tables = Table.query.filter_by(is_active=True).order_by(Table.number).all()
+    available_tables = [t for t in tables if t.can_be_merged()]
+    
+    return render_template('tables/merge_tables.html',
+                         tables=available_tables,
+                         sections=db.session.query(Table.floor_section).distinct().all())
+
+@bp.route('/split/<int:table_id>', methods=['GET', 'POST'])
+@login_required
+def split_table(table_id):
+    """Split a merged table"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    table = Table.query.get_or_404(table_id)
+    
+    if request.method == 'POST':
+        notes = request.form.get('notes', '')
+        
+        if not table.can_be_split():
+            flash(f'Table {table.number} cannot be split', 'error')
+            return redirect(url_for('tables.split_table', table_id=table_id))
+        
+        success, message = table.split_from(current_user, notes)
+        
+        if success:
+            flash(message, 'success')
+        else:
+            flash(f'Failed to split table: {message}', 'error')
+        
+        return redirect(url_for('tables.floor_plan'))
+    
+    # GET request - show split confirmation
+    merge_info = table.get_merge_info()
+    
+    return render_template('tables/split_table.html',
+                         table=table,
+                         merge_info=merge_info)
+
+@bp.route('/api/merge-history')
+@login_required
+def merge_history():
+    """API endpoint to get table merge/split history"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    history = TableMerge.query.order_by(TableMerge.merged_at.desc()).limit(50).all()
+    return jsonify([merge.to_dict() for merge in history])
+
+@bp.route('/api/available-for-merge')
+@login_required
+def available_for_merge():
+    """API endpoint to get tables available for merging"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    tables = Table.query.filter_by(is_active=True).all()
+    available = [t.to_dict() for t in tables if t.can_be_merged()]
+    
+    return jsonify({
+        'tables': available,
+        'sections': list(set([t.floor_section for t in available if t.floor_section]))
+    })

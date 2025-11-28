@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}Printer Management{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Printer Management</h1>
+        <p class="mt-2 text-gray-600">Configure and test your receipt printers</p>
+    </div>
+
+    <!-- Printers List -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 class="text-lg font-medium text-gray-900">Available Printers</h2>
+            <button onclick="refreshPrinters()" class="text-blue-600 hover:text-blue-800">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="divide-y divide-gray-200">
+            {% for printer in printers %}
+            <div class="p-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center">
+                            <h3 class="text-lg font-medium text-gray-900">{{ printer.name }}</h3>
+                            <span class="ml-3 px-2 py-1 text-xs font-medium rounded-full
+                                {% if printer.status == 'Ready' or printer.status == 'Connected' %}
+                                    bg-green-100 text-green-800
+                                {% else %}
+                                    bg-red-100 text-red-800
+                                {% endif %}">
+                                {{ printer.status }}
+                            </span>
+                            {% if printer.type %}
+                            <span class="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                                {{ printer.type }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                            <div>
+                                <span class="font-medium">Connection:</span> {{ printer.connection_type or printer.port or 'Unknown' }}
+                            </div>
+                            {% if printer.driver %}
+                            <div>
+                                <span class="font-medium">Driver:</span> {{ printer.driver }}
+                            </div>
+                            {% endif %}
+                            {% if printer.device_id %}
+                            <div>
+                                <span class="font-medium">Device ID:</span> {{ printer.device_id }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="ml-4 flex space-x-2">
+                        <button onclick="testPrinter('{{ printer.name }}')" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm font-medium">
+                            Test
+                        </button>
+                        <button onclick="printTestReceipt('{{ printer.name }}')" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md text-sm font-medium">
+                            Print Test
+                        </button>
+                        <button onclick="setDefaultPrinter('{{ printer.name }}')" 
+                                class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-md text-sm font-medium">
+                            Set Default
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if not printers %}
+        <div class="p-8 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No printers detected</h3>
+            <p class="mt-1 text-sm text-gray-500">Get started by connecting a printer to your system.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Printer Test Modal -->
+    <div id="printerTestModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-900" id="printerModalTitle">Printer Test</h3>
+                    <button onclick="closePrinterModal()" class="text-gray-400 hover:text-gray-500">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="printerModalContent" class="text-sm text-gray-600">
+                    <!-- Test results will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Printer Guide -->
+    <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg">
+        <div class="p-6">
+            <h3 class="text-lg font-medium text-blue-900 mb-4">Adding Printers</h3>
+            <div class="space-y-3 text-sm text-blue-800">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                    </svg>
+                    <div>
+                        <strong>USB ESC/POS Printers:</strong> Connect via USB and ensure drivers are installed. These are recommended for receipt printing.
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                    </svg>
+                    <div>
+                        <strong>Windows Printers:</strong> Install printer drivers through Windows Settings and ensure the printer appears in Devices and Printers.
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                    </svg>
+                    <div>
+                        <strong>Linux/macOS:</strong> Use CUPS to add network or USB printers. Ensure the printer is configured for raw printing.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshPrinters() {
+    fetch('/hardware/api/refresh')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing printers:', error);
+        });
+}
+
+function testPrinter(printerName) {
+    document.getElementById('printerModalTitle').textContent = `Testing ${printerName}...`;
+    document.getElementById('printerModalContent').innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><p class="mt-4">Testing printer connection...</p></div>';
+    document.getElementById('printerTestModal').classList.remove('hidden');
+    
+    fetch(`/hardware/test/printer/${encodeURIComponent(printerName)}`)
+        .then(response => response.json())
+        .then(data => {
+            showPrinterTestResults(printerName, data);
+        })
+        .catch(error => {
+            console.error('Error testing printer:', error);
+            document.getElementById('printerModalContent').innerHTML = '<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">Error testing printer</div>';
+        });
+}
+
+function printTestReceipt(printerName) {
+    document.getElementById('printerModalTitle').textContent = `Printing Test Receipt on ${printerName}...`;
+    document.getElementById('printerModalContent').innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><p class="mt-4">Printing test receipt...</p></div>';
+    document.getElementById('printerTestModal').classList.remove('hidden');
+    
+    fetch(`/hardware/print-test/${encodeURIComponent(printerName)}`)
+        .then(response => response.json())
+        .then(data => {
+            showPrinterTestResults(printerName, data);
+        })
+        .catch(error => {
+            console.error('Error printing test receipt:', error);
+            document.getElementById('printerModalContent').innerHTML = '<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">Error printing test receipt</div>';
+        });
+}
+
+function setDefaultPrinter(printerName) {
+    fetch('/hardware/api/set-default-printer', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            printer_name: printerName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`${printerName} set as default printer`);
+            location.reload();
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error setting default printer:', error);
+        alert('Error setting default printer');
+    });
+}
+
+function showPrinterTestResults(printerName, data) {
+    document.getElementById('printerModalTitle').textContent = `Test Results - ${printerName}`;
+    
+    let content = '';
+    
+    if (data.error) {
+        content = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">${data.error}</div>`;
+    } else {
+        content = '<div class="space-y-4">';
+        
+        if (data.tests) {
+            for (const [testName, testResult] of Object.entries(data.tests)) {
+                const statusClass = testResult.success ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700';
+                const statusIcon = testResult.success ? '✓' : '✗';
+                
+                content += `
+                    <div class="border ${statusClass.split(' ')[1]} px-4 py-3 rounded">
+                        <div class="flex items-center">
+                            <span class="text-lg mr-2">${statusIcon}</span>
+                            <span class="font-medium capitalize">${testName.replace('_', ' ')}</span>
+                        </div>
+                        <p class="mt-1 text-sm">${testResult.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        if (data.success !== undefined) {
+            const statusClass = data.success ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700';
+            const statusIcon = data.success ? '✓' : '✗';
+            
+            content += `
+                <div class="border ${statusClass.split(' ')[1]} px-4 py-3 rounded">
+                    <div class="flex items-center">
+                        <span class="text-lg mr-2">${statusIcon}</span>
+                        <span class="font-medium">Operation Status</span>
+                    </div>
+                    <p class="mt-1 text-sm">${data.message}</p>
+                </div>
+            `;
+        }
+        
+        content += '</div>';
+    }
+    
+    document.getElementById('printerModalContent').innerHTML = content;
+}
+
+function closePrinterModal() {
+    document.getElementById('printerTestModal').classList.add('hidden');
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('printerTestModal');
+    if (event.target == modal) {
+        closePrinterModal();
+    }
+}
+</script>
+{% endblock %}

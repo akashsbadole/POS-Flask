@@ -1,0 +1,110 @@
+{% extends "online_ordering/base.html" %}
+
+{% block title %}Shopping Cart{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Empty Cart Header -->
+    <div class="text-center py-16">
+        <div class="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-8">
+            <i class="fas fa-shopping-cart text-6xl text-gray-400"></i>
+        </div>
+        
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">Your Cart is Empty</h1>
+        <p class="text-xl text-gray-600 mb-8">
+            Looks like you haven't added any delicious items to your cart yet.
+        </p>
+        
+        <div class="space-y-6">
+            <!-- Browse Menu -->
+            <div>
+                <h2 class="text-2xl font-semibold text-gray-900 mb-4">Browse Our Menu</h2>
+                <p class="text-gray-600 mb-6">
+                    Explore our wide selection of dishes, from appetizers to desserts.
+                </p>
+                <a href="{{ url_for('online_ordering.menu') }}" 
+                   class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-utensils mr-2"></i>
+                    Browse Menu
+                </a>
+            </div>
+            
+            <!-- Featured Items -->
+            <div>
+                <h2 class="text-2xl font-semibold text-gray-900 mb-4">Featured Items</h2>
+                <p class="text-gray-600 mb-6">
+                    Try our most popular dishes, loved by customers like you.
+                </p>
+                <a href="{{ url_for('online_ordering.index') }}" 
+                   class="inline-block bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 transition-colors">
+                    <i class="fas fa-star mr-2"></i>
+                    View Featured Items
+                </a>
+            </div>
+            
+            <!-- Need Help? -->
+            <div>
+                <h2 class="text-2xl font-semibold text-gray-900 mb-4">Need Help?</h2>
+                <p class="text-gray-600 mb-6">
+                    Our customer service team is here to help you with your order.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="tel:+15551234567" 
+                       class="flex items-center justify-center bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors">
+                        <i class="fas fa-phone mr-2"></i>
+                        Call Us
+                    </a>
+                    <a href="mailto:orders@restaurant.com" 
+                       class="flex items-center justify-center bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors">
+                        <i class="fas fa-envelope mr-2"></i>
+                        Email Us
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Restaurant Info -->
+    <div class="bg-white rounded-lg shadow-md p-8 mt-12">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Hours -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Restaurant Hours</h3>
+                <ul class="space-y-2 text-gray-600">
+                    <li class="flex justify-between">
+                        <span>Monday - Thursday:</span>
+                        <span>11:00 AM - 10:00 PM</span>
+                    </li>
+                    <li class="flex justify-between">
+                        <span>Friday - Saturday:</span>
+                        <span>11:00 AM - 11:00 PM</span>
+                    </li>
+                    <li class="flex justify-between">
+                        <span>Sunday:</span>
+                        <span>12:00 PM - 9:00 PM</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Contact -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
+                <ul class="space-y-2 text-gray-600">
+                    <li class="flex items-center">
+                        <i class="fas fa-phone mr-3 w-5"></i>
+                        <span>(555) 123-4567</span>
+                    </li>
+                    <li class="flex items-center">
+                        <i class="fas fa-envelope mr-3 w-5"></i>
+                        <span>orders@restaurant.com</span>
+                    </li>
+                    <li class="flex items-center">
+                        <i class="fas fa-map-marker-alt mr-3 w-5"></i>
+                        <span>123 Main St, City, ST 12345</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

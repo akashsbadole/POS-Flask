@@ -141,7 +141,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
+<div class="p-6" x-data="inventoryManager()" x-init="init()">
     <div class="flex items-center justify-between mb-8">
         <div>
             <h1 class="text-3xl font-bold text-gray-900 flex items-center">
@@ -207,18 +207,80 @@
         </div>
     </div>
 
-    <!-- Live Polling Inventory Statistics -->
-    <div x-data="livePollManager('{{ url_for("api.get_live_inventory_alerts") }}', 10, 'inventory-stats-content')"
-         x-init="initPolling()">
-        {% include 'partials/live_poll.html' %}
-        <div id="inventory-stats-content">
-            <!-- Initial stats will be loaded by live polling -->
-            <div class="text-center py-8 text-gray-500">
-                <svg class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p class="mt-2">Loading inventory statistics...</p>
+    <!-- Inventory Statistics -->
+    <div id="inventory-stats-content">
+        <!-- Stats will be loaded here -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <div class="inventory-stat-card">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-full">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-green-700">Total Items</p>
+                        <p class="text-2xl font-bold text-green-900" x-text="stats.total_ingredients || 0">0</p>
+                        <div class="mt-2">
+                            <span class="value-label">Total Value:</span>
+                            <span class="value-display text-green-800" x-text="'₹' + (stats.total_value || 0).toFixed(2)">₹0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="inventory-stat-card stock-low">
+                <div class="flex items-center">
+                    <div class="p-3 bg-yellow-100 rounded-full">
+                        <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-yellow-700">Low Stock</p>
+                        <p class="text-2xl font-bold text-yellow-900" x-text="stats.low_stock_count || 0">0</p>
+                        <div class="mt-2">
+                            <span class="value-label">Items need restocking</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="inventory-stat-card stock-out">
+                <div class="flex items-center">
+                    <div class="p-3 bg-red-100 rounded-full">
+                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-red-700">Out of Stock</p>
+                        <p class="text-2xl font-bold text-red-900" x-text="stats.out_of_stock_count || 0">0</p>
+                        <div class="mt-2">
+                            <span class="value-label">Critical - Order immediately</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="inventory-stat-card">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-full">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-700">Stock Health</p>
+                        <p class="text-2xl font-bold text-gray-900" x-text="getStockHealth() + '%'">0%</p>
+                        <div class="mt-2">
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-green-500 h-2 rounded-full transition-all duration-300"
+                                     :style="`width: ${getStockHealth()}%`"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -368,7 +430,26 @@ function inventoryManager() {
         
         init() {
             this.loadIngredients();
+            this.loadInventoryStats();
             this.calculateStats();
+            
+            // Set up periodic refresh for stats (every 30 seconds)
+            setInterval(() => {
+                this.loadInventoryStats();
+            }, 30000);
+        },
+        
+        async loadInventoryStats() {
+            try {
+                const response = await fetch('/api/live/inventory-alerts');
+                const data = await response.json();
+                this.stats = {
+                    ...this.stats,
+                    ...data
+                };
+            } catch (error) {
+                console.error('Error loading inventory stats:', error);
+            }
         },
         
         async loadIngredients() {
@@ -458,6 +539,7 @@ function inventoryManager() {
                 
                 if (response.ok) {
                     this.loadIngredients();
+                    this.loadInventoryStats();
                     this.calculateStats();
                     this.showNotification('Stock adjusted successfully', 'success');
                 }
@@ -481,6 +563,7 @@ function inventoryManager() {
                 
                 if (response.ok) {
                     this.loadIngredients();
+                    this.loadInventoryStats();
                     this.calculateStats();
                     this.showNotification(`Ingredient ${ingredient.name} deleted successfully`, 'success');
                 }
@@ -518,6 +601,7 @@ function inventoryManager() {
         
         refreshStats() {
             this.loadIngredients();
+            this.loadInventoryStats();
             this.calculateStats();
         },
         
@@ -543,6 +627,17 @@ function inventoryManager() {
                     document.body.removeChild(notification);
                 }, 300);
             }, 3000);
+        },
+        
+        getStockHealth() {
+            const total = this.stats.total_ingredients || 0;
+            const low = this.stats.low_stock_count || 0;
+            const out = this.stats.out_of_stock_count || 0;
+            
+            if (total === 0) return 0;
+            
+            const healthy = total - low - out;
+            return Math.round((healthy / total) * 100);
         }
     }
 }

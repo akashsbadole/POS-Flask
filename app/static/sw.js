@@ -32,9 +32,22 @@ self.addEventListener('install', event => {
     
     event.waitUntil(
         Promise.all([
-            // Cache static assets
+            // Cache static assets with error handling
             caches.open(STATIC_CACHE_NAME).then(cache => {
-                return cache.addAll(STATIC_ASSETS);
+                return Promise.allSettled(
+                    STATIC_ASSETS.map(asset =>
+                        fetch(asset).then(response => {
+                            if (response.ok) {
+                                return cache.put(asset, response);
+                            }
+                            console.warn(`Service Worker: Failed to cache ${asset}: ${response.status}`);
+                            return Promise.resolve();
+                        }).catch(error => {
+                            console.warn(`Service Worker: Failed to cache ${asset}:`, error);
+                            return Promise.resolve();
+                        })
+                    )
+                );
             }),
             // Create data cache
             caches.open(DATA_CACHE_NAME)

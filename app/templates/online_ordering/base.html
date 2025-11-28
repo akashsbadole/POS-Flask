@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Online Ordering{% endblock %} - Restaurant POS</title>
+    
+    <!-- Tailwind CSS -->
+    <link href="{{ url_for('static', filename='css/tailwind.css') }}" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-50" x-data="{ cartCount: 0 }">
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <div class="flex items-center">
+                    <a href="{{ url_for('online_ordering.index') }}" class="flex items-center space-x-2">
+                        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-utensils text-white text-sm"></i>
+                        </div>
+                        <span class="font-bold text-xl text-gray-900">Restaurant POS</span>
+                    </a>
+                </div>
+                
+                <!-- Navigation -->
+                <nav class="hidden md:flex items-center space-x-8">
+                    <a href="{{ url_for('online_ordering.index') }}" class="text-gray-700 hover:text-blue-600 transition-colors">
+                        Home
+                    </a>
+                    <a href="{{ url_for('online_ordering.menu') }}" class="text-gray-700 hover:text-blue-600 transition-colors">
+                        Menu
+                    </a>
+                    <a href="{{ url_for('online_ordering.track_order', order_number='') }}" class="text-gray-700 hover:text-blue-600 transition-colors">
+                        Track Order
+                    </a>
+                </nav>
+                
+                <!-- Cart Button -->
+                <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('online_ordering.view_cart') }}" 
+                       class="relative bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Cart</span>
+                        <span x-show="cartCount > 0" 
+                              x-text="cartCount" 
+                              class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        </span>
+                    </a>
+                    
+                    <!-- Mobile Menu Button -->
+                    <button @click="mobileMenuOpen = !mobileMenuOpen" 
+                            class="md:hidden text-gray-700 hover:text-blue-600">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Mobile Menu -->
+            <div x-show="mobileMenuOpen" 
+                 x-cloak
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 transform -translate-y-1"
+                 x-transition:enter-end="opacity-100 transform translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 transform translate-y-0"
+                 x-transition:leave-end="opacity-0 transform -translate-y-1"
+                 class="md:hidden border-t">
+                <div class="px-2 pt-2 pb-3 space-y-1">
+                    <a href="{{ url_for('online_ordering.index') }}" 
+                       class="block px-3 py-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-50">
+                        Home
+                    </a>
+                    <a href="{{ url_for('online_ordering.menu') }}" 
+                       class="block px-3 py-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-50">
+                        Menu
+                    </a>
+                    <a href="{{ url_for('online_ordering.track_order', order_number='') }}" 
+                       class="block px-3 py-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-50">
+                        Track Order
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container mx-auto px-4 pt-4">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} mb-4 p-4 rounded-lg">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endwith %}
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white mt-16">
+        <div class="container mx-auto px-4 py-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <!-- Restaurant Info -->
+                <div>
+                    <h3 class="font-semibold text-lg mb-4">Restaurant POS</h3>
+                    <p class="text-gray-300 text-sm">
+                        Your favorite restaurant, now available for online ordering.
+                    </p>
+                </div>
+                
+                <!-- Quick Links -->
+                <div>
+                    <h3 class="font-semibold text-lg mb-4">Quick Links</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li>
+                            <a href="{{ url_for('online_ordering.index') }}" class="text-gray-300 hover:text-white">
+                                Home
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('online_ordering.menu') }}" class="text-gray-300 hover:text-white">
+                                Menu
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('online_ordering.track_order', order_number='') }}" class="text-gray-300 hover:text-white">
+                                Track Order
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Contact -->
+                <div>
+                    <h3 class="font-semibold text-lg mb-4">Contact</h3>
+                    <ul class="space-y-2 text-sm text-gray-300">
+                        <li class="flex items-center space-x-2">
+                            <i class="fas fa-phone"></i>
+                            <span>(555) 123-4567</span>
+                        </li>
+                        <li class="flex items-center space-x-2">
+                            <i class="fas fa-envelope"></i>
+                            <span>orders@restaurant.com</span>
+                        </li>
+                        <li class="flex items-center space-x-2">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>123 Main St, City, ST 12345</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Hours -->
+                <div>
+                    <h3 class="font-semibold text-lg mb-4">Hours</h3>
+                    <ul class="space-y-2 text-sm text-gray-300">
+                        <li>Mon-Thu: 11am - 10pm</li>
+                        <li>Fri-Sat: 11am - 11pm</li>
+                        <li>Sunday: 12pm - 9pm</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-700 mt-8 pt-8 text-center text-sm text-gray-400">
+                <p>&copy; 2024 Restaurant POS. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Cart Count Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load cart count from session
+            fetch('{{ url_for("online_ordering.api_cart") }}')
+                .then(response => response.json())
+                .then(data => {
+                    Alpine.store.cartCount = data.item_count || 0;
+                })
+                .catch(error => console.error('Error loading cart:', error));
+        });
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -41,8 +41,8 @@
                         </div>
                     </div>
                     <div>
-                        <span class="text-sm text-gray-500">Servings:</span>
-                        <div class="font-medium">{{ recipe.serving_size }}</div>
+                        <span class="text-sm text-gray-500">Base Servings:</span>
+                        <div class="font-medium">{{ recipe.base_serving_size or recipe.serving_size }}</div>
                     </div>
                     <div>
                         <span class="text-sm text-gray-500">Prep Time:</span>
@@ -51,6 +51,16 @@
                     <div>
                         <span class="text-sm text-gray-500">Cook Time:</span>
                         <div class="font-medium">{{ recipe.cook_time or 0 }} min</div>
+                    </div>
+                    <div>
+                        <span class="text-sm text-gray-500">Scalable:</span>
+                        <div>
+                            <span class="px-2 py-1 text-xs font-medium rounded-full
+                                {% if recipe.is_scalable %}bg-green-100 text-green-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ 'Yes' if recipe.is_scalable else 'No' }}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -104,6 +114,80 @@
                     <div class="flex justify-between items-center mt-2">
                         <span class="text-sm text-gray-500">Cost per Serving</span>
                         <span class="text-sm font-medium text-gray-900">₹{{ "%.2f"|format(recipe.cost_per_serving) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nutritional Information -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-900">Nutritional Information</h2>
+                    <span class="text-sm text-gray-500">Per serving ({{ recipe.base_serving_size or recipe.serving_size }} servings)</span>
+                </div>
+                
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="text-center p-3 bg-blue-50 rounded">
+                        <div class="text-2xl font-bold text-blue-600">{{ recipe.calories or 0 }}</div>
+                        <div class="text-sm text-gray-600">Calories</div>
+                    </div>
+                    <div class="text-center p-3 bg-green-50 rounded">
+                        <div class="text-2xl font-bold text-green-600">{{ recipe.protein or 0 }}g</div>
+                        <div class="text-sm text-gray-600">Protein</div>
+                    </div>
+                    <div class="text-center p-3 bg-yellow-50 rounded">
+                        <div class="text-2xl font-bold text-yellow-600">{{ recipe.carbohydrates or 0 }}g</div>
+                        <div class="text-sm text-gray-600">Carbs</div>
+                    </div>
+                    <div class="text-center p-3 bg-red-50 rounded">
+                        <div class="text-2xl font-bold text-red-600">{{ recipe.fat or 0 }}g</div>
+                        <div class="text-sm text-gray-600">Fat</div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Saturated Fat:</span>
+                        <span class="font-medium">{{ recipe.saturated_fat or 0 }}g</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Trans Fat:</span>
+                        <span class="font-medium">{{ recipe.trans_fat or 0 }}g</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Cholesterol:</span>
+                        <span class="font-medium">{{ recipe.cholesterol or 0 }}mg</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Sodium:</span>
+                        <span class="font-medium">{{ recipe.sodium or 0 }}mg</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Fiber:</span>
+                        <span class="font-medium">{{ recipe.fiber or 0 }}g</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Sugar:</span>
+                        <span class="font-medium">{{ recipe.sugar or 0 }}g</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Vitamin A:</span>
+                        <span class="font-medium">{{ recipe.vitamin_a or 0 }}%</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Vitamin C:</span>
+                        <span class="font-medium">{{ recipe.vitamin_c or 0 }}%</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Calcium:</span>
+                        <span class="font-medium">{{ recipe.calcium or 0 }}%</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Iron:</span>
+                        <span class="font-medium">{{ recipe.iron or 0 }}%</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Potassium:</span>
+                        <span class="font-medium">{{ recipe.potassium or 0 }}mg</span>
                     </div>
                 </div>
             </div>
@@ -174,6 +258,12 @@
                        class="block w-full text-center bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
                         Cost Calculator
                     </a>
+                    {% if recipe.is_scalable %}
+                    <a href="{{ url_for('recipes.scale', recipe_id=recipe.id) }}"
+                       class="block w-full text-center bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700">
+                        Scale Recipe
+                    </a>
+                    {% endif %}
                 </div>
             </div>
 

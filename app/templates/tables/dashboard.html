@@ -150,12 +150,14 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8" x-data="tableManager()">
-    <div class="flex items-center justify-between mb-8">
+<div x-data="tableManager()" x-init="init()" class="container mx-auto px-4 py-8">
+    
+    <!-- Header -->
+    <div class="mb-8 flex items-center justify-between">
         <div>
             <h1 class="text-3xl font-bold text-gray-900 flex items-center">
                 <svg class="w-8 h-8 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                 </svg>
                 Table Management
             </h1>
@@ -180,11 +182,17 @@
                 </svg>
                 <span x-text="viewMode === 'floor' ? 'List View' : 'Floor Plan'"></span>
             </button>
+            <a href="{{ url_for('tables.merge_tables') }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+                Merge Tables
+            </a>
         </div>
     </div>
 
     <!-- Table Statistics -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <div class="table-stat-card table-status-free">
             <div class="flex items-center justify-between">
                 <div>
@@ -340,6 +348,8 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <button @click="editTable(table)" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
                                 <button @click="updateTableStatus(table)" class="text-green-600 hover:text-green-900 mr-3">Status</button>
+                                <button @click="mergeTable(table)" class="text-purple-600 hover:text-purple-900 mr-3" x-show="table.can_be_merged">Merge</button>
+                                <button @click="splitTable(table)" class="text-orange-600 hover:text-orange-900 mr-3" x-show="table.can_be_split">Split</button>
                                 <button @click="deleteTable(table)" class="text-red-600 hover:text-red-900">Delete</button>
                             </td>
                         </tr>
@@ -455,13 +465,20 @@ function tableManager() {
             }
         },
         
+        mergeTable(table) {
+            window.location.href = `/tables/merge?parent=${table.id}`;
+        },
+        
+        splitTable(table) {
+            window.location.href = `/tables/split/${table.id}`;
+        },
+        
         async changeTableStatus(tableId, newStatus) {
             try {
                 const response = await fetch(`/tables/${tableId}/status`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token() }}'
                     },
                     body: JSON.stringify({ status: newStatus })
                 });
@@ -485,7 +502,6 @@ function tableManager() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token() }}'
                     }
                 });
                 

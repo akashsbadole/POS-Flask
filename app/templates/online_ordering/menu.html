@@ -1,0 +1,440 @@
+{% extends "online_ordering/base.html" %}
+
+{% block title %}Menu{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto" x-data="menuBrowser()">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold text-gray-900 mb-2">Our Menu</h1>
+        <p class="text-xl text-gray-600">Browse our delicious selection of items</p>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="flex flex-col lg:flex-row gap-4">
+            <!-- Search -->
+            <div class="flex-1">
+                <div class="relative">
+                    <input type="text" 
+                           x-model="searchQuery"
+                           @input.debounce.500ms="searchItems()"
+                           placeholder="Search for items..."
+                           class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                </div>
+            </div>
+            
+            <!-- Category Filter -->
+            <div class="lg:w-64">
+                <select x-model="selectedCategory" 
+                        @change="filterByCategory()"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">All Categories</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Sort -->
+            <div class="lg:w-48">
+                <select x-model="sortBy" 
+                        @change="sortItems()"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="name">Sort by Name</option>
+                    <option value="price_low">Price: Low to High</option>
+                    <option value="price_high">Price: High to Low</option>
+                    <option value="featured">Featured First</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div x-show="loading" x-cloak class="text-center py-12">
+        <i class="fas fa-spinner fa-spin text-4xl text-blue-600 mb-4"></i>
+        <p class="text-gray-600">Loading menu items...</p>
+    </div>
+
+    <!-- Menu Items Grid -->
+    <div x-show="!loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <template x-for="item in filteredItems" :key="item.id">
+            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all group">
+                <!-- Item Image -->
+                <div class="h-48 bg-gray-200 relative">
+                    {% if item.image_url %}
+                    <img :src="item.image_url || '/static/images/placeholder-food.jpg'" 
+                         :alt="item.name" 
+                         class="w-full h-full object-cover">
+                    {% else %}
+                    <div class="w-full h-full bg-gray-200 flex items-center justify-center">
+                        <i class="fas fa-utensils text-4xl text-gray-400"></i>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Featured Badge -->
+                    <div x-show="item.is_featured" 
+                         x-cloak
+                         class="absolute top-2 right-2">
+                        <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                            Featured
+                        </span>
+                    </div>
+                    
+                    <!-- Quick Add Button -->
+                    <button @click="quickAdd(item)" 
+                            class="absolute bottom-2 right-2 bg-blue-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                
+                <!-- Item Details -->
+                <div class="p-4">
+                    <h3 class="font-semibold text-lg text-gray-900 mb-2" x-text="item.name"></h3>
+                    <p class="text-gray-600 text-sm mb-4 line-clamp-2" x-text="item.description"></p>
+                    
+                    <!-- Price and Actions -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-2xl font-bold text-blue-600" x-text="'$' + item.price.toFixed(2)"></span>
+                            {% if item.has_variants %}
+                            <span class="text-sm text-gray-500">from</span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                            {% if item.has_variants or item.has_add_ons %}
+                            <button @click="showCustomization(item)" 
+                                    class="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                                <i class="fas fa-cog mr-1"></i>
+                                Customize
+                            </button>
+                            {% else %}
+                            <button @click="addToCart(item)" 
+                                    class="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                                <i class="fas fa-plus mr-1"></i>
+                                Add
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- No Results -->
+    <div x-show="!loading && filteredItems.length === 0" class="text-center py-12">
+        <i class="fas fa-search text-6xl text-gray-300 mb-4"></i>
+        <p class="text-gray-600 text-lg mb-4">No items found</p>
+        <p class="text-gray-500 mb-6">Try adjusting your search or filters</p>
+        <button @click="clearFilters()" 
+                class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+            Clear Filters
+        </button>
+    </div>
+
+    <!-- Customization Modal -->
+    <div x-show="showModal" 
+         x-cloak
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         @click.self="closeModal()">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="p-6 border-b">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-gray-900" x-text="selectedItem?.name"></h3>
+                    <button @click="closeModal()" 
+                            class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-6 overflow-y-auto max-h-96">
+                <div x-show="selectedItem" class="space-y-6">
+                    <!-- Item Description -->
+                    <div>
+                        <h4 class="font-semibold text-gray-900 mb-2">Description</h4>
+                        <p class="text-gray-600" x-text="selectedItem?.description"></p>
+                    </div>
+                    
+                    <!-- Variants -->
+                    <div x-show="selectedItem?.variants?.length > 0">
+                        <h4 class="font-semibold text-gray-900 mb-3">Choose Option</h4>
+                        <div class="space-y-2">
+                            <template x-for="variant in selectedItem.variants" :key="variant.id">
+                                <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                    <input type="radio" 
+                                           name="variant" 
+                                           :value="variant.id"
+                                           x-model="selectedVariant"
+                                           class="mr-3">
+                                    <div class="flex-1">
+                                        <div class="font-medium" x-text="variant.name"></div>
+                                        <div class="text-sm text-gray-600">
+                                            <span x-text="'$' + (selectedItem.price + variant.price_modifier).toFixed(2)"></span>
+                                            <span x-show="variant.price_modifier !== 0" 
+                                                  x-text="'(+$' + variant.price_modifier.toFixed(2) + ')'"></span>
+                                        </div>
+                                    </div>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <!-- Add-ons -->
+                    <div x-show="selectedItem?.add_ons?.length > 0">
+                        <h4 class="font-semibold text-gray-900 mb-3">Add Extras</h4>
+                        <div class="space-y-2">
+                            <template x-for="addon in selectedItem.add_ons" :key="addon.id">
+                                <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                                    <input type="checkbox" 
+                                           :value="addon.id"
+                                           x-model="selectedAddOns"
+                                           class="mr-3">
+                                    <div class="flex-1">
+                                        <div class="font-medium" x-text="addon.name"></div>
+                                        <div class="text-sm text-gray-600" x-text="'+$' + addon.price.toFixed(2)"></div>
+                                    </div>
+                                </label>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <!-- Special Instructions -->
+                    <div>
+                        <label class="block">
+                            <span class="font-semibold text-gray-900 mb-2 block">Special Instructions</span>
+                            <textarea x-model="specialInstructions" 
+                                      rows="3"
+                                      placeholder="Any special requests or dietary requirements..."
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-6 border-t flex justify-end space-x-4">
+                <button @click="closeModal()" 
+                        class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    Cancel
+                </button>
+                <button @click="addToCartWithCustomization()" 
+                        class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-shopping-cart mr-2"></i>
+                    Add to Cart
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function menuBrowser() {
+    return {
+        searchQuery: '{{ search_query or "" }}',
+        selectedCategory: {{ selected_category or 'null' }},
+        sortBy: 'name',
+        loading: false,
+        showModal: false,
+        selectedItem: null,
+        selectedVariant: null,
+        selectedAddOns: [],
+        specialInstructions: '',
+        menuItems: [],
+        filteredItems: [],
+        
+        init() {
+            this.loadMenuItems();
+        },
+        
+        async loadMenuItems() {
+            this.loading = true;
+            try {
+                const response = await fetch('{{ url_for("online_ordering.api_menu_items") }}');
+                const data = await response.json();
+                this.menuItems = data.items;
+                this.applyFilters();
+            } catch (error) {
+                console.error('Error loading menu items:', error);
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        searchItems() {
+            this.applyFilters();
+        },
+        
+        filterByCategory() {
+            this.applyFilters();
+        },
+        
+        sortItems() {
+            this.applyFilters();
+        },
+        
+        applyFilters() {
+            let items = [...this.menuItems];
+            
+            // Apply category filter
+            if (this.selectedCategory) {
+                items = items.filter(item => item.category_id == this.selectedCategory);
+            }
+            
+            // Apply search filter
+            if (this.searchQuery.trim()) {
+                const query = this.searchQuery.toLowerCase();
+                items = items.filter(item => 
+                    item.name.toLowerCase().includes(query) ||
+                    item.description.toLowerCase().includes(query)
+                );
+            }
+            
+            // Apply sorting
+            switch (this.sortBy) {
+                case 'name':
+                    items.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+                case 'price_low':
+                    items.sort((a, b) => a.price - b.price);
+                    break;
+                case 'price_high':
+                    items.sort((a, b) => b.price - a.price);
+                    break;
+                case 'featured':
+                    items.sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0));
+                    break;
+            }
+            
+            this.filteredItems = items;
+        },
+        
+        clearFilters() {
+            this.searchQuery = '';
+            this.selectedCategory = null;
+            this.sortBy = 'name';
+            this.applyFilters();
+        },
+        
+        showCustomization(item) {
+            this.selectedItem = item;
+            this.selectedVariant = item.variants?.length > 0 ? item.variants[0].id : null;
+            this.selectedAddOns = [];
+            this.specialInstructions = '';
+            this.showModal = true;
+        },
+        
+        closeModal() {
+            this.showModal = false;
+            this.selectedItem = null;
+            this.selectedVariant = null;
+            this.selectedAddOns = [];
+            this.specialInstructions = '';
+        },
+        
+        quickAdd(item) {
+            if (item.variants?.length > 0 || item.add_ons?.length > 0) {
+                this.showCustomization(item);
+            } else {
+                this.addToCart(item);
+            }
+        },
+        
+        addToCart(item) {
+            const formData = new FormData();
+            formData.append('item_id', item.id);
+            formData.append('quantity', 1);
+            
+            fetch('{{ url_for("online_ordering.add_to_cart") }}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update cart count
+                    this.$dispatch('cart-updated', { count: data.cart_count });
+                    // Show success message
+                    this.showNotification(data.message, 'success');
+                }
+            })
+            .catch(error => {
+                console.error('Error adding to cart:', error);
+                this.showNotification('Error adding item to cart', 'error');
+            });
+        },
+        
+        addToCartWithCustomization() {
+            if (!this.selectedItem) return;
+            
+            const formData = new FormData();
+            formData.append('item_id', this.selectedItem.id);
+            formData.append('quantity', 1);
+            if (this.selectedVariant) {
+                formData.append('variant_id', this.selectedVariant);
+            }
+            this.selectedAddOns.forEach(addonId => {
+                formData.append('add_ons', addonId);
+            });
+            formData.append('notes', this.specialInstructions);
+            
+            fetch('{{ url_for("online_ordering.add_to_cart") }}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update cart count
+                    this.$dispatch('cart-updated', { count: data.cart_count });
+                    // Show success message
+                    this.showNotification(data.message, 'success');
+                    // Close modal
+                    this.closeModal();
+                }
+            })
+            .catch(error => {
+                console.error('Error adding to cart:', error);
+                this.showNotification('Error adding item to cart', 'error');
+            });
+        },
+        
+        showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+            }`;
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    }
+}
+
+// Listen for cart updates
+document.addEventListener('cart-updated', function(event) {
+    Alpine.store.cartCount = event.detail.count;
+});
+</script>
+{% endblock %}

@@ -384,15 +384,8 @@ def create_test_order():
 def create_test_ingredient():
     """Create a test ingredient for testing notifications"""
     from app.models.inventory import Ingredient
-    try:
-        from app.models.inventory import IngredientCategory
-    except ImportError:
-        IngredientCategory = None
-    
-    # Get a sample ingredient category
-    category = IngredientCategory.query.first()
-    if not category:
-        category = type('MockCategory', (), {'name': 'Test Category'})()
+    # Create a mock category since IngredientCategory doesn't exist
+    category = type('MockCategory', (), {'name': 'Test Category'})()
     
     # Create test ingredient
     test_ingredient = type('MockIngredient', (), {

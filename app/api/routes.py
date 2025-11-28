@@ -1,6 +1,6 @@
 from flask import jsonify, request, session, render_template
 from flask_login import login_required, current_user
-from sqlalchemy import func
+from sqlalchemy import func, or_, text
 from app.api import bp
 from app.api.offline import bp as offline_bp
 from app.models.user import User
@@ -201,10 +201,9 @@ def get_live_billing_stats():
         'total_invoices': Invoice.query.count(),
         'total_amount': float(db.session.query(func.sum(Invoice.total_amount)).scalar() or 0),
         'outstanding_amount': float(db.session.query(func.sum(Invoice.balance_amount)).scalar() or 0),
-        'overdue_invoices': Invoice.query.filter(
-            Invoice.due_date < datetime.now(),
-            Invoice.status.in_(['sent', 'partially_paid'])
-        ).count(),
+        'overdue_invoices': db.session.query(Invoice).filter(
+            text('due_date < :now AND status IN (:sent, :overdue)')
+        ).params(now=datetime.now(), sent='sent', overdue='overdue').count(),
         'today_invoices': Invoice.query.filter(Invoice.created_at >= today).count(),
         'today_revenue': float(db.session.query(func.sum(Invoice.total_amount))
                            .filter(Invoice.created_at >= today).scalar() or 0),
@@ -247,7 +246,11 @@ def get_live_inventory_alerts():
         'last_updated': datetime.now().isoformat()
     }
     
-    return render_template('partials/inventory_alerts_live.html', stats=stats)
+    # Check if this is an HTMX request (for HTML partial) or regular API request (for JSON)
+    if request.headers.get('HX-Request'):
+        return render_template('partials/inventory_alerts_live.html', stats=stats)
+    
+    return jsonify(stats)
 
 @bp.route('/live/financial-metrics')
 @login_required
@@ -339,3 +342,136 @@ def get_live_system_status():
     }
     
     return render_template('partials/system_status_live.html', stats=stats)
+
+# Settings API Endpoints
+@bp.route('/settings/load')
+@login_required
+def load_settings():
+    """Load all settings"""
+    from app.services.settings_service import SettingsService
+    
+    # Flatten settings for frontend use
+    all_settings = SettingsService.get_all_settings()
+    flattened = {}
+    
+    for category, settings in all_settings.items():
+        for key, value in settings.items():
+            flattened[key] = value
+    
+    return jsonify({
+        'success': True,
+        'settings': flattened
+    })
+
+@bp.route('/settings/save', methods=['POST'])
+@login_required
+def save_settings():
+    """Save settings"""
+    from app.services.settings_service import SettingsService
+    from flask import request
+    
+    try:
+        settings_data = request.get_json()
+        if not settings_data:
+            return jsonify({'success': False, 'error': 'No settings data provided'})
+        
+        # Group settings by category
+        categorized_settings = {}
+        for key, value in settings_data.items():
+            # Determine category based on key
+            if key in ['restaurant_name', 'language', 'timezone', 'currency']:
+                category = 'general'
+            elif key in ['gst_number', 'tax_rate', 'service_charge']:
+                category = 'business'
+            elif key in ['cash_enabled', 'card_enabled', 'upi_enabled']:
+                category = 'payment'
+            elif key in ['low_stock_alerts', 'order_notifications', 'email_notifications']:
+                category = 'notifications'
+            elif key in ['two_factor_auth', 'session_timeout', 'strong_passwords']:
+                category = 'security'
+            elif key in ['auto_backup', 'default_printer', 'debug_mode']:
+                category = 'advanced'
+            else:
+                category = 'general'  # Default category
+            
+            if category not in categorized_settings:
+                categorized_settings[category] = {}
+            categorized_settings[category][key] = value
+        
+        # Update settings
+        results = SettingsService.update_multiple_settings(
+            categorized_settings,
+            user_id=current_user.id,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        # Check if all updates were successful
+        if all(results.values()):
+            return jsonify({'success': True})
+        else:
+            failed_updates = [k for k, v in results.items() if not v]
+            return jsonify({
+                'success': False,
+                'error': f'Failed to update settings: {", ".join(failed_updates)}'
+            })
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@bp.route('/settings/reset', methods=['POST'])
+@login_required
+def reset_settings():
+    """Reset settings to defaults"""
+    from app.services.settings_service import SettingsService
+    
+    try:
+        success = SettingsService.reset_to_defaults()
+        if success:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to reset settings'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@bp.route('/settings/export')
+@login_required
+def export_settings():
+    """Export settings"""
+    from app.services.settings_service import SettingsService
+    
+    try:
+        settings = SettingsService.export_settings()
+        return jsonify(settings)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@bp.route('/settings/import', methods=['POST'])
+@login_required
+def import_settings():
+    """Import settings"""
+    from app.services.settings_service import SettingsService
+    from flask import request
+    
+    try:
+        settings_data = request.get_json()
+        if not settings_data:
+            return jsonify({'success': False, 'error': 'No settings data provided'})
+        
+        results = SettingsService.import_settings(
+            settings_data,
+            user_id=current_user.id
+        )
+        
+        # Check if all imports were successful
+        if all(results.values()):
+            return jsonify({'success': True})
+        else:
+            failed_imports = [k for k, v in results.items() if not v]
+            return jsonify({
+                'success': False,
+                'error': f'Failed to import settings: {", ".join(failed_imports)}'
+            })
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})

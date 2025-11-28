@@ -3,6 +3,8 @@ from flask_login import login_required, current_user
 from app.kitchen import bp
 from app.models.order import Order, OrderStatus
 from app.models.user import User
+from app.models.menu import MenuItem
+from app.models.recipe import Recipe
 from app import db
 from app.socketio_events import emit_order_status_update, emit_kitchen_stats, emit_kitchen_ticket_update
 from datetime import datetime, timedelta
@@ -321,3 +323,81 @@ def print_kitchen_ticket(order_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@bp.route('/recipes')
+@login_required
+def recipes():
+    """View recipes for scaling"""
+    if current_user.role != 'kitchen' and not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('main.dashboard'))
+    
+    # Get all recipes with their menu items
+    recipes = Recipe.query.join(MenuItem).filter(MenuItem.is_available == True).all()
+    
+    return render_template('kitchen/recipes.html', recipes=recipes)
+
+@bp.route('/recipe/<int:recipe_id>/scale', methods=['GET', 'POST'])
+@login_required
+def scale_recipe(recipe_id):
+    """Scale a recipe from kitchen interface"""
+    if current_user.role != 'kitchen' and not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    recipe = Recipe.query.get_or_404(recipe_id)
+    
+    if request.method == 'POST':
+        target_servings = request.form.get('target_servings', type=int)
+        
+        if not target_servings or target_servings <= 0:
+            if request.headers.get('HX-Request'):
+                return jsonify({'error': 'Invalid serving size'}), 400
+            flash('Invalid serving size', 'error')
+            return render_template('kitchen/recipe_scale.html', recipe=recipe)
+        
+        # Scale the recipe
+        scaled_recipe = recipe.scale_to(target_servings)
+        
+        if request.headers.get('HX-Request'):
+            return render_template('kitchen/partials/scaled_recipe.html',
+                                 original_recipe=recipe,
+                                 scaled_recipe=scaled_recipe,
+                                 target_servings=target_servings)
+        
+        return render_template('kitchen/recipe_scale.html',
+                             recipe=recipe,
+                             scaled_recipe=scaled_recipe,
+                             target_servings=target_servings)
+    
+    return render_template('kitchen/recipe_scale.html', recipe=recipe)
+
+@bp.route('/api/recipe/<int:recipe_id>/scale', methods=['POST'])
+@login_required
+def api_scale_recipe(recipe_id):
+    """API endpoint to scale a recipe"""
+    if current_user.role != 'kitchen' and not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    recipe = Recipe.query.get_or_404(recipe_id)
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid JSON data'}), 400
+        
+        target_servings = int(data.get('target_servings', 0)) if data.get('target_servings') else 0
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': f'Invalid serving size: {str(e)}'}), 400
+    except Exception as e:
+        return jsonify({'error': f'Request error: {str(e)}'}), 400
+    
+    if not target_servings or target_servings <= 0:
+        return jsonify({'error': 'Invalid serving size'}), 400
+    
+    # Scale the recipe
+    scaled_recipe = recipe.scale_to(target_servings)
+    
+    return jsonify({
+        'original_recipe': recipe.to_dict(),
+        'scaled_recipe': scaled_recipe,
+        'target_servings': target_servings
+    })

@@ -21,6 +21,29 @@ class Recipe(db.Model):
     serving_size = db.Column(db.Integer, default=1)
     difficulty_level = db.Column(db.Enum('Easy', 'Medium', 'Hard'), default='Medium')
     cost_per_serving = db.Column(db.Numeric(10, 2), default=0.00)
+    
+    # Nutritional information (per serving)
+    calories = db.Column(db.Integer, default=0)
+    protein = db.Column(db.Numeric(8, 2), default=0.00)  # in grams
+    carbohydrates = db.Column(db.Numeric(8, 2), default=0.00)  # in grams
+    fat = db.Column(db.Numeric(8, 2), default=0.00)  # in grams
+    saturated_fat = db.Column(db.Numeric(8, 2), default=0.00)  # in grams
+    trans_fat = db.Column(db.Numeric(8, 2), default=0.00)  # in grams
+    cholesterol = db.Column(db.Numeric(8, 2), default=0.00)  # in mg
+    sodium = db.Column(db.Numeric(8, 2), default=0.00)  # in mg
+    fiber = db.Column(db.Numeric(8, 2), default=0.00)  # in grams
+    sugar = db.Column(db.Numeric(8, 2), default=0.00)  # in grams
+    vitamin_a = db.Column(db.Integer, default=0)  # in IU
+    vitamin_c = db.Column(db.Integer, default=0)  # in mg
+    calcium = db.Column(db.Integer, default=0)  # in mg
+    iron = db.Column(db.Integer, default=0)  # in mg
+    potassium = db.Column(db.Integer, default=0)  # in mg
+    
+    # Scaling information
+    base_serving_size = db.Column(db.Integer, default=1)  # Base serving size for scaling
+    scaling_factor = db.Column(db.Numeric(5, 2), default=1.0)  # Current scaling factor
+    is_scalable = db.Column(db.Boolean, default=True)  # Whether recipe can be scaled
+    
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -44,6 +67,98 @@ class Recipe(db.Model):
     def update_cost(self):
         """Update recipe cost based on current ingredient prices"""
         self.cost_per_serving = self.calculate_cost_per_serving()
+    
+    def scale_to(self, target_servings):
+        """Scale recipe to target number of servings"""
+        if not self.is_scalable or target_servings <= 0 or (self.base_serving_size or self.serving_size) <= 0:
+            return None
+        
+        base_servings = self.base_serving_size or self.serving_size
+        scaling_factor = target_servings / base_servings
+        
+        # Create scaled recipe data
+        scaled_ingredients = []
+        for recipe_ingredient in self.ingredients:
+            scaled_quantity = float(recipe_ingredient.quantity) * scaling_factor
+            scaled_ingredients.append({
+                'name': recipe_ingredient.ingredient.name,
+                'quantity': round(scaled_quantity, 3),
+                'unit': recipe_ingredient.ingredient.unit,
+                'notes': recipe_ingredient.notes,
+                'original_quantity': float(recipe_ingredient.quantity),
+                'unit_cost': float(recipe_ingredient.ingredient.unit_cost),
+                'total_cost': round(scaled_quantity * float(recipe_ingredient.ingredient.unit_cost), 2),
+                'original_total_cost': float(recipe_ingredient.total_cost)
+            })
+        
+        # Calculate scaled costs
+        original_total_cost = self.calculate_total_cost()
+        scaled_total_cost = original_total_cost * scaling_factor
+        
+        return {
+            'ingredients': scaled_ingredients,
+            'total_cost': round(scaled_total_cost, 2),
+            'cost_per_serving': round(scaled_total_cost / target_servings, 2),
+            'nutrition': self.get_scaled_nutrition(target_servings),
+            'target_servings': target_servings,
+            'scaling_factor': round(scaling_factor, 2),
+            'base_servings': base_servings
+        }
+    
+    def get_scaled_nutrition(self, target_servings=None):
+        """Get nutritional information scaled to target servings"""
+        if target_servings is None:
+            target_servings = self.serving_size
+        
+        if not self.is_scalable:
+            scaling_factor = 1.0
+        else:
+            scaling_factor = target_servings / self.serving_size
+        
+        return {
+            'calories': int(self.calories * scaling_factor) if self.calories else 0,
+            'protein': round(float(self.protein) * scaling_factor, 2) if self.protein else 0.0,
+            'carbohydrates': round(float(self.carbohydrates) * scaling_factor, 2) if self.carbohydrates else 0.0,
+            'fat': round(float(self.fat) * scaling_factor, 2) if self.fat else 0.0,
+            'saturated_fat': round(float(self.saturated_fat) * scaling_factor, 2) if self.saturated_fat else 0.0,
+            'cholesterol': round(float(self.cholesterol) * scaling_factor, 2) if self.cholesterol else 0.0,
+            'sodium': round(float(self.sodium) * scaling_factor, 2) if self.sodium else 0.0,
+            'fiber': round(float(self.fiber) * scaling_factor, 2) if self.fiber else 0.0,
+            'sugar': round(float(self.sugar) * scaling_factor, 2) if self.sugar else 0.0,
+            'vitamin_a': int(self.vitamin_a * scaling_factor) if self.vitamin_a else 0,
+            'vitamin_c': int(self.vitamin_c * scaling_factor) if self.vitamin_c else 0,
+            'calcium': int(self.calcium * scaling_factor) if self.calcium else 0,
+            'iron': int(self.iron * scaling_factor) if self.iron else 0,
+            'potassium': int(self.potassium * scaling_factor) if self.potassium else 0,
+            'servings': target_servings,
+            'scaling_factor': scaling_factor
+        }
+    
+    def get_nutrition_summary(self):
+        """Get formatted nutritional summary"""
+        return {
+            'calories': self.calories or 0,
+            'protein': round(float(self.protein), 1) if self.protein else 0.0,
+            'carbohydrates': round(float(self.carbohydrates), 1) if self.carbohydrates else 0.0,
+            'fat': round(float(self.fat), 1) if self.fat else 0.0,
+            'saturated_fat': round(float(self.saturated_fat), 1) if self.saturated_fat else 0.0,
+            'cholesterol': round(float(self.cholesterol), 1) if self.cholesterol else 0.0,
+            'sodium': round(float(self.sodium), 1) if self.sodium else 0.0,
+            'fiber': round(float(self.fiber), 1) if self.fiber else 0.0,
+            'sugar': round(float(self.sugar), 1) if self.sugar else 0.0,
+            'vitamin_a': self.vitamin_a or 0,
+            'vitamin_c': self.vitamin_c or 0,
+            'calcium': self.calcium or 0,
+            'iron': self.iron or 0,
+            'potassium': self.potassium or 0,
+            'servings': self.serving_size
+        }
+    
+    def get_daily_value_percentage(self, nutrient, daily_value):
+        """Calculate daily value percentage for a nutrient"""
+        if nutrient and daily_value and daily_value > 0:
+            return round((nutrient / daily_value) * 100, 1)
+        return 0
     
     def get_ingredient_list(self):
         """Get formatted ingredient list"""
@@ -73,9 +188,13 @@ class Recipe(db.Model):
             'cost_per_serving': float(self.cost_per_serving),
             'total_cost': self.calculate_total_cost(),
             'is_active': self.is_active,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'ingredients': self.get_ingredient_list()
+            'is_scalable': self.is_scalable,
+            'base_serving_size': self.base_serving_size,
+            'scaling_factor': float(self.scaling_factor) if self.scaling_factor else 1.0,
+            'created_at': self.created_at.isoformat() if getattr(self, 'created_at', None) else None,
+            'updated_at': self.updated_at.isoformat() if getattr(self, 'updated_at', None) else None,
+            'ingredients': self.get_ingredient_list(),
+            'nutrition': self.get_nutrition_summary()
         }
     
     def __repr__(self):

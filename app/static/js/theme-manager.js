@@ -174,9 +174,16 @@ class ThemeManager {
             root.style.setProperty('--food-bread', theme.foodColors.bread);
         }
         
-        // Update body class for theme-specific styling
-        document.body.className = document.body.className.replace(/theme-\w+/g, '');
-        document.body.classList.add(`theme-${themeName}`);
+        // Update body class using centralized manager with immediate update
+        if (window.bodyClassManager) {
+            window.bodyClassManager.updateThemeClasses(themeName);
+        } else {
+            // Fallback to direct manipulation - NO TRANSITIONS
+            const currentClasses = document.body.className.split(' ');
+            const filteredClasses = currentClasses.filter(cls => !cls.startsWith('theme-'));
+            filteredClasses.push(`theme-${themeName}`);
+            document.body.className = filteredClasses.join(' ');
+        }
         
         // Add food-themed animations
         this.applyFoodAnimations();
@@ -236,12 +243,26 @@ class ThemeManager {
         const isDark = document.body.classList.contains('dark-mode');
         
         if (isDark) {
-            // Switch to light version
-            document.body.classList.remove('dark-mode');
+            // Switch to light version - use centralized manager
+            if (window.bodyClassManager) {
+                window.bodyClassManager.removeImmediateClass('dark-mode');
+            } else {
+                // Fallback - NO TRANSITIONS
+                const currentClasses = document.body.className.split(' ');
+                const filteredClasses = currentClasses.filter(cls => cls !== 'dark-mode');
+                document.body.className = filteredClasses.join(' ');
+            }
             this.applyThemeColors(currentTheme, this.currentTheme);
         } else {
-            // Switch to dark version
-            document.body.classList.add('dark-mode');
+            // Switch to dark version - use centralized manager
+            if (window.bodyClassManager) {
+                window.bodyClassManager.addImmediateClass('dark-mode');
+            } else {
+                // Fallback - NO TRANSITIONS
+                const currentClasses = document.body.className.split(' ');
+                currentClasses.push('dark-mode');
+                document.body.className = currentClasses.join(' ');
+            }
             const darkTheme = this.getDarkVersion(this.currentTheme);
             this.applyThemeColors(darkTheme, this.currentTheme);
         }

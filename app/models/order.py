@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from app.models.menu import MenuItem, AddOn, ItemVariant
     from app.models.table import Table
     from app.models.user import User
+    from app.models.customer import Customer
 
 # Association table for many-to-many relationship between order items and add-ons
 order_item_add_ons = db.Table('order_item_add_ons',
@@ -25,12 +26,18 @@ class OrderStatus(Enum):
     CANCELLED = 'cancelled'
     VOID = 'void'
 
+class OrderType(Enum):
+    DINE_IN = 'dine_in'
+    TAKEAWAY = 'takeaway'
+    DELIVERY = 'delivery'
+
 class PaymentMethod(Enum):
     CASH = 'cash'
     CARD = 'card'
     UPI = 'upi'
     WALLET = 'wallet'
     GIFT_CARD = 'gift_card'
+    CREDIT = 'credit'
 
 class Order(db.Model):
     __tablename__ = 'orders'
@@ -38,8 +45,10 @@ class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     table_id = db.Column(db.Integer, db.ForeignKey('tables.id'), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=True)
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
     order_number = db.Column(db.String(20), unique=True, nullable=False)
+    order_type = db.Column(db.Enum(OrderType), default=OrderType.DINE_IN)
     status = db.Column(db.Enum(OrderStatus), default=OrderStatus.PENDING)
     subtotal = db.Column(db.Numeric(10, 2), nullable=False)
     tax_rate = db.Column(db.Numeric(5, 4), default=0.18)  # 18% GST default
@@ -66,6 +75,8 @@ class Order(db.Model):
     restaurant = db.relationship('Restaurant', back_populates='orders')
     table = db.relationship('Table', back_populates='orders')
     user = db.relationship('User', back_populates='orders')
+    customer = db.relationship('Customer', back_populates='orders')
+    loyalty_transactions = db.relationship('LoyaltyTransaction', back_populates='order')
     items = db.relationship('OrderItem', backref='order', lazy='select', cascade='all, delete-orphan')
     payments = db.relationship('Payment', backref='order', lazy='select', cascade='all, delete-orphan')
     
@@ -242,6 +253,10 @@ class Order(db.Model):
             'table_number': self.table.number if self.table else None,
             'user_id': self.user_id,
             'user_name': self.user.name if self.user else None,
+            'customer_id': self.customer_id,
+            'customer_name': f"{self.customer.first_name} {self.customer.last_name}" if self.customer else None,
+            'customer_code': self.customer.customer_code if self.customer else None,
+            'order_type': self.order_type.value if self.order_type else None,
             'status': self.status.value if self.status else None,
             'subtotal': float(self.subtotal),
             'tax_rate': float(self.tax_rate),

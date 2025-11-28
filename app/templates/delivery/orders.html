@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Delivery Orders{% endblock %}
+
+{% block extra_css %}
+<style>
+.order-card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow;
+}
+.order-status {
+    @apply inline-flex px-2 py-1 text-xs font-semibold rounded-full;
+}
+.status-pending { @apply bg-yellow-100 text-yellow-800; }
+.status-confirmed { @apply bg-blue-100 text-blue-800; }
+.status-preparing { @apply bg-purple-100 text-purple-800; }
+.status-ready { @apply bg-green-100 text-green-800; }
+.status-served { @apply bg-gray-100 text-gray-800; }
+.status-cancelled { @apply bg-red-100 text-red-800; }
+.status-void { @apply bg-red-100 text-red-800; }
+.filter-button {
+    @apply px-4 py-2 text-sm font-medium rounded-lg border transition-colors;
+}
+.filter-button.active {
+    @apply bg-blue-600 text-white border-blue-600;
+}
+.filter-button:not(.active) {
+    @apply bg-white text-gray-700 border-gray-300 hover:bg-gray-50;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Delivery Orders</h1>
+        <div class="flex space-x-3">
+            <a href="{{ url_for('delivery.dashboard') }}" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Status Filter -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ url_for('delivery.delivery_orders', status='all') }}" 
+               class="filter-button {{ 'active' if status_filter == 'all' else '' }}">
+                All Orders
+            </a>
+            <a href="{{ url_for('delivery.delivery_orders', status='pending') }}" 
+               class="filter-button {{ 'active' if status_filter == 'pending' else '' }}">
+                Pending
+            </a>
+            <a href="{{ url_for('delivery.delivery_orders', status='confirmed') }}" 
+               class="filter-button {{ 'active' if status_filter == 'confirmed' else '' }}">
+                Confirmed
+            </a>
+            <a href="{{ url_for('delivery.delivery_orders', status='preparing') }}" 
+               class="filter-button {{ 'active' if status_filter == 'preparing' else '' }}">
+                Preparing
+            </a>
+            <a href="{{ url_for('delivery.delivery_orders', status='ready') }}" 
+               class="filter-button {{ 'active' if status_filter == 'ready' else '' }}">
+                Ready for Delivery
+            </a>
+            <a href="{{ url_for('delivery.delivery_orders', status='served') }}" 
+               class="filter-button {{ 'active' if status_filter == 'served' else '' }}">
+                Delivered
+            </a>
+            <a href="{{ url_for('delivery.delivery_orders', status='cancelled') }}" 
+               class="filter-button {{ 'active' if status_filter == 'cancelled' else '' }}">
+                Cancelled
+            </a>
+        </div>
+    </div>
+
+    <!-- Orders List -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        {% if orders.items %}
+            <div class="divide-y divide-gray-200">
+                {% for order in orders.items %}
+                <div class="order-card">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3 mb-3">
+                                <span class="font-semibold text-lg text-gray-900">{{ order.order_number }}</span>
+                                <span class="order-status status-{{ order.status.value }}">
+                                    {{ order.status.value.replace('_', ' ').title() }}
+                                </span>
+                                <span class="text-sm text-gray-500">
+                                    {{ order.created_at.strftime('%d %b %Y, %I:%M %p') }}
+                                </span>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                                <div>
+                                    <div class="text-sm font-medium text-gray-500">Customer</div>
+                                    <div class="text-gray-900">{{ order.customer_name or 'Guest Customer' }}</div>
+                                    {% if order.customer_code %}
+                                    <div class="text-sm text-gray-500">Code: {{ order.customer_code }}</div>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <div class="text-sm font-medium text-gray-500">Order Details</div>
+                                    <div class="text-gray-900">{{ order.items|length }} items</div>
+                                    <div class="text-sm text-gray-500">Subtotal: ₹{{ "%.2f"|format(order.subtotal) }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-medium text-gray-500">Total Amount</div>
+                                    <div class="text-lg font-semibold text-gray-900">₹{{ "%.2f"|format(order.total) }}</div>
+                                    {% if order.estimated_preparation_time %}
+                                    <div class="text-sm text-gray-500">
+                                        Est. {{ (order.estimated_preparation_time / 60)|int }} mins
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            {% if order.notes %}
+                            <div class="mb-3">
+                                <div class="text-sm font-medium text-gray-500">Notes</div>
+                                <div class="text-sm text-gray-700">{{ order.notes }}</div>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="flex items-center space-x-4 text-sm text-gray-500">
+                                <span>Order Type: {{ order.order_type.value.replace('_', ' ').title() }}</span>
+                                <span>•</span>
+                                <span>Created by: {{ order.user_name or 'Unknown' }}</span>
+                                {% if order.completed_at %}
+                                <span>•</span>
+                                <span>Completed: {{ order.completed_at.strftime('%d %b %Y, %I:%M %p') }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col space-y-2 ml-4">
+                            <a href="{{ url_for('delivery.delivery_order_detail', order_id=order.id) }}" 
+                               class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors">
+                                View Details
+                            </a>
+                            {% if order.order_number %}
+                            <a href="{{ url_for('delivery.track_delivery', order_number=order.order_number) }}" 
+                               class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                               target="_blank">
+                                Track
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if orders.pages > 1 %}
+            <div class="px-6 py-4 border-t border-gray-200">
+                <div class="flex items-center justify-between">
+                    <div class="text-sm text-gray-700">
+                        Showing 
+                        <span class="font-medium">{{ ((orders.page - 1) * orders.per_page) + 1 }}</span>
+                        to 
+                        <span class="font-medium">{{ min(orders.page * orders.per_page, orders.total) }}</span>
+                        of 
+                        <span class="font-medium">{{ orders.total }}</span>
+                        results
+                    </div>
+                    <div class="flex space-x-2">
+                        {% if orders.has_prev %}
+                        <a href="{{ url_for('delivery.delivery_orders', page=orders.prev_num, status=status_filter) }}" 
+                           class="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                            Previous
+                        </a>
+                        {% endif %}
+                        
+                        {% for page_num in orders.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != orders.page %}
+                                <a href="{{ url_for('delivery.delivery_orders', page=page_num, status=status_filter) }}" 
+                                   class="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                                    {{ page_num }}
+                                </a>
+                                {% else %}
+                                <span class="px-3 py-1 text-sm bg-blue-600 text-white border border-blue-600 rounded-md">
+                                    {{ page_num }}
+                                </span>
+                                {% endif %}
+                            {% else %}
+                            <span class="px-3 py-1 text-gray-500">...</span>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if orders.has_next %}
+                        <a href="{{ url_for('delivery.delivery_orders', page=orders.next_num, status=status_filter) }}" 
+                           class="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                            Next
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No delivery orders found</h3>
+                <p class="mt-1 text-sm text-gray-500">
+                    {% if status_filter != 'all' %}
+                        No delivery orders with status "{{ status_filter }}" found.
+                    {% else %}
+                        No delivery orders have been created yet.
+                    {% endif %}
+                </p>
+                <div class="mt-6">
+                    {% if status_filter != 'all' %}
+                    <a href="{{ url_for('delivery.delivery_orders', status='all') }}" 
+                       class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                        View All Orders
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('online_ordering.index') }}" 
+                       class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                        Start Taking Orders
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh every 30 seconds for active orders
+    {% if status_filter in ['pending', 'confirmed', 'preparing', 'ready'] %}
+    setTimeout(() => {
+        window.location.reload();
+    }, 30000);
+    {% endif %}
+});
+</script>
+{% endblock %}

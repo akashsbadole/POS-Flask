@@ -95,7 +95,7 @@
     </div>
     
     <!-- Content Container (where HTMX will swap content) -->
-    <div :id="targetId" 
+    <div :id="targetId || 'live-poll-content'"
          class="live-poll-content"
          @htmx:afterRequest="handleHtmxResponse($event)"
          @htmx:afterSwap="handleHtmxSwap($event)">
@@ -139,11 +139,14 @@ function livePollManager(endpoint, interval = 10, targetId) {
         },
         
         initPolling() {
-            // Initial load
-            this.refreshNow();
-            
-            // Start polling
-            this.startPolling();
+            // Wait a bit for DOM to be fully ready
+            setTimeout(() => {
+                // Initial load
+                this.refreshNow();
+                
+                // Start polling
+                this.startPolling();
+            }, 100);
         },
         
         startPolling() {
@@ -187,18 +190,32 @@ function livePollManager(endpoint, interval = 10, targetId) {
             this.hasError = false;
             this.errorMessage = '';
             
-            // Trigger HTMX request
-            htmx.ajax('GET', this.endpoint, {
-                target: this.targetId,
-                swap: 'innerHTML',
-                headers: {
-                    'X-Live-Poll': 'true'
+            // Wait a bit for DOM to be ready and ensure target element exists
+            setTimeout(() => {
+                // Ensure targetId is valid and element exists
+                const targetSelector = this.targetId ? `#${this.targetId}` : '#live-poll-content';
+                const targetElement = document.querySelector(targetSelector);
+                
+                if (!targetElement) {
+                    console.error(`Target element not found: ${targetSelector}`);
+                    this.handleError(new Error(`Target element not found: ${targetSelector}`));
+                    this.isLoading = false;
+                    return;
                 }
-            }).then(() => {
-                this.isLoading = false;
-            }).catch((error) => {
-                this.handleError(error);
-            });
+                
+                // Trigger HTMX request
+                htmx.ajax('GET', this.endpoint, {
+                    target: targetSelector,
+                    swap: 'innerHTML',
+                    headers: {
+                        'X-Live-Poll': 'true'
+                    }
+                }).then(() => {
+                    this.isLoading = false;
+                }).catch((error) => {
+                    this.handleError(error);
+                });
+            }, 50);
         },
         
         updatePollingInterval() {

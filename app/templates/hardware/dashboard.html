@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Hardware Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Hardware Dashboard</h1>
+        <p class="mt-2 text-gray-600">Monitor and test your POS hardware components</p>
+    </div>
+
+    <!-- System Info -->
+    <div class="bg-white shadow rounded-lg mb-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-medium text-gray-900">System Information</h2>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-gray-50 p-4 rounded">
+                    <p class="text-sm font-medium text-gray-500">Platform</p>
+                    <p class="mt-1 text-lg font-semibold text-gray-900">{{ hardware_status.system_info.platform }}</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded">
+                    <p class="text-sm font-medium text-gray-500">Architecture</p>
+                    <p class="mt-1 text-lg font-semibold text-gray-900">{{ hardware_status.system_info.architecture }}</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded">
+                    <p class="text-sm font-medium text-gray-500">Python Version</p>
+                    <p class="mt-1 text-lg font-semibold text-gray-900">{{ hardware_status.system_info.python_version }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hardware Status Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <!-- Printers -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-lg font-medium text-gray-900">Printers</h2>
+                <button onclick="refreshHardware()" class="text-blue-600 hover:text-blue-800">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-2xl font-bold text-gray-900">{{ hardware_status.printers|length }}</span>
+                    <span class="text-sm text-gray-500">Total Printers</span>
+                </div>
+                <div id="printer-status" class="space-y-2">
+                    {% for printer in hardware_status.printers %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 rounded-full {% if printer.status == 'Ready' or printer.status == 'Connected' %}bg-green-400{% else %}bg-red-400{% endif %}"></div>
+                            <span class="ml-3 text-sm font-medium text-gray-900">{{ printer.name }}</span>
+                        </div>
+                        <button onclick="testPrinter('{{ printer.name }}')" class="text-blue-600 hover:text-blue-800 text-sm">
+                            Test
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-4">
+                    <a href="{{ url_for('hardware.printers') }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        Manage Printers →
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cash Drawers -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-lg font-medium text-gray-900">Cash Drawers</h2>
+                <button onclick="refreshHardware()" class="text-blue-600 hover:text-blue-800">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-2xl font-bold text-gray-900">{{ hardware_status.cash_drawers|length }}</span>
+                    <span class="text-sm text-gray-500">Total Cash Drawers</span>
+                </div>
+                <div id="drawer-status" class="space-y-2">
+                    {% for drawer in hardware_status.cash_drawers %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 rounded-full {% if drawer.status == 'Connected' %}bg-green-400{% else %}bg-red-400{% endif %}"></div>
+                            <span class="ml-3 text-sm font-medium text-gray-900">{{ drawer.name }}</span>
+                        </div>
+                        <button onclick="testCashDrawer('{{ drawer.name }}')" class="text-blue-600 hover:text-blue-800 text-sm">
+                            Test
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-4">
+                    <a href="{{ url_for('hardware.cash_drawers') }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        Manage Cash Drawers →
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-medium text-gray-900">Hardware Actions</h2>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button onclick="runComprehensiveTest()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Run Comprehensive Test
+                </button>
+                
+                <a href="{{ url_for('hardware.settings') }}" class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center text-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Hardware Settings
+                </a>
+                
+                <a href="{{ url_for('hardware.export_results') }}" class="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center text-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Export Results
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test Results Modal -->
+    <div id="testModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-900" id="modalTitle">Test Results</h3>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-gray-500">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="modalContent" class="text-sm text-gray-600">
+                    <!-- Test results will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshHardware() {
+    fetch('/hardware/api/refresh')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing hardware:', error);
+        });
+}
+
+function testPrinter(printerName) {
+    fetch(`/hardware/test/printer/${encodeURIComponent(printerName)}`)
+        .then(response => response.json())
+        .then(data => {
+            showTestResults('Printer Test Results', data);
+        })
+        .catch(error => {
+            console.error('Error testing printer:', error);
+        });
+}
+
+function testCashDrawer(drawerName) {
+    fetch(`/hardware/test/cash-drawer/${encodeURIComponent(drawerName)}`)
+        .then(response => response.json())
+        .then(data => {
+            showTestResults('Cash Drawer Test Results', data);
+        })
+        .catch(error => {
+            console.error('Error testing cash drawer:', error);
+        });
+}
+
+function runComprehensiveTest() {
+    document.getElementById('modalTitle').textContent = 'Running Comprehensive Test...';
+    document.getElementById('modalContent').innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><p class="mt-4">Testing hardware components...</p></div>';
+    document.getElementById('testModal').classList.remove('hidden');
+    
+    fetch('/hardware/test')
+        .then(response => response.json())
+        .then(data => {
+            showComprehensiveResults(data);
+        })
+        .catch(error => {
+            console.error('Error running comprehensive test:', error);
+        });
+}
+
+function showTestResults(title, data) {
+    document.getElementById('modalTitle').textContent = title;
+    
+    let content = '';
+    
+    if (data.error) {
+        content = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">${data.error}</div>`;
+    } else {
+        content = '<div class="space-y-4">';
+        
+        if (data.tests) {
+            for (const [testName, testResult] of Object.entries(data.tests)) {
+                const statusClass = testResult.success ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700';
+                const statusIcon = testResult.success ? '✓' : '✗';
+                
+                content += `
+                    <div class="border ${statusClass.split(' ')[1]} px-4 py-3 rounded">
+                        <div class="flex items-center">
+                            <span class="text-lg mr-2">${statusIcon}</span>
+                            <span class="font-medium capitalize">${testName.replace('_', ' ')}</span>
+                        </div>
+                        <p class="mt-1 text-sm">${testResult.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        content += '</div>';
+    }
+    
+    document.getElementById('modalContent').innerHTML = content;
+    document.getElementById('testModal').classList.remove('hidden');
+}
+
+function showComprehensiveResults(data) {
+    document.getElementById('modalTitle').textContent = 'Comprehensive Test Results';
+    
+    let content = `
+        <div class="space-y-6">
+            <div class="bg-${data.summary.overall_status === 'Success' ? 'green' : 'yellow'}-50 border border-${data.summary.overall_status === 'Success' ? 'green' : 'yellow'}-200 text-${data.summary.overall_status === 'Success' ? 'green' : 'yellow'}-700 px-4 py-3 rounded">
+                <h4 class="font-medium">Overall Status: ${data.summary.overall_status}</h4>
+                <p class="text-sm mt-1">Printers: ${data.summary.working_printers}/${data.summary.total_printers} working | Cash Drawers: ${data.summary.working_drawers}/${data.summary.total_drawers} working</p>
+            </div>
+    `;
+    
+    if (data.summary.recommendations && data.summary.recommendations.length > 0) {
+        content += `
+            <div>
+                <h4 class="font-medium text-gray-900 mb-2">Recommendations:</h4>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
+        `;
+        
+        data.summary.recommendations.forEach(rec => {
+            content += `<li>${rec}</li>`;
+        });
+        
+        content += '</ul></div>';
+    }
+    
+    content += '</div>';
+    
+    document.getElementById('modalContent').innerHTML = content;
+}
+
+function closeModal() {
+    document.getElementById('testModal').classList.add('hidden');
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('testModal');
+    if (event.target == modal) {
+        closeModal();
+    }
+}
+</script>
+{% endblock %}

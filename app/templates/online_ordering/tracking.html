@@ -1,0 +1,371 @@
+{% extends "online_ordering/base.html" %}
+
+{% block title %}Track Order{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto" x-data="orderTracker()">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold text-gray-900 mb-2">Track Your Order</h1>
+        <p class="text-xl text-gray-600">Enter your order number to see real-time status updates</p>
+    </div>
+
+    <!-- Search Form -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <form @submit="searchOrder($event)" class="flex space-x-4">
+            <div class="flex-1">
+                <div class="relative">
+                    <input type="text" 
+                           x-model="orderNumber"
+                           @input="validateOrderNumber()"
+                           placeholder="Enter order number (e.g., ORD-2024-001)"
+                           class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                </div>
+            </div>
+            <button type="submit" 
+                    :disabled="!isValidOrderNumber || isSearching"
+                    class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                <span x-show="!isSearching">
+                    <i class="fas fa-search mr-2"></i>
+                    Track Order
+                </span>
+                <span x-show="isSearching">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>
+                    Searching...
+                </span>
+            </button>
+        </form>
+    </div>
+
+    <!-- Order Not Found -->
+    <div x-show="searchError" x-cloak class="bg-red-50 border-2 border-red-200 rounded-lg p-8 mb-8 text-center">
+        <div class="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-exclamation-triangle text-white text-3xl"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-red-800 mb-2">Order Not Found</h2>
+        <p class="text-lg text-red-700 mb-4">
+            We couldn't find an order with that number. Please check the number and try again.
+        </p>
+        <div class="text-red-700">
+            <p class="font-medium mb-2">Tips:</p>
+            <ul class="text-left space-y-1">
+                <li>• Make sure you entered the complete order number</li>
+                <li>• Order numbers are usually in format: ORD-YYYY-NNN</li>
+                <li>• Check your email for order confirmation</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Order Found -->
+    <div x-show="order" x-cloak>
+        <!-- Order Status Header -->
+        <div class="bg-white rounded-lg shadow-md p-8 mb-8">
+            <div class="text-center mb-6">
+                <h2 class="text-3xl font-bold text-gray-900 mb-2">
+                    Order {{ order.order_number }}
+                </h2>
+                <div class="inline-flex items-center px-4 py-2 rounded-full text-lg font-medium"
+                     :class="getStatusClass(order.status)">
+                    <i class="fas" :class="getStatusIcon(order.status)" class="mr-2"></i>
+                    <span x-text="getStatusText(order.status)"></span>
+                </div>
+            </div>
+            
+            <!-- Progress Timeline -->
+            <div class="relative">
+                <!-- Progress Line -->
+                <div class="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+                
+                <!-- Status Points -->
+                <div class="relative space-y-8">
+                    <!-- Order Placed -->
+                    <div class="flex items-center">
+                        <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center relative z-10">
+                            <i class="fas fa-shopping-cart text-white text-xl"></i>
+                        </div>
+                        <div class="ml-6">
+                            <h3 class="font-semibold text-gray-900">Order Placed</h3>
+                            <p class="text-gray-600">Order received and confirmed</p>
+                            <p class="text-sm text-gray-500" x-text="formatTime(order.created_at)"></p>
+                        </div>
+                    </div>
+                    
+                    <!-- Order Confirmed -->
+                    <div class="flex items-center"
+                         :class="order.status.value >= 1 ? 'opacity-100' : 'opacity-50'">
+                        <div class="w-16 h-16 rounded-full flex items-center justify-center relative z-10"
+                             :class="order.status.value >= 1 ? 'bg-green-600' : 'bg-gray-300'">
+                            <i class="fas fa-check text-white text-xl"></i>
+                        </div>
+                        <div class="ml-6">
+                            <h3 class="font-semibold text-gray-900">Order Confirmed</h3>
+                            <p class="text-gray-600">Payment processed and order sent to kitchen</p>
+                            <p class="text-sm text-gray-500">Estimated: 5 minutes after placement</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Preparing -->
+                    <div class="flex items-center"
+                         :class="order.status.value >= 2 ? 'opacity-100' : 'opacity-50'">
+                        <div class="w-16 h-16 rounded-full flex items-center justify-center relative z-10"
+                             :class="order.status.value >= 2 ? 'bg-orange-600' : 'bg-gray-300'">
+                            <i class="fas fa-fire text-white text-xl"></i>
+                        </div>
+                        <div class="ml-6">
+                            <h3 class="font-semibold text-gray-900">Preparing</h3>
+                            <p class="text-gray-600">Kitchen staff preparing your order</p>
+                            <p class="text-sm text-gray-500">Estimated: 10-15 minutes</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Ready -->
+                    <div class="flex items-center"
+                         :class="order.status.value >= 3 ? 'opacity-100' : 'opacity-50'">
+                        <div class="w-16 h-16 rounded-full flex items-center justify-center relative z-10"
+                             :class="order.status.value >= 3 ? 'bg-yellow-500' : 'bg-gray-300'">
+                            <i class="fas fa-box text-white text-xl"></i>
+                        </div>
+                        <div class="ml-6">
+                            <h3 class="font-semibold text-gray-900">Ready for {{ order.order_type or 'Pickup' }}</h3>
+                            <p class="text-gray-600">
+                                {% if order.order_type == 'delivery' %}
+                                Order is ready for delivery
+                                {% else %}
+                                Order is ready for pickup
+                                {% endif %}
+                            </p>
+                            <p class="text-sm text-gray-500">Estimated: 15-20 minutes</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Completed -->
+                    <div class="flex items-center"
+                         :class="order.status.value >= 4 ? 'opacity-100' : 'opacity-50'">
+                        <div class="w-16 h-16 rounded-full flex items-center justify-center relative z-10"
+                             :class="order.status.value >= 4 ? 'bg-green-600' : 'bg-gray-300'">
+                            <i class="fas fa-check-double text-white text-xl"></i>
+                        </div>
+                        <div class="ml-6">
+                            <h3 class="font-semibold text-gray-900">Completed</h3>
+                            <p class="text-gray-600">
+                                {% if order.order_type == 'delivery' %}
+                                Order delivered successfully
+                                {% else %}
+                                Order picked up successfully
+                                {% endif %}
+                            </p>
+                            <p class="text-sm text-gray-500" x-text="formatTime(order.updated_at)"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Details -->
+        <div class="bg-white rounded-lg shadow-md p-8 mb-8">
+            <h2 class="text-2xl font-semibold text-gray-900 mb-6">Order Details</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Customer Information -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Customer Information</h3>
+                    <div class="space-y-2">
+                        <div class="flex">
+                            <span class="text-gray-600 font-medium">Name:</span>
+                            <span class="ml-2">{{ order.customer.get_full_name() }}</span>
+                        </div>
+                        {% if order.customer.email %}
+                        <div class="flex">
+                            <span class="text-gray-600 font-medium">Email:</span>
+                            <span class="ml-2">{{ order.customer.email }}</span>
+                        </div>
+                        {% endif %}
+                        {% if order.customer.phone %}
+                        <div class="flex">
+                            <span class="text-gray-600 font-medium">Phone:</span>
+                            <span class="ml-2">{{ order.customer.phone }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Order Information -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Order Information</h3>
+                    <div class="space-y-2">
+                        <div class="flex">
+                            <span class="text-gray-600 font-medium">Order Type:</span>
+                            <span class="ml-2 capitalize">{{ order.order_type or 'Pickup' }}</span>
+                        </div>
+                        <div class="flex">
+                            <span class="text-gray-600 font-medium">Placed At:</span>
+                            <span class="ml-2">{{ order.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                        </div>
+                        <div class="flex">
+                            <span class="text-gray-600 font-medium">Total Amount:</span>
+                            <span class="ml-2 font-bold">${{ "%.2f"|format(order.total) }}</span>
+                        </div>
+                        {% if order.notes %}
+                        <div class="flex">
+                            <span class="text-gray-600 font-medium">Notes:</span>
+                            <span class="ml-2">{{ order.notes }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Items -->
+        <div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Order Items</h3>
+            
+            <div class="space-y-3">
+                {% for item in order.items %}
+                <div class="border-b pb-3 last:border-b-0">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <div class="font-medium">{{ item.quantity }}x {{ item.menu_item.name }}</div>
+                            {% if item.variant %}
+                            <div class="text-sm text-gray-600">({{ item.variant.name }})</div>
+                            {% endif %}
+                            {% if item.add_ons %}
+                            <div class="text-sm text-gray-600">
+                                Add-ons: {% for add_on in item.add_ons %}{{ add_on.name }}{% if not loop.last %}, {% endfor %}
+                            </div>
+                            {% endif %}
+                            {% if item.notes %}
+                            <div class="text-sm text-gray-600">Notes: {{ item.notes }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="font-semibold">${{ "%.2f"|format(item.unit_price * item.quantity) }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="text-center">
+        <a href="{{ url_for('online_ordering.index') }}" 
+           class="inline-block bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors mr-4">
+            <i class="fas fa-home mr-2"></i>
+            Back to Home
+        </a>
+        <button @click="startRealTimeUpdates()" 
+                x-show="order.status.value < 4"
+                class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+            <i class="fas fa-bell mr-2"></i>
+            Enable Notifications
+        </button>
+    </div>
+    </div>
+</div>
+
+<script>
+function orderTracker() {
+    return {
+        orderNumber: '{{ order_number if order else "" }}',
+        order: {{ order|tojson if order else 'null' }},
+        searchError: false,
+        isSearching: false,
+        isValidOrderNumber: false,
+        
+        init() {
+            if (this.orderNumber) {
+                this.validateOrderNumber();
+            }
+        },
+        
+        validateOrderNumber() {
+            // Simple validation - order numbers should be in format ORD-YYYY-NNN
+            const pattern = /^ORD-\d{4}-\d{3}$/;
+            this.isValidOrderNumber = pattern.test(this.orderNumber);
+        },
+        
+        searchOrder(event) {
+            event.preventDefault();
+            
+            if (!this.isValidOrderNumber) {
+                this.searchError = true;
+                return;
+            }
+            
+            this.isSearching = true;
+            this.searchError = false;
+            
+            // Simulate API call to search for order
+            setTimeout(() => {
+                window.location.href = `{{ url_for('online_ordering.track_order', order_number='') }}${this.orderNumber}`;
+            }, 1000);
+        },
+        
+        getStatusClass(status) {
+            const statusValue = status.value || 0;
+            return {
+                'PENDING': 'bg-yellow-100 text-yellow-800',
+                'CONFIRMED': 'bg-blue-100 text-blue-800',
+                'PREPARING': 'bg-orange-100 text-orange-800',
+                'READY': 'bg-green-100 text-green-800',
+                'COMPLETED': 'bg-green-100 text-green-800'
+            }[status] || 'bg-gray-100 text-gray-800';
+        },
+        
+        getStatusIcon(status) {
+            const statusValue = status.value || 0;
+            return {
+                0: 'fa-shopping-cart',
+                1: 'fa-check',
+                2: 'fa-fire',
+                3: 'fa-box',
+                4: 'fa-check-double'
+            }[statusValue] || 'fa-question';
+        },
+        
+        getStatusText(status) {
+            return status.name || 'Unknown';
+        },
+        
+        formatTime(timeString) {
+            if (!timeString) return '';
+            
+            const date = new Date(timeString);
+            return date.toLocaleString();
+        },
+        
+        startRealTimeUpdates() {
+            // Request notification permission
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+            
+            // Simulate real-time updates
+            this.showNotification('Real-time updates enabled', 'success');
+        },
+        
+        showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+            }`;
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    }
+}
+</script>
+{% endblock %}

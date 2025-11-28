@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}Cash Drawer Management{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Cash Drawer Management</h1>
+        <p class="mt-2 text-gray-600">Configure and test your cash drawers</p>
+    </div>
+
+    <!-- Cash Drawers List -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 class="text-lg font-medium text-gray-900">Available Cash Drawers</h2>
+            <button onclick="refreshCashDrawers()" class="text-blue-600 hover:text-blue-800">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div class="divide-y divide-gray-200">
+            {% for drawer in cash_drawers %}
+            <div class="p-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center">
+                            <h3 class="text-lg font-medium text-gray-900">{{ drawer.name }}</h3>
+                            <span class="ml-3 px-2 py-1 text-xs font-medium rounded-full
+                                {% if drawer.status == 'Connected' %}
+                                    bg-green-100 text-green-800
+                                {% else %}
+                                    bg-red-100 text-red-800
+                                {% endif %}">
+                                {{ drawer.status }}
+                            </span>
+                            {% if drawer.type %}
+                            <span class="ml-2 px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                                {{ drawer.type }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                            <div>
+                                <span class="font-medium">Connection:</span> {{ drawer.connection_type or drawer.port or 'Unknown' }}
+                            </div>
+                            {% if drawer.device_id %}
+                            <div>
+                                <span class="font-medium">Device ID:</span> {{ drawer.device_id }}
+                            </div>
+                            {% endif %}
+                            {% if drawer.description %}
+                            <div>
+                                <span class="font-medium">Description:</span> {{ drawer.description }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="ml-4 flex space-x-2">
+                        <button onclick="testCashDrawer('{{ drawer.name }}')" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm font-medium">
+                            Test
+                        </button>
+                        <button onclick="openDrawer('{{ drawer.name }}')" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md text-sm font-medium">
+                            Open
+                        </button>
+                        <button onclick="setDefaultDrawer('{{ drawer.name }}')" 
+                                class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-md text-sm font-medium">
+                            Set Default
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if not cash_drawers %}
+        <div class="p-8 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 002 0v2a2 2 0 01-2 2H5a2 2 0 01-2-0V7a2 2 0 012-2h14a2 2 0 012 2v8z"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No cash drawers detected</h3>
+            <p class="mt-1 text-sm text-gray-500">Get started by connecting a cash drawer to your system.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Cash Drawer Test Modal -->
+    <div id="drawerTestModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-900" id="drawerModalTitle">Cash Drawer Test</h3>
+                    <button onclick="closeDrawerModal()" class="text-gray-400 hover:text-gray-500">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="drawerModalContent" class="text-sm text-gray-600">
+                    <!-- Test results will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Cash Drawer Guide -->
+    <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg">
+        <div class="p-6">
+            <h3 class="text-lg font-medium text-blue-900 mb-4">Adding Cash Drawers</h3>
+            <div class="space-y-3 text-sm text-blue-800">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                    </svg>
+                    <div>
+                        <strong>ESC/POS Cash Drawers:</strong> Connect through your receipt printer. Most thermal printers have a cash drawer kick port.
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                    </svg>
+                    <div>
+                        <strong>USB Cash Drawers:</strong> Connect directly to a USB port. These drawers appear as USB devices in your system.
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                    </svg>
+                    <div>
+                        <strong>Serial Cash Drawers:</strong> Connect to a serial port (COM port on Windows, /dev/tty* on Linux). Ensure correct baud rate settings.
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                    </svg>
+                    <div>
+                        <strong>Network Cash Drawers:</strong> Connect via Ethernet/WiFi. Configure IP address and port settings in your router.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 p-4 bg-blue-100 rounded">
+                <h4 class="font-medium text-blue-900 mb-2">Troubleshooting Tips:</h4>
+                <ul class="list-disc list-inside space-y-1 text-sm text-blue-800">
+                    <li>Ensure cash drawer is properly powered (usually 12V or 24V)</li>
+                    <li>Check cable connections between drawer and printer/computer</li>
+                    <li>Verify the drawer is not locked or jammed</li>
+                    <li>For ESC/POS drawers, ensure the printer is working first</li>
+                    <li>Check device permissions (especially on Linux/macOS)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshCashDrawers() {
+    fetch('/hardware/api/refresh')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing cash drawers:', error);
+        });
+}
+
+function testCashDrawer(drawerName) {
+    document.getElementById('drawerModalTitle').textContent = `Testing ${drawerName}...`;
+    document.getElementById('drawerModalContent').innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><p class="mt-4">Testing cash drawer connection...</p></div>';
+    document.getElementById('drawerTestModal').classList.remove('hidden');
+    
+    fetch(`/hardware/test/cash-drawer/${encodeURIComponent(drawerName)}`)
+        .then(response => response.json())
+        .then(data => {
+            showDrawerTestResults(drawerName, data);
+        })
+        .catch(error => {
+            console.error('Error testing cash drawer:', error);
+            document.getElementById('drawerModalContent').innerHTML = '<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">Error testing cash drawer</div>';
+        });
+}
+
+function openDrawer(drawerName) {
+    if (!confirm(`Are you sure you want to open ${drawerName}?`)) {
+        return;
+    }
+    
+    document.getElementById('drawerModalTitle').textContent = `Opening ${drawerName}...`;
+    document.getElementById('drawerModalContent').innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><p class="mt-4">Opening cash drawer...</p></div>';
+    document.getElementById('drawerTestModal').classList.remove('hidden');
+    
+    fetch(`/hardware/open-drawer/${encodeURIComponent(drawerName)}`)
+        .then(response => response.json())
+        .then(data => {
+            showDrawerTestResults(drawerName, data);
+        })
+        .catch(error => {
+            console.error('Error opening cash drawer:', error);
+            document.getElementById('drawerModalContent').innerHTML = '<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">Error opening cash drawer</div>';
+        });
+}
+
+function setDefaultDrawer(drawerName) {
+    fetch('/hardware/api/set-default-drawer', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            drawer_name: drawerName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`${drawerName} set as default cash drawer`);
+            location.reload();
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error setting default drawer:', error);
+        alert('Error setting default cash drawer');
+    });
+}
+
+function showDrawerTestResults(drawerName, data) {
+    document.getElementById('drawerModalTitle').textContent = `Test Results - ${drawerName}`;
+    
+    let content = '';
+    
+    if (data.error) {
+        content = `<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">${data.error}</div>`;
+    } else {
+        content = '<div class="space-y-4">';
+        
+        if (data.tests) {
+            for (const [testName, testResult] of Object.entries(data.tests)) {
+                const statusClass = testResult.success ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700';
+                const statusIcon = testResult.success ? '✓' : '✗';
+                
+                content += `
+                    <div class="border ${statusClass.split(' ')[1]} px-4 py-3 rounded">
+                        <div class="flex items-center">
+                            <span class="text-lg mr-2">${statusIcon}</span>
+                            <span class="font-medium capitalize">${testName.replace('_', ' ')}</span>
+                        </div>
+                        <p class="mt-1 text-sm">${testResult.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        if (data.success !== undefined) {
+            const statusClass = data.success ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700';
+            const statusIcon = data.success ? '✓' : '✗';
+            
+            content += `
+                <div class="border ${statusClass.split(' ')[1]} px-4 py-3 rounded">
+                    <div class="flex items-center">
+                        <span class="text-lg mr-2">${statusIcon}</span>
+                        <span class="font-medium">Operation Status</span>
+                    </div>
+                    <p class="mt-1 text-sm">${data.message}</p>
+                </div>
+            `;
+        }
+        
+        content += '</div>';
+    }
+    
+    document.getElementById('drawerModalContent').innerHTML = content;
+}
+
+function closeDrawerModal() {
+    document.getElementById('drawerTestModal').classList.add('hidden');
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('drawerTestModal');
+    if (event.target == modal) {
+        closeDrawerModal();
+    }
+}
+</script>
+{% endblock %}

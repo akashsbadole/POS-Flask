@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+
+{% block title %}Merge Tables{% endblock %}
+
+{% block extra_css %}
+<style>
+.merge-container {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+}
+
+.table-selection {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6;
+}
+
+.table-card {
+    @apply bg-white border border-gray-300 rounded-lg p-4 cursor-pointer transition-all hover:border-blue-500 hover:shadow-md;
+}
+
+.table-card.selected {
+    @apply border-blue-500 bg-blue-50 shadow-md;
+}
+
+.table-card.disabled {
+    @apply opacity-50 cursor-not-allowed;
+}
+
+.merge-preview {
+    @apply bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6;
+}
+
+.merge-arrow {
+    @apply flex items-center justify-center text-gray-400 my-4;
+}
+
+.section-group {
+    @apply mb-6;
+}
+
+.section-title {
+    @apply text-lg font-semibold text-gray-900 mb-3 flex items-center;
+}
+
+.capacity-badge {
+    @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800;
+}
+
+.status-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.status-free {
+    @apply bg-green-100 text-green-800;
+}
+
+.status-cleaning {
+    @apply bg-yellow-100 text-yellow-800;
+}
+
+.drag-over {
+    @apply border-blue-500 bg-blue-50;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8" x-data="tableMergeManager()">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+                <svg class="w-8 h-8 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-3A3 3 0 004 17h-1m-1 0a3 3 0 01-3 3v2H7m13 0v-2a3 3 0 00-3-3H6a3 3 0 00-3 3v2m12 0V9a3 3 0 00-3-3H6a3 3 0 00-3 3v2"></path>
+                </svg>
+                Merge Tables
+            </h1>
+            <p class="text-gray-600 mt-2">Combine multiple tables to accommodate larger parties</p>
+        </div>
+        <div class="flex space-x-3">
+            <a href="{{ url_for('tables.floor_plan') }}" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back to Floor Plan
+            </a>
+        </div>
+    </div>
+
+    <form method="POST" @submit="validateForm($event)">
+        <div class="merge-container">
+            <!-- Parent Table Selection -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                    <span class="mr-2">🎯</span> Parent Table
+                </h2>
+                <p class="text-gray-600 mb-4">Select the main table that will receive the merged tables</p>
+                
+                <div class="table-selection">
+                    <template x-for="section in organizedTables" :key="section.name">
+                        <div class="section-group" x-show="section.tables.length > 0">
+                            <h3 class="section-title">
+                                <span class="mr-2">📍</span>
+                                <span x-text="section.name"></span>
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <template x-for="table in section.tables" :key="table.id">
+                                    <div class="table-card"
+                                         :class="{
+                                             'selected': selectedParent && selectedParent.id === table.id,
+                                             'disabled': !table.can_be_merged || (selectedChildIds && selectedChildIds.includes(table.id))
+                                         }"
+                                         @click="selectParentTable(table)">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <h4 class="text-lg font-bold text-gray-900" x-text="table.number"></h4>
+                                            <span class="capacity-badge" x-text="table.capacity + ' seats'"></span>
+                                        </div>
+                                        <div class="flex items-center space-x-2 text-sm text-gray-600">
+                                            <span class="status-badge" :class="'status-' + table.status" x-text="table.status"></span>
+                                            <span x-text="table.floor_section || 'No section'"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                
+                <input type="hidden" name="parent_table_id" :value="selectedParent ? selectedParent.id : ''" required>
+            </div>
+
+            <!-- Child Tables Selection -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                    <span class="mr-2">🔗</span> Tables to Merge
+                </h2>
+                <p class="text-gray-600 mb-4">Select one or more tables to merge into the parent table</p>
+                
+                <div class="table-selection">
+                    <template x-for="section in organizedTables" :key="section.name">
+                        <div class="section-group" x-show="section.tables.length > 0">
+                            <h3 class="section-title">
+                                <span class="mr-2">📍</span>
+                                <span x-text="section.name"></span>
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <template x-for="table in section.tables" :key="table.id">
+                                    <div class="table-card"
+                                         :class="{
+                                             'selected': selectedChildIds.includes(table.id),
+                                             'disabled': !table.can_be_merged || (selectedParent && selectedParent.id === table.id)
+                                         }"
+                                         @click="toggleChildTable(table)">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <h4 class="text-lg font-bold text-gray-900" x-text="table.number"></h4>
+                                            <span class="capacity-badge" x-text="table.capacity + ' seats'"></span>
+                                        </div>
+                                        <div class="flex items-center space-x-2 text-sm text-gray-600">
+                                            <span class="status-badge" :class="'status-' + table.status" x-text="table.status"></span>
+                                            <span x-text="table.floor_section || 'No section'"></span>
+                                        </div>
+                                        <div class="mt-2" x-show="selectedChildIds.includes(table.id)">
+                                            <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 1.414L8 9.414l2.293 2.293a1 1 0 001.414 1.414l4-4a1 1 0 001.414-1.414L10 5.586 8.293a1 1 0 00-1.414 0z" clip-rule="evenodd"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                
+                <!-- Hidden inputs for selected child tables -->
+                <template x-for="childId in selectedChildIds" :key="childId">
+                    <input type="hidden" name="child_table_ids" :value="childId">
+                </template>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                    <span class="mr-2">📝</span> Notes (Optional)
+                </h2>
+                <textarea name="notes" rows="3" class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-blue-500 focus:border-blue-500" 
+                          placeholder="Add any notes about this table merge..."></textarea>
+            </div>
+
+            <!-- Merge Preview -->
+            <div class="merge-preview" x-show="selectedParent && selectedChildIds.length > 0">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <span class="mr-2">👁</span> Merge Preview
+                </h3>
+                
+                <div class="space-y-3">
+                    <div class="flex items-center">
+                        <span class="font-medium text-gray-700 mr-2">Parent Table:</span>
+                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full font-medium" x-text="selectedParent ? selectedParent.number : ''"></span>
+                        <span class="text-gray-600" x-text="selectedParent ? '(' + selectedParent.capacity + ' seats)' : ''"></span>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <span class="font-medium text-gray-700 mr-2">Tables to Merge:</span>
+                        <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium" x-text="selectedChildIds.length + ' table(s)'"></span>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <span class="font-medium text-gray-700 mr-2">Total Capacity:</span>
+                        <span class="px-3 py-1 bg-purple-100 text-purple-800 rounded-full font-medium" x-text="getTotalCapacity() + ' seats'"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="flex justify-center">
+                <button type="submit" 
+                        :disabled="!canSubmit()"
+                        class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-8 rounded-lg transition-colors flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-3A3 3 0 004 17h-1m-1 0a3 3 0 01-3 3v2H7m13 0v-2a3 3 0 00-3-3H6a3 3 0 00-3 3v2m12 0V9a3 3 0 00-3-3H6a3 3 0 00-3 3v2"></path>
+                    </svg>
+                    Merge Tables
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function tableMergeManager() {
+    return {
+        tables: [],
+        organizedTables: [],
+        selectedParent: null,
+        selectedChildIds: [],
+        
+        init() {
+            this.loadTables();
+        },
+        
+        async loadTables() {
+            try {
+                const response = await fetch('/tables/api/available-for-merge');
+                const data = await response.json();
+                this.tables = data.tables;
+                this.organizeTables();
+            } catch (error) {
+                console.error('Error loading tables:', error);
+                this.showNotification('Failed to load tables', 'error');
+            }
+        },
+        
+        organizeTables() {
+            const sections = {};
+            this.tables.forEach(table => {
+                const section = table.floor_section || 'Unassigned';
+                if (!sections[section]) {
+                    sections[section] = {
+                        name: section,
+                        tables: []
+                    };
+                }
+                sections[section].tables.push(table);
+            });
+            this.organizedTables = Object.values(sections);
+        },
+        
+        selectParentTable(table) {
+            if (!table.can_be_merged) return;
+            
+            // Clear parent selection if selecting same as child
+            if (this.selectedChildIds.includes(table.id)) {
+                this.selectedChildIds = this.selectedChildIds.filter(id => id !== table.id);
+            }
+            
+            this.selectedParent = this.selectedParent && this.selectedParent.id === table.id ? null : table;
+        },
+        
+        toggleChildTable(table) {
+            if (!table.can_be_merged) return;
+            
+            // Can't select same table as parent
+            if (this.selectedParent && this.selectedParent.id === table.id) return;
+            
+            const index = this.selectedChildIds.indexOf(table.id);
+            if (index > -1) {
+                this.selectedChildIds.splice(index, 1);
+            } else {
+                this.selectedChildIds.push(table.id);
+            }
+        },
+        
+        getTotalCapacity() {
+            let total = 0;
+            if (this.selectedParent) {
+                total += this.selectedParent.capacity;
+            }
+            this.selectedChildIds.forEach(childId => {
+                const table = this.tables.find(t => t.id === childId);
+                if (table) total += table.capacity;
+            });
+            return total;
+        },
+        
+        canSubmit() {
+            return this.selectedParent && this.selectedChildIds.length > 0;
+        },
+        
+        validateForm(event) {
+            if (!this.canSubmit()) {
+                event.preventDefault();
+                this.showNotification('Please select a parent table and at least one table to merge', 'warning');
+                return false;
+            }
+            return true;
+        },
+        
+        showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${
+                type === 'success' ? 'bg-green-500 text-white' :
+                type === 'error' ? 'bg-red-500 text-white' :
+                type === 'warning' ? 'bg-yellow-500 text-white' :
+                'bg-blue-500 text-white'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.add('translate-x-0');
+            }, 100);
+            
+            setTimeout(() => {
+                notification.classList.add('translate-x-full');
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+    }
+}
+</script>
+{% endblock %}

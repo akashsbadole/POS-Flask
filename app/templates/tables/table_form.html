@@ -14,7 +14,7 @@
     </div>
 
     <div class="bg-white rounded-lg shadow-sm border">
-        <form method="POST" class="p-6" @submit.prevent="submitForm()">
+        <form method="POST" class="p-6" @submit.prevent="submitForm($el)">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -171,19 +171,21 @@
 </div>
 {% endblock %}
 
+{% block scripts %}
+{{ super() }}
 <script>
 function tableForm() {
     return {
         isSubmitting: false,
         
-        submitForm() {
+        submitForm(form) {
             this.isSubmitting = true;
             // Let the form submit normally after a brief delay to show loading state
             setTimeout(() => {
-                // Allow form to submit naturally
-                this.isSubmitting = false;
+                form.submit();
             }, 500);
         }
     }
 }
 </script>
+{% endblock %}

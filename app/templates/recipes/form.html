@@ -81,6 +81,148 @@
                            class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                 </div>
             </div>
+             
+            <!-- Scaling Information -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-6">Scaling Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="base_serving_size" class="block text-sm font-medium text-gray-700 mb-2">
+                            Base Serving Size
+                        </label>
+                        <input type="number" id="base_serving_size" name="base_serving_size" min="1"
+                               value="{{ recipe.base_serving_size if recipe else 1 }}"
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="is_scalable" class="flex items-center">
+                            <input type="checkbox" id="is_scalable" name="is_scalable"
+                                   {% if recipe and recipe.is_scalable %}checked{% endif %}
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <span class="ml-2 text-sm text-gray-700">Recipe can be scaled</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Nutritional Information -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-6">Nutritional Information (per serving)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div>
+                        <label for="calories" class="block text-sm font-medium text-gray-700 mb-2">
+                            Calories
+                        </label>
+                        <input type="number" id="calories" name="calories" min="0"
+                               value="{{ recipe.calories if recipe else 0 }}"
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="protein" class="block text-sm font-medium text-gray-700 mb-2">
+                            Protein (g)
+                        </label>
+                        <input type="number" id="protein" name="protein" step="0.01" min="0"
+                               value="{{ recipe.protein if recipe else 0.00 }}"
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="carbohydrates" class="block text-sm font-medium text-gray-700 mb-2">
+                            Carbohydrates (g)
+                        </label>
+                        <input type="number" id="carbohydrates" name="carbohydrates" step="0.01" min="0"
+                               value="{{ recipe.carbohydrates if recipe else 0.00 }}"
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="fat" class="block text-sm font-medium text-gray-700 mb-2">
+                            Fat (g)
+                        </label>
+                        <input type="number" id="fat" name="fat" step="0.01" min="0"
+                               value="{{ recipe.fat if recipe else 0.00 }}"
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="saturated_fat" class="block text-sm font-medium text-gray-700 mb-2">
+                            Saturated Fat (g)
+                        </label>
+                        <input type="number" id="saturated_fat" name="saturated_fat" step="0.01" min="0"
+                               value="{{ recipe.saturated_fat if recipe else 0.00 }}"
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="cholesterol" class="block text-sm font-medium text-gray-700 mb-2">
+                            Cholesterol (mg)
+                        </label>
+                        <input type="number" id="cholesterol" name="cholesterol" step="0.01" min="0"
+                               value="{{ recipe.cholesterol if recipe else 0.00 }}"
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="sodium" class="block text-sm font-medium text-gray-700 mb-2">
+                            Sodium (mg)
+                        </label>
+                        <input type="number" id="sodium" name="sodium" step="0.01" min="0"
+                               value="{{ recipe.sodium if recipe else 0.00 }}"
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="fiber" class="block text-sm font-medium text-gray-700 mb-2">
+                            Fiber (g)
+                        </label>
+                        <input type="number" id="fiber" name="fiber" step="0.01" min="0"
+                               value="{{ recipe.fiber if recipe else 0.00 }}"
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="sugar" class="block text-sm font-medium text-gray-700 mb-2">
+                            Sugar (g)
+                        </label>
+                        <input type="number" id="sugar" name="sugar" step="0.01" min="0"
+                               value="{{ recipe.sugar if recipe else 0.00 }}"
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="vitamin_a" class="block text-sm font-medium text-gray-700 mb-2">
+                            Vitamin A (IU)
+                        </label>
+                        <input type="number" id="vitamin_a" name="vitamin_a" min="0"
+                               value="{{ recipe.vitamin_a if recipe else 0 }}"
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="vitamin_c" class="block text-sm font-medium text-gray-700 mb-2">
+                            Vitamin C (mg)
+                        </label>
+                        <input type="number" id="vitamin_c" name="vitamin_c" min="0"
+                               value="{{ recipe.vitamin_c if recipe else 0 }}"
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="calcium" class="block text-sm font-medium text-gray-700 mb-2">
+                            Calcium (mg)
+                        </label>
+                        <input type="number" id="calcium" name="calcium" min="0"
+                               value="{{ recipe.calcium if recipe else 0 }}"
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="iron" class="block text-sm font-medium text-gray-700 mb-2">
+                            Iron (mg)
+                        </label>
+                        <input type="number" id="iron" name="iron" min="0"
+                               value="{{ recipe.iron if recipe else 0 }}"
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="potassium" class="block text-sm font-medium text-gray-700 mb-2">
+                            Potassium (mg)
+                        </label>
+                        <input type="number" id="potassium" name="potassium" min="0"
+                               value="{{ recipe.potassium if recipe else 0 }}"
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
             
             <div class="mt-6">
                 <label for="description" class="block text-sm font-medium text-gray-700 mb-2">

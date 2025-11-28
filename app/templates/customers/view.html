@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Details{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Customer Details</h1>
+                <p class="mt-2 text-gray-600">View and manage customer information</p>
+            </div>
+            <div class="flex space-x-3">
+                <a href="{{ url_for('customers.edit_customer', customer_id=customer.id) }}" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 002-2zm0 0a2 2 0 102 2v14a2 2 0 102-2H4a2 2 0 00-2-2v-4a2 2 0 00-2 2zm0 0a2 2 0 102 2v14a2 2 0 102-2H4a2 2 0 00-2-2v-4a2 2 0 00-2 2z"></path>
+                    </svg>
+                    Edit Customer
+                </a>
+                
+                <button onclick="window.print()" 
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 012-2v-2a2 2 0 01-2-2H5a2 2 0 00-2-2v2a2 2 0 00-2 2z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 6H6a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2 2z"></path>
+                    </svg>
+                    Print Profile
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Customer Information -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">Customer Information</h2>
+            </div>
+            <div class="p-6 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Customer Code</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ customer.customer_code }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Full Name</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ customer.first_name }} {{ customer.last_name }}</dd>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Email</dt>
+                        <dd class="mt-1 text-sm text-gray-900">
+                            {% if customer.email %}
+                                <a href="mailto:{{ customer.email }}" class="text-blue-600 hover:text-blue-800">{{ customer.email }}</a>
+                            {% else %}
+                                <span class="text-gray-400">Not provided</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Phone</dt>
+                        <dd class="mt-1 text-sm text-gray-900">
+                            {% if customer.phone %}
+                                <a href="tel:{{ customer.phone }}" class="text-blue-600 hover:text-blue-800">{{ customer.phone }}</a>
+                            {% else %}
+                                <span class="text-gray-400">Not provided</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                </div>
+                
+                {% if customer.company_name %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Company</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{{ customer.company_name }}</dd>
+                </div>
+                {% endif %}
+                
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Address</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                        {% if customer.address.line1 or customer.address.city %}
+                            {{ customer.address.line1 }}{% if customer.address.line2 %}, {{ customer.address.line2 }}{% endif %}<br>
+                            {{ customer.address.city }}, {{ customer.address.state }} {{ customer.address.postal_code }}<br>
+                            {{ customer.address.country }}
+                        {% else %}
+                            <span class="text-gray-400">Not provided</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Preferred Contact</dt>
+                        <dd class="mt-1 text-sm text-gray-900 capitalize">{{ customer.preferences.preferred_contact_method }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Marketing Consent</dt>
+                        <dd class="mt-1 text-sm text-gray-900">
+                            {% if customer.marketing.consented %}
+                                <span class="text-green-600">✓ Consented</span>
+                            {% else %}
+                                <span class="text-red-600">✗ Not consented</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                </div>
+                
+                {% if customer.preferences.dietary_restrictions or customer.preferences.allergies %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Special Requirements</dt>
+                    <dd class="mt-1 space-y-2">
+                        {% if customer.preferences.dietary_restrictions %}
+                            <div>
+                                <span class="font-medium">Dietary Restrictions:</span>
+                                <p class="text-sm text-gray-600">{{ customer.preferences.dietary_restrictions }}</p>
+                            </div>
+                        {% endif %}
+                        
+                        {% if customer.preferences.allergies %}
+                            <div>
+                                <span class="font-medium">Allergies:</span>
+                                <p class="text-sm text-gray-600">{{ customer.preferences.allergies }}</p>
+                            </div>
+                        {% endif %}
+                    </dd>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Loyalty Program -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">Loyalty Program</h2>
+            </div>
+            <div class="p-6 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Loyalty Member</dt>
+                        <dd class="mt-1 text-sm text-gray-900">
+                            {% if customer.loyalty.member %}
+                                <span class="text-green-600">✓ Active Member</span>
+                            {% else %}
+                                <span class="text-gray-400">Not a member</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Current Points</dt>
+                        <dd class="mt-1 text-lg font-semibold text-blue-600">{{ customer.loyalty.points }}</dd>
+                    </div>
+                </div>
+                
+                {% if customer.loyalty.member %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Loyalty Tier</dt>
+                        <dd class="mt-1 text-sm text-gray-900 capitalize">{{ customer.loyalty.tier or 'None' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Member Since</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ customer.loyalty.member_since.strftime('%B %d, %Y') if customer.loyalty.member_since else 'N/A' }}</dd>
+                    </div>
+                </div>
+                
+                {% if customer.loyalty.benefits %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Current Benefits</dt>
+                    <dd class="mt-1">
+                        <ul class="list-disc list-inside space-y-1 text-sm text-gray-600">
+                            {% for benefit in customer.loyalty.benefits %}
+                            <li>{{ benefit }}</li>
+                            {% endfor %}
+                        </ul>
+                    </dd>
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Order Statistics -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">Order Statistics</h2>
+            </div>
+            <div class="p-6 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Total Orders</dt>
+                        <dd class="mt-1 text-lg font-semibold text-gray-900">{{ customer.statistics.total_orders }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Total Spent</dt>
+                        <dd class="mt-1 text-lg font-semibold text-gray-900">${{ "%.2f"|format(customer.statistics.total_spent) }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Average Order Value</dt>
+                        <dd class="mt-1 text-lg font-semibold text-gray-900">${{ "%.2f"|format(customer.statistics.average_order_value) }}</dd>
+                    </div>
+                </div>
+                
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Last Order</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                        {% if customer.statistics.last_order_date %}
+                            {{ customer.statistics.last_order_date.strftime('%B %d, %Y at %I:%M %p') }}
+                        {% else %}
+                            <span class="text-gray-400">No orders yet</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                
+                {% if customer.statistics.favorite_items %}
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Favorite Items</dt>
+                    <dd class="mt-1">
+                        <div class="flex flex-wrap gap-2">
+                            {% set favorite_items = customer.statistics.favorite_items.split(',') %}
+                            {% for item in favorite_items[:5] %}
+                            <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{{ item.strip() }}</span>
+                            {% endfor %}
+                            
+                            {% if favorite_items|length > 5 %}
+                            <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">+{{ favorite_items|length - 5 }} more</span>
+                            {% endif %}
+                        </div>
+                    </dd>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Orders -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-medium text-gray-900">Recent Orders</h2>
+                <a href="{{ url_for('customers.customer_orders_api', customer_id=customer.id) }}" 
+                   class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                    View All Orders
+                </a>
+            </div>
+        </div>
+        <div class="p-6">
+            {% if recent_orders %}
+                <div class="space-y-4">
+                    {% for order in recent_orders %}
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900">Order #{{ order.order_number }}</h3>
+                                <p class="text-sm text-gray-500">{{ order.created_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                                <p class="text-sm text-gray-600">Status: {{ order.status.value }}</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-lg font-semibold text-gray-900">${{ "%.2f"|format(order.total) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-gray-500 py-8">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 002-2z"></path>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No orders yet</h3>
+                    <p class="mt-1 text-sm text-gray-500">This customer hasn't placed any orders yet.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

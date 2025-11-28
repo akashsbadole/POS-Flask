@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}Scale Recipe{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Scale Recipe: {{ recipe.name }}</h1>
+        <a href="{{ url_for('recipes.view', recipe_id=recipe.id) }}" 
+           class="text-blue-600 hover:text-blue-800">
+            ← Back to Recipe
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Original Recipe Info -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Original Recipe</h2>
+            <div class="space-y-4">
+                <div class="flex justify-between">
+                    <span class="text-sm font-medium text-gray-500">Servings:</span>
+                    <span class="text-lg font-bold">{{ recipe.serving_size }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-sm font-medium text-gray-500">Cost per serving:</span>
+                    <span class="text-lg font-bold">${{ "%.2f"|format(recipe.cost_per_serving) }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-sm font-medium text-gray-500">Total cost:</span>
+                    <span class="text-lg font-bold">${{ "%.2f"|format(recipe.calculate_total_cost()) }}</span>
+                </div>
+            </div>
+            
+            <div class="mt-6 pt-6 border-t border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Original Nutrition (per serving)</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Calories:</span>
+                            <span class="font-medium">{{ recipe.nutrition.calories or 0 }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Protein:</span>
+                            <span class="font-medium">{{ recipe.nutrition.protein|round(1) if recipe.nutrition.protein else 0 }}g</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Carbs:</span>
+                            <span class="font-medium">{{ recipe.nutrition.carbohydrates|round(1) if recipe.nutrition.carbohydrates else 0 }}g</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Fat:</span>
+                            <span class="font-medium">{{ recipe.nutrition.fat|round(1) if recipe.nutrition.fat else 0 }}g</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Sodium:</span>
+                            <span class="font-medium">{{ recipe.nutrition.sodium|round(1) if recipe.nutrition.sodium else 0 }}mg</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scaling Form -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Scale Recipe</h2>
+            <form id="scaleForm" class="space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div>
+                    <label for="target_servings" class="block text-sm font-medium text-gray-700 mb-2">
+                        Target Servings
+                    </label>
+                    <div class="mt-1">
+                        <input type="number" id="target_servings" name="target_servings" 
+                               min="1" max="100" value="1" required
+                               class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        <div class="mt-2 flex justify-between text-sm text-gray-600">
+                            <span>Common serving sizes:</span>
+                            <div class="space-x-2">
+                                <button type="button" onclick="setServings(2)" 
+                                        class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm">
+                                    2x
+                                </button>
+                                <button type="button" onclick="setServings(4)" 
+                                        class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm">
+                                    4x
+                                </button>
+                                <button type="button" onclick="setServings(6)" 
+                                        class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm">
+                                    6x
+                                </button>
+                                <button type="button" onclick="setServings(8)" 
+                                        class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm">
+                                    8x
+                                </button>
+                                <button type="button" onclick="setServings(10)" 
+                                        class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm">
+                                    10x
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-4">
+                    <button type="button" onclick="calculateScaling()" 
+                            class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
+                        Calculate Scaling
+                    </button>
+                    <button type="button" onclick="applyScaling()" 
+                            class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700">
+                        Apply Scaling
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scaled Results -->
+    <div id="scaledResults" class="hidden lg:col-span-2">
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-4">Scaled Recipe</h2>
+            <div class="space-y-4">
+                <div class="flex justify-between">
+                    <span class="text-sm font-medium text-gray-500">Target Servings:</span>
+                    <span id="targetServingsDisplay" class="text-lg font-bold">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-sm font-medium text-gray-500">Scaling Factor:</span>
+                    <span id="scalingFactorDisplay" class="text-lg font-bold">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-sm font-medium text-gray-500">New Cost per serving:</span>
+                    <span id="scaledCostPerServing" class="text-lg font-bold">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-sm font-medium text-gray-500">New Total cost:</span>
+                    <span id="scaledTotalCost" class="text-lg font-bold">-</span>
+                </div>
+            </div>
+            
+            <div class="mt-6 pt-6 border-t border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Scaled Nutrition (per serving)</h3>
+                <div id="scaledNutrition" class="grid grid-cols-2 gap-4">
+                    <!-- Scaled nutrition will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function setServings(servings) {
+    document.getElementById('target_servings').value = servings;
+}
+
+function calculateScaling() {
+    const targetServings = parseInt(document.getElementById('target_servings').value);
+    const originalServings = {{ recipe.serving_size }};
+    
+    if (!targetServings || targetServings <= 0 || originalServings <= 0) {
+        alert('Please enter a valid number of servings');
+        return;
+    }
+    
+    const scalingFactor = targetServings / originalServings;
+    const scaledCostPerServing = {{ recipe.cost_per_serving }} * scalingFactor;
+    const scaledTotalCost = {{ recipe.calculate_total_cost() }} * scalingFactor;
+    
+    // Update display
+    document.getElementById('targetServingsDisplay').textContent = targetServings;
+    document.getElementById('scalingFactorDisplay').textContent = scalingFactor.toFixed(2);
+    document.getElementById('scaledCostPerServing').textContent = '$' + scaledCostPerServing.toFixed(2);
+    document.getElementById('scaledTotalCost').textContent = '$' + scaledTotalCost.toFixed(2);
+    
+    // Calculate and display scaled nutrition
+    const nutritionContainer = document.getElementById('scaledNutrition');
+    nutritionContainer.innerHTML = '';
+    
+    const originalNutrition = {{ recipe.nutrition|tojson }};
+    
+    const scaledNutrition = {
+        calories: Math.round((originalNutrition.calories || 0) * scalingFactor),
+        protein: ((originalNutrition.protein || 0) * scalingFactor).toFixed(1),
+        carbohydrates: ((originalNutrition.carbohydrates || 0) * scalingFactor).toFixed(1),
+        fat: ((originalNutrition.fat || 0) * scalingFactor).toFixed(1),
+        sodium: ((originalNutrition.sodium || 0) * scalingFactor).toFixed(1)
+    };
+    
+    const nutritionLabels = {
+        calories: 'Calories',
+        protein: 'Protein',
+        carbohydrates: 'Carbs',
+        fat: 'Fat',
+        sodium: 'Sodium'
+    };
+    
+    for (const [key, label] of Object.entries(nutritionLabels)) {
+        const originalValue = originalNutrition[key] || 0;
+        const scaledValue = scaledNutrition[key] || 0;
+        
+        nutritionContainer.innerHTML += `
+            <div class="flex justify-between">
+                <span class="text-sm text-gray-600">${label}:</span>
+                <span class="font-medium">${scaledValue}${key === 'protein' || key === 'carbohydrates' || key === 'fat' ? 'g' : ''}</span>
+                <span class="text-xs text-gray-500">(${originalValue}${key === 'protein' || key === 'carbohydrates' || key === 'fat' ? 'g' : ''} → ${scaledValue}${key === 'protein' || key === 'carbohydrates' || key === 'fat' ? 'g' : ''})</span>
+            </div>
+        `;
+    }
+    
+    // Show results
+    document.getElementById('scaledResults').classList.remove('hidden');
+}
+
+function applyScaling() {
+    const targetServings = parseInt(document.getElementById('target_servings').value);
+    
+    if (!targetServings || targetServings <= 0) {
+        alert('Please calculate scaling first');
+        return;
+    }
+    
+    // Call API to scale recipe
+    fetch('{{ url_for("recipes.scale_recipe", recipe_id=recipe.id) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            target_servings: targetServings
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Recipe scaled successfully!');
+            // You could redirect or update the page here
+            window.location.href = '{{ url_for("recipes.view", recipe_id=recipe.id) }}';
+        } else {
+            alert('Error scaling recipe: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error scaling recipe');
+    });
+}
+</script>
+{% endblock %}

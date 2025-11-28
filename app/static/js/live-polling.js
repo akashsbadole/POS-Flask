@@ -90,38 +90,9 @@ class LivePollingManager {
     }
 
     setupGlobalErrorHandling() {
-        // Global HTMX error handler
-        document.body.addEventListener('htmx:responseError', (event) => {
-            const xhr = event.detail.xhr;
-            const error = xhr.response || xhr.statusText || 'Unknown error';
-            
-            console.error('HTMX Error:', error);
-            this.showNotification(`Request failed: ${error}`, 'error');
-            
-            // Implement retry logic for failed requests
-            const target = event.target;
-            if (target && target.dataset.retryCount) {
-                const retryCount = parseInt(target.dataset.retryCount) || 0;
-                if (retryCount < this.globalSettings.maxRetries) {
-                    target.dataset.retryCount = retryCount + 1;
-                    setTimeout(() => {
-                        // Retry the request
-                        htmx.trigger(target, 'request');
-                    }, this.globalSettings.retryDelay * (retryCount + 1));
-                } else {
-                    delete target.dataset.retryCount;
-                    this.showNotification('Max retries reached', 'error');
-                }
-            }
-        });
-
-        // Global success handler
-        document.body.addEventListener('htmx:afterRequest', (event) => {
-            const target = event.target;
-            if (target && target.dataset.retryCount) {
-                delete target.dataset.retryCount;
-            }
-        });
+        // Note: HTMX event handlers are now managed by body-class-manager.js
+        // to prevent conflicts and ensure consistent body class management
+        // Error handling is now delegated to the centralized HTMX event system
     }
 
     initializeExistingComponents() {
@@ -185,8 +156,13 @@ class LivePollingManager {
                 // Show loading state
                 this.showLoading();
                 
+                // Use centralized HTMX handling to prevent conflicts
+                if (window.bodyClassManager) {
+                    window.bodyClassManager.addImmediateClass('htmx-request');
+                }
+                
                 htmx.ajax('GET', this.endpoint, {
-                    target: this.targetId,
+                    target: `#${this.targetId}`,
                     swap: 'innerHTML',
                     headers: {
                         'X-Live-Poll': 'true',
@@ -194,9 +170,15 @@ class LivePollingManager {
                     }
                 }).then(() => {
                     this.hideLoading();
+                    if (window.bodyClassManager) {
+                        window.bodyClassManager.removeImmediateClass('htmx-request');
+                    }
                     this.scheduleNextPoll();
                 }).catch((error) => {
                     this.hideLoading();
+                    if (window.bodyClassManager) {
+                        window.bodyClassManager.removeImmediateClass('htmx-request');
+                    }
                     console.error('Polling error:', error);
                     this.scheduleNextPoll(); // Continue polling even on error
                 });

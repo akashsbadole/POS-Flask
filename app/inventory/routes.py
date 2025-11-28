@@ -323,3 +323,51 @@ def check_menu_item_availability(menu_item_id):
         'can_make': can_make if can_make < 999 else 999,
         'limiting_ingredients': limiting_ingredients
     })
+
+@bp.route('/export')
+@login_required
+def export_inventory():
+    """Export inventory data as CSV"""
+    if not current_user.can_access_manager_features():
+        flash('Access denied', 'error')
+        return redirect(url_for('inventory.dashboard'))
+    
+    ingredients = Ingredient.query.order_by(Ingredient.name).all()
+    
+    # Create CSV content
+    import csv
+    from io import StringIO
+    import flask
+    
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow(['Name', 'Description', 'Unit', 'Current Stock', 'Minimum Stock', 'Unit Cost', 'Total Value', 'Supplier', 'Category'])
+    
+    # Write data
+    for ingredient in ingredients:
+        total_value = float(ingredient.current_stock) * float(ingredient.unit_cost)
+        writer.writerow([
+            ingredient.name,
+            ingredient.description or '',
+            ingredient.unit,
+            ingredient.current_stock,
+            ingredient.minimum_stock,
+            ingredient.unit_cost,
+            total_value,
+            ingredient.supplier or '',
+            ingredient.category or ''
+        ])
+    
+    # Create response
+    output.seek(0)
+    response = flask.Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={
+            'Content-Disposition': 'attachment; filename=inventory_export.csv'
+        }
+    )
+    
+    return response

@@ -383,6 +383,11 @@ class SocketManager {
 document.addEventListener('DOMContentLoaded', () => {
     window.socketManager = new SocketManager();
     
+    // Expose the socket instance globally for compatibility
+    if (window.socketManager && window.socketManager.socket) {
+        window.socket = window.socketManager.socket;
+    }
+    
     // Auto-join kitchen room if on kitchen page
     if (window.location.pathname.includes('/kitchen')) {
         // Wait for connection to be established

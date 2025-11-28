@@ -30,6 +30,11 @@ class ReceiptPrinter:
     def print_receipt(self, order):
         """Print receipt for order"""
         try:
+            # Ensure we have a fresh order object with all relationships loaded
+            from app import db
+            order = db.session.merge(order)
+            db.session.refresh(order)
+            
             if self.escpos_enabled:
                 self._print_escpos_receipt(order)
             else:
@@ -114,6 +119,11 @@ class ReceiptPrinter:
     
     def _generate_browser_receipt(self, order):
         """Generate HTML receipt for browser printing"""
+        # Ensure we have a fresh order object with all relationships loaded
+        from app import db
+        order = db.session.merge(order)
+        db.session.refresh(order)
+        
         receipt_html = self._get_receipt_html(order)
         
         # Save to temporary file
@@ -247,6 +257,11 @@ def print_kitchen_ticket(order):
     printer = ReceiptPrinter()
     
     try:
+        # Ensure we have a fresh order object with all relationships loaded
+        from app import db
+        order = db.session.merge(order)
+        db.session.refresh(order)
+        
         if printer.escpos_enabled:
             printer.printer._raw(b'\x1b\x61\x01')  # Center align
             printer.printer._raw(b'\x1b\x21\x08')  # Double height

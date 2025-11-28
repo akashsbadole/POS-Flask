@@ -70,7 +70,6 @@ def subscribe(plan_id):
     
     if request.method == 'POST':
         billing_cycle = request.form.get('billing_cycle', 'monthly')
-        payment_method = request.form.get('payment_method')
         
         # Calculate amount based on billing cycle
         if billing_cycle == 'yearly':
@@ -78,40 +77,26 @@ def subscribe(plan_id):
         else:
             amount = plan.price_monthly
         
-        # Create subscription
+        # Create subscription with pending status
         subscription = Subscription(
             restaurant_id=current_user.restaurant_id,
             plan_id=plan.id,
             billing_cycle=billing_cycle,
             amount=amount,
             currency=plan.currency,
-            payment_method=payment_method,
             start_date=datetime.utcnow(),
             end_date=datetime.utcnow() + timedelta(days=30 if billing_cycle == 'monthly' else 365),
             next_billing_date=datetime.utcnow() + timedelta(days=30 if billing_cycle == 'monthly' else 365),
-            status='trial' if plan.plan_type.value == 'basic' else 'active',
+            status='trial' if plan.plan_type.value == 'basic' else 'pending',
             trial_end_date=datetime.utcnow() + timedelta(days=14) if plan.plan_type.value == 'basic' else None
         )
         
         db.session.add(subscription)
-        db.session.flush()
-        
-        # Create payment record
-        payment = SubscriptionPayment(
-            subscription_id=subscription.id,
-            amount=amount,
-            currency=plan.currency,
-            payment_method=payment_method,
-            status='pending',
-            billing_period_start=subscription.start_date,
-            billing_period_end=subscription.end_date
-        )
-        
-        db.session.add(payment)
         db.session.commit()
         
-        flash('Subscription created successfully!', 'success')
-        return redirect(url_for('subscription.dashboard'))
+        # Redirect to payment processing page
+        flash('Please complete the payment to activate your subscription', 'info')
+        return redirect(url_for('payment.process_payment', subscription_id=subscription.id))
     
     return render_template('subscription/subscribe.html', plan=plan)
 

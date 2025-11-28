@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}Process Payment - Restaurant POS{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+                <h1 class="text-2xl font-bold text-white">Process Payment</h1>
+                <p class="text-blue-100 mt-1">Complete your subscription payment</p>
+            </div>
+
+            <!-- Subscription Details -->
+            <div class="p-6 border-b border-gray-200">
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-3">Subscription Details</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm text-gray-600">Plan</p>
+                            <p class="font-medium text-gray-900">{{ subscription.plan.name }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Billing Cycle</p>
+                            <p class="font-medium text-gray-900">{{ subscription.billing_cycle.title() }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Amount</p>
+                            <p class="text-2xl font-bold text-blue-600">₹{{ "%.2f"|format(subscription.amount) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Currency</p>
+                            <p class="font-medium text-gray-900">{{ subscription.currency.upper() }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Form -->
+            <div class="p-6">
+                <form method="POST" id="paymentForm" x-data="paymentProcessor()">
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Select Payment Gateway
+                        </label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {% for gateway in gateways %}
+                            <div class="border rounded-lg p-4 cursor-pointer transition-all hover:border-blue-500 hover:bg-blue-50"
+                                 @click="selectGateway('{{ gateway.gateway_type.value }}')"
+                                 :class="{'border-blue-500 bg-blue-50': selectedGateway === '{{ gateway.gateway_type.value }}'}">
+                                <div class="flex items-center">
+                                    <input type="radio" name="gateway_type" value="{{ gateway.gateway_type.value }}"
+                                           class="sr-only" x-model="selectedGateway"
+                                           @change="loadPaymentMethods('{{ gateway.gateway_type.value }}')">
+                                    <div class="flex-shrink-0">
+                                        {% if gateway.gateway_type.value == 'razorpay' %}
+                                        <svg class="h-8 w-8 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
+                                        </svg>
+                                        {% elif gateway.gateway_type.value == 'stripe' %}
+                                        <svg class="h-8 w-8 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.856 6.09 1.631l.894-5.494C18.25 1.237 15.892.299 12.539.299 10.656.299 9.117.637 7.882 1.373 5.487 2.771 4.248 5.023 4.248 7.621c0 4.041 3.468 5.788 5.824 6.996 2.235 1.151 3.032 1.892 3.032 2.921 0 1.078-1.164 1.653-2.247 1.653-1.642 0-3.981-.808-5.766-1.817l-.894 5.672c1.873.833 4.053 1.274 6.321 1.274 2.003 0 3.688-.376 5.09-1.332 2.452-1.653 3.722-4.251 3.722-7.208 0-4.241-3.506-5.904-5.854-7.155z"/>
+                                        </svg>
+                                        {% endif %}
+                                    </div>
+                                    <div class="ml-3">
+                                        <p class="font-medium text-gray-900">{{ gateway.name }}</p>
+                                        <p class="text-sm text-gray-500">
+                                            {% if gateway.test_mode %}Test Mode{% else %}Live Mode{% endif %}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Payment Methods -->
+                    <div x-show="selectedGateway" x-transition>
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Payment Method
+                            </label>
+                            <div id="paymentMethods" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <!-- Payment methods will be loaded here -->
+                            </div>
+                        </div>
+
+                        <!-- Fee Calculation -->
+                        <div x-show="selectedMethod && fee > 0" x-transition class="mb-6 p-4 bg-blue-50 rounded-lg">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-600">Processing Fee:</span>
+                                <span class="font-medium text-blue-600">₹<span x-text="fee.toFixed(2)"></span></span>
+                            </div>
+                            <div class="flex justify-between items-center mt-2">
+                                <span class="text-sm font-medium text-gray-900">Total Amount:</span>
+                                <span class="text-lg font-bold text-blue-600">₹<span x-text="totalAmount.toFixed(2)"></span></span>
+                            </div>
+                        </div>
+
+                        <!-- Payment Details -->
+                        <div x-show="selectedMethod" x-transition>
+                            <div class="mb-6">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Email Address
+                                </label>
+                                <input type="email" name="email" value="{{ current_user.email }}" readonly
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
+                            </div>
+
+                            <div class="mb-6">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Name
+                                </label>
+                                <input type="text" name="name" value="{{ current_user.name }}" readonly
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
+                            </div>
+
+                            <!-- Gateway-specific fields will be loaded here -->
+                            <div id="gatewayFields"></div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div x-show="selectedMethod" x-transition>
+                            <button type="submit" 
+                                    :disabled="processing"
+                                    class="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span x-show="!processing">Process Payment</span>
+                                <span x-show="processing">Processing...</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function paymentProcessor() {
+    return {
+        selectedGateway: null,
+        selectedMethod: null,
+        fee: 0,
+        totalAmount: {{ subscription.amount }},
+        processing: false,
+        
+        selectGateway(gateway) {
+            this.selectedGateway = gateway;
+            this.selectedMethod = null;
+            this.fee = 0;
+            this.totalAmount = {{ subscription.amount }};
+            this.loadPaymentMethods(gateway);
+        },
+        
+        async loadPaymentMethods(gateway) {
+            try {
+                const response = await fetch(`/payment/methods/${gateway}`);
+                const data = await response.json();
+                
+                const container = document.getElementById('paymentMethods');
+                container.innerHTML = '';
+                
+                data.methods.forEach(method => {
+                    const methodDiv = document.createElement('div');
+                    methodDiv.className = 'border rounded-lg p-3 cursor-pointer transition-all hover:border-blue-500 hover:bg-blue-50';
+                    methodDiv.innerHTML = `
+                        <div class="flex items-center">
+                            <input type="radio" name="payment_method" value="${method.type}" 
+                                   class="sr-only" x-model="selectedMethod"
+                                   @change="selectMethod('${method.type}', ${JSON.stringify(method).replace(/"/g, '"')})">
+                            <div class="flex-shrink-0">
+                                ${this.getPaymentMethodIcon(method.type)}
+                            </div>
+                            <div class="ml-3">
+                                <p class="font-medium text-gray-900">${method.type.replace('_', ' ').title()}</p>
+                                <p class="text-xs text-gray-500">
+                                    Min: ₹${method.min_amount} - Max: ₹${method.max_amount}
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(methodDiv);
+                });
+            } catch (error) {
+                console.error('Error loading payment methods:', error);
+            }
+        },
+        
+        selectMethod(method, methodData) {
+            this.selectedMethod = method;
+            this.calculateFee(methodData);
+            this.loadGatewayFields(method);
+        },
+        
+        calculateFee(methodData) {
+            const baseAmount = {{ subscription.amount }};
+            let fee = 0;
+            
+            if (methodData.fee_percentage > 0) {
+                fee += baseAmount * (methodData.fee_percentage / 100);
+            }
+            if (methodData.fee_fixed > 0) {
+                fee += methodData.fee_fixed;
+            }
+            
+            this.fee = fee;
+            this.totalAmount = baseAmount + fee;
+        },
+        
+        loadGatewayFields(method) {
+            const container = document.getElementById('gatewayFields');
+            container.innerHTML = '';
+            
+            if (this.selectedGateway === 'razorpay' && method === 'card') {
+                container.innerHTML = `
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Card Number</label>
+                        <input type="text" placeholder="1234 5678 9012 3456" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Expiry Date</label>
+                            <input type="text" placeholder="MM/YY" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">CVV</label>
+                            <input type="text" placeholder="123" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                    </div>
+                `;
+            } else if (this.selectedGateway === 'razorpay' && method === 'upi') {
+                container.innerHTML = `
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">UPI ID</label>
+                        <input type="text" placeholder="username@upi" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    </div>
+                `;
+            }
+        },
+        
+        getPaymentMethodIcon(method) {
+            const icons = {
+                'card': '<svg class="h-6 w-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>',
+                'upi': '<svg class="h-6 w-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
+                'net_banking': '<svg class="h-6 w-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>',
+                'wallet': '<svg class="h-6 w-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>'
+            };
+            return icons[method] || icons['card'];
+        }
+    }
+}
+</script>
+{% endblock %}

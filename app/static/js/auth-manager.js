@@ -35,7 +35,7 @@ class AuthManager {
     async checkAuthStatus() {
         try {
             // Check if user is authenticated on server
-            const response = await fetch('/api/auth/status');
+            const response = await fetch('/auth/status');
             
             if (response.ok) {
                 const data = await response.json();
@@ -152,9 +152,15 @@ class AuthManager {
      */
     updateUI(user) {
         if (user) {
-            // User is authenticated
-            document.body.classList.add('user-authenticated');
-            document.body.classList.remove('user-not-authenticated');
+            // User is authenticated - use centralized manager with immediate update
+            if (window.bodyClassManager) {
+                window.bodyClassManager.addImmediateClass('user-authenticated');
+                window.bodyClassManager.removeImmediateClass('user-not-authenticated');
+            } else {
+                // Fallback to direct manipulation - NO TRANSITIONS
+                document.body.classList.add('user-authenticated');
+                document.body.classList.remove('user-not-authenticated');
+            }
             
             // Update user info in UI if elements exist
             const userNameElements = document.querySelectorAll('[data-user-name]');
@@ -172,9 +178,15 @@ class AuthManager {
                 detail: { user }
             }));
         } else {
-            // User is not authenticated
-            document.body.classList.add('user-not-authenticated');
-            document.body.classList.remove('user-authenticated');
+            // User is not authenticated - use centralized manager with immediate update
+            if (window.bodyClassManager) {
+                window.bodyClassManager.addImmediateClass('user-not-authenticated');
+                window.bodyClassManager.removeImmediateClass('user-authenticated');
+            } else {
+                // Fallback to direct manipulation - NO TRANSITIONS
+                document.body.classList.add('user-not-authenticated');
+                document.body.classList.remove('user-authenticated');
+            }
             
             // Dispatch event for other components
             window.dispatchEvent(new CustomEvent('user-not-authenticated'));
@@ -220,6 +232,7 @@ class AuthManager {
                         
                         // Redirect if needed
                         if (data.redirect) {
+                            console.log('Redirecting to:', data.redirect);
                             window.location.href = data.redirect;
                         }
                     } else {
@@ -367,30 +380,23 @@ class AuthManager {
      */
     async handleLogout() {
         try {
+            // Clear local auth data immediately
+            this.clearAuthData();
+            this.updateUI(null);
+            
+            // Make a simple GET request to logout endpoint
             const response = await fetch('/auth/logout', {
-                method: 'POST',
+                method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             });
 
-            if (response.ok) {
-                this.clearAuthData();
-                this.updateUI(null);
-                
-                // Redirect to login page
-                window.location.href = '/auth/login';
-            } else {
-                console.error('Logout failed');
-                // Still clear local data even if server logout fails
-                this.clearAuthData();
-                this.updateUI(null);
-                window.location.href = '/auth/login';
-            }
+            // Always redirect to login page regardless of response
+            window.location.href = '/auth/login';
         } catch (error) {
             console.error('Logout error:', error);
-            this.clearAuthData();
-            this.updateUI(null);
+            // Still redirect to login page even on error
             window.location.href = '/auth/login';
         }
     }

@@ -3,30 +3,14 @@
 {% block title %}System Status{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-restaurant-bg p-6">
+<div class="min-h-screen bg-restaurant-bg">
     <div class="max-w-7xl mx-auto">
         <div class="mb-6">
             <h1 class="text-3xl font-bold text-food-primary">System Status</h1>
             <p class="text-gray-600 mt-2">Overview of system performance and activity</p>
         </div>
 
-        <!-- Live Polling System Status -->
-        <div x-data="livePollManager('{{ url_for("api.get_live_system_status") }}', 15, 'system-status-content')"
-             x-init="initPolling()">
-            {% include 'partials/live_poll.html' %}
-            <div id="system-status-content">
-                <!-- Initial stats will be loaded by live polling -->
-                <div class="text-center py-8 text-gray-500">
-                    <svg class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <p class="mt-2">Loading system status...</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Original Stats Cards (fallback) -->
+        <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="bg-restaurant-card rounded-food shadow-food border border-restaurant-border p-6">
                 <div class="flex items-center">

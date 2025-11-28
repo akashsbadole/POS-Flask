@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Successful - Restaurant POS{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+            <!-- Success Header -->
+            <div class="bg-gradient-to-r from-green-600 to-green-700 px-6 py-8 text-center">
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                    <svg class="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <h1 class="text-3xl font-bold text-white">Payment Successful!</h1>
+                <p class="text-green-100 mt-2">Your subscription has been activated</p>
+            </div>
+
+            <!-- Transaction Details -->
+            <div class="p-6">
+                <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Transaction Details</h2>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Transaction ID:</span>
+                            <span class="font-mono text-sm">{{ transaction.transaction_id }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Amount Paid:</span>
+                            <span class="font-semibold text-green-600">₹{{ "%.2f"|format(transaction.amount) }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Payment Method:</span>
+                            <span class="font-medium">{{ transaction.payment_method.value.replace('_', ' ').title() }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Payment Date:</span>
+                            <span class="font-medium">{{ transaction.processed_at.strftime('%d %b %Y, %I:%M %p') if transaction.processed_at else transaction.created_at.strftime('%d %b %Y, %I:%M %p') }}</span>
+                        </div>
+                        {% if transaction.gateway %}
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Payment Gateway:</span>
+                            <span class="font-medium">{{ transaction.gateway.name }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Subscription Details -->
+                {% if subscription %}
+                <div class="bg-blue-50 rounded-lg p-6 mb-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Subscription Details</h2>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Plan:</span>
+                            <span class="font-medium">{{ subscription.plan.name }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Billing Cycle:</span>
+                            <span class="font-medium">{{ subscription.billing_cycle.title() }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Status:</span>
+                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                Active
+                            </span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Next Billing Date:</span>
+                            <span class="font-medium">{{ subscription.next_billing_date.strftime('%d %b %Y') if subscription.next_billing_date else 'N/A' }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <a href="{{ url_for('subscription.my_subscription') }}" 
+                       class="flex-1 bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-center font-medium">
+                        View My Subscription
+                    </a>
+                    <a href="{{ url_for('payment.payment_history') }}" 
+                       class="flex-1 bg-gray-200 text-gray-800 py-3 px-4 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 text-center font-medium">
+                        Payment History
+                    </a>
+                </div>
+
+                <!-- Download Invoice -->
+                <div class="mt-6 text-center">
+                    <a href="{{ url_for('main.invoice', transaction_id=transaction.id) }}" 
+                       class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium">
+                        <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Download Invoice
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Information -->
+        <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-blue-800">Payment Confirmation</h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        <p>A confirmation email has been sent to your registered email address with all the transaction details.</p>
+                        <p class="mt-1">Your subscription is now active and you can start using all the features included in your plan.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

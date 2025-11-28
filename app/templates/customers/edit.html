@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Customer{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Edit Customer</h1>
+                <p class="mt-2 text-gray-600">Update customer information and preferences</p>
+            </div>
+            <div class="flex space-x-3">
+                <a href="{{ url_for('customers.view_customer', customer_id=customer.id) }}" 
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Cancel
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST" class="space-y-8">
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">Basic Information</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="first_name" class="block text-sm font-medium text-gray-700">First Name</label>
+                        <input type="text" id="first_name" name="first_name" value="{{ customer.first_name or '' }}" required
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="last_name" class="block text-sm font-medium text-gray-700">Last Name</label>
+                        <input type="text" id="last_name" name="last_name" value="{{ customer.last_name or '' }}" required
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                        <input type="email" id="email" name="email" value="{{ customer.email or '' }}"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="phone" class="block text-sm font-medium text-gray-700">Phone</label>
+                        <input type="tel" id="phone" name="phone" value="{{ customer.phone or '' }}"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="company_name" class="block text-sm font-medium text-gray-700">Company Name</label>
+                        <input type="text" id="company_name" name="company_name" value="{{ customer.company_name or '' }}"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="tax_id" class="block text-sm font-medium text-gray-700">Tax ID</label>
+                        <input type="text" id="tax_id" name="tax_id" value="{{ customer.tax_id or '' }}"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">Address Information</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label for="address_line1" class="block text-sm font-medium text-gray-700">Address Line 1</label>
+                        <input type="text" id="address_line1" name="address_line1" 
+                               value="{{ customer.address.line1 or '' }}"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label for="address_line2" class="block text-sm font-medium text-gray-700">Address Line 2</label>
+                        <input type="text" id="address_line2" name="address_line2" 
+                               value="{{ customer.address.line2 or '' }}"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="city" class="block text-sm font-medium text-gray-700">City</label>
+                        <input type="text" id="city" name="city" value="{{ customer.address.city or '' }}"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="state" class="block text-sm font-medium text-gray-700">State/Province</label>
+                        <input type="text" id="state" name="state" value="{{ customer.address.state or '' }}"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="postal_code" class="block text-sm font-medium text-gray-700">Postal Code</label>
+                        <input type="text" id="postal_code" name="postal_code" value="{{ customer.address.postal_code or '' }}"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="country" class="block text-sm font-medium text-gray-700">Country</label>
+                        <input type="text" id="country" name="country" value="{{ customer.address.country or '' }}"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">Loyalty Program</h2>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="loyalty_member" name="loyalty_member" 
+                               {% if customer.loyalty.member %}checked{% endif %}
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="loyalty_member" class="ml-2 block text-sm text-gray-900">
+                            Enable Loyalty Membership
+                        </label>
+                    </div>
+                    
+                    <div id="loyalty-details" {% if not customer.loyalty.member %}class="hidden"{% endif %}>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="loyalty_tier" class="block text-sm font-medium text-gray-700">Loyalty Tier</label>
+                                <select id="loyalty_tier" name="loyalty_tier" 
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                    <option value="">Select Tier</option>
+                                    <option value="bronze" {% if customer.loyalty.tier == 'bronze' %}selected{% endif %}>Bronze</option>
+                                    <option value="silver" {% if customer.loyalty.tier == 'silver' %}selected{% endif %}>Silver</option>
+                                    <option value="gold" {% if customer.loyalty.tier == 'gold' %}selected{% endif %}>Gold</option>
+                                    <option value="platinum" {% if customer.loyalty.tier == 'platinum' %}selected{% endif %}>Platinum</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label for="loyalty_points" class="block text-sm font-medium text-gray-700">Current Points</label>
+                                <input type="number" id="loyalty_points" name="loyalty_points" 
+                                       value="{{ customer.loyalty.points or 0 }}" min="0"
+                                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <label for="loyalty_benefits" class="block text-sm font-medium text-gray-700">Benefits (comma-separated)</label>
+                            <textarea id="loyalty_benefits" name="loyalty_benefits" rows="3"
+                                      class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">{{ customer.loyalty.benefits|join(', ') if customer.loyalty.benefits else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">Preferences</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="preferred_contact_method" class="block text-sm font-medium text-gray-700">Preferred Contact Method</label>
+                        <select id="preferred_contact_method" name="preferred_contact_method" 
+                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <option value="email" {% if customer.preferences.preferred_contact_method == 'email' %}selected{% endif %}>Email</option>
+                            <option value="phone" {% if customer.preferences.preferred_contact_method == 'phone' %}selected{% endif %}>Phone</option>
+                            <option value="sms" {% if customer.preferences.preferred_contact_method == 'sms' %}selected{% endif %}>SMS</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="preferred_language" class="block text-sm font-medium text-gray-700">Preferred Language</label>
+                        <input type="text" id="preferred_language" name="preferred_language" 
+                               value="{{ customer.preferences.language or 'en' }}"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label for="dietary_restrictions" class="block text-sm font-medium text-gray-700">Dietary Restrictions</label>
+                        <textarea id="dietary_restrictions" name="dietary_restrictions" rows="3"
+                                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">{{ customer.preferences.dietary_restrictions or '' }}</textarea>
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label for="allergies" class="block text-sm font-medium text-gray-700">Allergies</label>
+                        <textarea id="allergies" name="allergies" rows="3"
+                                  class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">{{ customer.preferences.allergies or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">Marketing Preferences</h2>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="marketing_consented" name="marketing_consented" 
+                               {% if customer.marketing.consented %}checked{% endif %}
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="marketing_consented" class="ml-2 block text-sm text-gray-900">
+                            Customer has consented to marketing communications
+                        </label>
+                    </div>
+                    
+                    <div>
+                        <label for="marketing_consent_date" class="block text-sm font-medium text-gray-700">Consent Date</label>
+                        <input type="date" id="marketing_consent_date" name="marketing_consent_date" 
+                               value="{{ customer.marketing.consent_date.strftime('%Y-%m-%d') if customer.marketing.consent_date else '' }}"
+                               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="email_marketing" name="email_marketing" 
+                                   {% if customer.marketing.email %}checked{% endif %}
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="email_marketing" class="ml-2 block text-sm text-gray-900">Email Marketing</label>
+                        </div>
+                        
+                        <div class="flex items-center">
+                            <input type="checkbox" id="sms_marketing" name="sms_marketing" 
+                                   {% if customer.marketing.sms %}checked{% endif %}
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="sms_marketing" class="ml-2 block text-sm text-gray-900">SMS Marketing</label>
+                        </div>
+                        
+                        <div class="flex items-center">
+                            <input type="checkbox" id="phone_marketing" name="phone_marketing" 
+                                   {% if customer.marketing.phone %}checked{% endif %}
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="phone_marketing" class="ml-2 block text-sm text-gray-900">Phone Marketing</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-3">
+            <a href="{{ url_for('customers.view_customer', customer_id=customer.id) }}" 
+               class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Cancel
+            </a>
+            <button type="submit" 
+                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loyaltyMemberCheckbox = document.getElementById('loyalty_member');
+    const loyaltyDetails = document.getElementById('loyalty-details');
+    
+    loyaltyMemberCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            loyaltyDetails.classList.remove('hidden');
+        } else {
+            loyaltyDetails.classList.add('hidden');
+        }
+    });
+});
+</script>
+{% endblock %}

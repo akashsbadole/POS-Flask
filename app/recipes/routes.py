@@ -341,3 +341,125 @@ def api_search():
     return jsonify({
         'recipes': [recipe.to_dict() for recipe in recipes]
     })
+
+@bp.route('/<int:recipe_id>/scale', methods=['POST'])
+@login_required
+def scale_recipe(recipe_id):
+    """Scale recipe to different serving size"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    recipe = Recipe.query.get_or_404(recipe_id)
+    
+    if not request.is_json:
+        return jsonify({'error': 'Invalid JSON'}), 400
+    
+    data = request.get_json()
+    target_servings = data.get('target_servings', type=int)
+    
+    if not target_servings or target_servings <= 0:
+        return jsonify({'error': 'Invalid target servings'}), 400
+    
+    # Scale the recipe
+    scaling_factor = recipe.scale_to(target_servings)
+    
+    if scaling_factor is None:
+        return jsonify({'error': 'Recipe cannot be scaled'}), 400
+    
+    # Get scaled ingredients
+    scaled_ingredients = []
+    for recipe_ingredient in recipe.ingredients:
+        scaled_quantity = float(recipe_ingredient.quantity) * scaling_factor
+        scaled_ingredients.append({
+            'id': recipe_ingredient.id,
+            'name': recipe_ingredient.ingredient.name,
+            'original_quantity': float(recipe_ingredient.quantity),
+            'scaled_quantity': round(scaled_quantity, 2),
+            'unit': recipe_ingredient.ingredient.unit,
+            'unit_cost': float(recipe_ingredient.ingredient.unit_cost),
+            'total_cost': round(scaled_quantity * float(recipe_ingredient.ingredient.unit_cost), 2)
+        })
+    
+    return jsonify({
+        'success': True,
+        'original_servings': recipe.serving_size,
+        'target_servings': target_servings,
+        'scaling_factor': scaling_factor,
+        'scaled_nutrition': recipe.get_scaled_nutrition(target_servings),
+        'ingredients': scaled_ingredients,
+        'scaled_cost_per_serving': float(recipe.cost_per_serving) * scaling_factor if recipe.cost_per_serving else 0.0,
+        'scaled_total_cost': recipe.calculate_total_cost() * scaling_factor
+    })
+
+@bp.route('/<int:recipe_id>/nutrition')
+@login_required
+def recipe_nutrition(recipe_id):
+    """Get nutritional information for recipe"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    recipe = Recipe.query.get_or_404(recipe_id)
+    
+    return jsonify({
+        'recipe': recipe.to_dict(),
+        'nutrition': recipe.get_nutrition_summary(),
+        'daily_value_percentages': {
+            'protein': recipe.get_daily_value_percentage(recipe.protein, 50),  # 50g daily value
+            'carbohydrates': recipe.get_daily_value_percentage(recipe.carbohydrates, 300),  # 300g daily value
+            'fat': recipe.get_daily_value_percentage(recipe.fat, 65),  # 65g daily value
+            'sodium': recipe.get_daily_value_percentage(recipe.sodium, 2300),  # 2300mg daily value
+            'fiber': recipe.get_daily_value_percentage(recipe.fiber, 25),  # 25g daily value
+        }
+    })
+
+@bp.route('/api/scale-batch', methods=['POST'])
+@login_required
+def api_scale_batch():
+    """Scale multiple recipes at once"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    if not request.is_json:
+        return jsonify({'error': 'Invalid JSON'}), 400
+    
+    data = request.get_json()
+    recipe_ids = data.get('recipe_ids', [])
+    target_servings = data.get('target_servings', 1)
+    
+    if not recipe_ids or not isinstance(recipe_ids, list):
+        return jsonify({'error': 'Invalid recipe IDs'}), 400
+    
+    results = []
+    for recipe_id in recipe_ids:
+        recipe = Recipe.query.get(recipe_id)
+        if recipe:
+            scaling_factor = recipe.scale_to(target_servings)
+            if scaling_factor:
+                results.append({
+                    'recipe_id': recipe.id,
+                    'recipe_name': recipe.name,
+                    'original_servings': recipe.serving_size,
+                    'target_servings': target_servings,
+                    'scaling_factor': scaling_factor,
+                    'scaled_nutrition': recipe.get_scaled_nutrition(target_servings),
+                    'success': True
+                })
+            else:
+                results.append({
+                    'recipe_id': recipe.id,
+                    'recipe_name': recipe.name,
+                    'error': 'Recipe cannot be scaled',
+                    'success': False
+                })
+        else:
+            results.append({
+                'recipe_id': recipe_id,
+                'error': 'Recipe not found',
+                'success': False
+            })
+    
+    return jsonify({
+        'success': True,
+        'results': results,
+        'target_servings': target_servings
+    })

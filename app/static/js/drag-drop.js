@@ -62,7 +62,12 @@ class DragDropManager {
     setupTouchSupport() {
         // Add touch-specific styles if needed
         if (this.isTouchDevice) {
-            document.body.classList.add('touch-device');
+            if (window.bodyClassManager) {
+                window.bodyClassManager.addImmediateClass('touch-device');
+            } else {
+                // Fallback to direct manipulation
+                document.body.classList.add('touch-device');
+            }
         }
     }
 

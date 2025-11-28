@@ -7,6 +7,7 @@ from app.models.menu import MenuItem, ItemVariant, AddOn
 from app.models.table import Table
 from app.models.inventory import MenuItemIngredient
 from app.models.user import User
+from app.models.customer import Customer
 from app.receipt_printer import ReceiptPrinter, print_kitchen_ticket, open_cash_drawer
 from app.notifications.service import notification_service
 from app import db
@@ -146,9 +147,15 @@ def create_order():
         flash('Cart is empty', 'error')
         return redirect(url_for('orders.view_cart'))
     
+    # Get customer ID from form or session
+    customer_id = None
+    if request.method == 'POST':
+        customer_id = request.form.get('customer_id', type=int) or session.get('selected_customer_id')
+    
     # Create order
     order = Order(
         user_id=current_user.id,
+        customer_id=customer_id,
         status=OrderStatus.PENDING
     )
     
@@ -215,8 +222,9 @@ def create_order():
         # Log error but don't fail the order
         print(f"Error printing kitchen ticket: {e}")
     
-    # Clear cart
+    # Clear cart and customer selection
     session.pop('cart', None)
+    session.pop('selected_customer_id', None)
     
     flash(f'Order {order.order_number} created successfully', 'success')
     
@@ -276,18 +284,75 @@ def process_payment(order_id):
     customer_phone = request.form.get('customer_phone')
     send_receipt = request.form.get('send_receipt') == 'on'
     
+    # Handle loyalty points redemption
+    redeem_points = request.form.get('redeem_points', type=int) or 0
+    points_discount = 0.0
+    
+    if redeem_points > 0 and order.customer:
+        if order.customer.loyalty_points >= redeem_points:
+            # Calculate points value (100 points = $1)
+            points_discount = redeem_points / 100.0
+            
+            # Redeem points
+            if order.customer.redeem_loyalty_points(redeem_points, f"Points redeemed for order {order.order_number}", order_id):
+                db.session.commit()
+        else:
+            flash(f'Insufficient loyalty points. Customer has {order.customer.loyalty_points} points.', 'error')
+            return redirect(url_for('orders.checkout', order_id=order_id))
+    
     if not payment_method or not amount:
         flash('Payment details required', 'error')
         return redirect(url_for('orders.checkout', order_id=order_id))
     
+    # Calculate final amount after points discount
+    final_amount = amount - points_discount
+    
     # Create payment
     payment = Payment(
         order_id=order_id,
-        amount=amount,
+        amount=final_amount,
         method=PaymentMethod(payment_method)
     )
     
     db.session.add(payment)
+    
+    # Handle credit payment
+    if payment_method == 'credit':
+        if not order.customer:
+            flash('Customer must be selected for credit payment', 'error')
+            return redirect(url_for('orders.checkout', order_id=order_id))
+        
+        # Check if customer has sufficient credit
+        credit_summary = order.customer.get_credit_summary()
+        if not credit_summary.get('has_credit_account') or not credit_summary.get('is_active'):
+            flash('Customer does not have an active credit account', 'error')
+            return redirect(url_for('orders.checkout', order_id=order_id))
+        
+        if credit_summary.get('available_credit', 0) < final_amount:
+            flash(f'Insufficient credit. Available: ${credit_summary.get("available_credit", 0):.2f}', 'error')
+            return redirect(url_for('orders.checkout', order_id=order_id))
+        
+        # Charge to credit account
+        if not order.customer.charge_to_credit(final_amount, f"Order {order.order_number}", 'order', order_id, current_user.id):
+            flash('Failed to charge credit account', 'error')
+            return redirect(url_for('orders.checkout', order_id=order_id))
+    
+    # Create payment record
+    payment = Payment(
+        order_id=order_id,
+        amount=final_amount,
+        method=PaymentMethod(payment_method)
+    )
+    
+    db.session.add(payment)
+    
+    # Apply points discount to order
+    if points_discount > 0:
+        order.discount_amount = points_discount
+        order.discount_type = 'fixed'
+        order.discount_reason = f'Loyalty points redemption ({redeem_points} points)'
+        order.calculate_totals()
+    
     db.session.commit()
     
     # Check if order is fully paid
@@ -314,7 +379,10 @@ def process_payment(order_id):
             # Log error but don't fail the payment
             print(f"Error sending order confirmation: {e}")
         
-        flash(f'Order {order.order_number} paid successfully', 'success')
+        success_message = f'Order {order.order_number} paid successfully'
+        if points_discount > 0:
+            success_message += f' (used {redeem_points} loyalty points = ${points_discount:.2f} discount)'
+        flash(success_message, 'success')
         
         # If order is completed and receipt requested, send it
         if send_receipt and (customer_email or customer_phone):
@@ -397,6 +465,286 @@ def remove_discount(order_id):
         return render_template('orders/partials/order_totals.html', order=order)
     
     return redirect(url_for('orders.checkout', order_id=order_id))
+
+@bp.route('/process-split-bill', methods=['POST'])
+@login_required
+def process_split_bill():
+    """Process split bill from cart"""
+    cart = session.get('cart', {})
+    
+    if not cart:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Cart is empty'}), 400
+        flash('Cart is empty', 'error')
+        return redirect(url_for('orders.view_cart'))
+    
+    # Get split bill data
+    split_type = request.form.get('split_type')
+    total_amount = float(request.form.get('total_amount', 0))
+    customer_id = None
+    if request.method == 'POST':
+        customer_id = request.form.get('customer_id') or session.get('selected_customer_id')
+    
+    # Validate split data
+    if not split_type or total_amount <= 0:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Invalid split bill data'}), 400
+        flash('Invalid split bill data', 'error')
+        return redirect(url_for('orders.view_cart'))
+    
+    # Create order from cart
+    order = Order(
+        user_id=current_user.id,
+        customer_id=customer_id,
+        status=OrderStatus.PENDING
+    )
+    
+    # Add items to order
+    for cart_key, cart_item in cart.items():
+        order_item = OrderItem(
+            item_id=cart_item['item_id'],
+            quantity=cart_item['quantity'],
+            unit_price=cart_item['unit_price'],
+            variant_id=cart_item['variant_id'],
+            notes=cart_item['notes']
+        )
+        
+        # Add add-ons
+        for add_on_detail in cart_item['add_ons']:
+            # Handle both ID-only and detail objects
+            if isinstance(add_on_detail, dict):
+                add_on_id = add_on_detail.get('id')
+            else:
+                add_on_id = add_on_detail
+            
+            add_on = AddOn.query.get(add_on_id)
+            if add_on:
+                order_item.add_ons.append(add_on)
+        
+        order.items.append(order_item)
+    
+    # Calculate totals
+    order.calculate_totals()
+    
+    db.session.add(order)
+    db.session.commit()
+    
+    # Refresh order to load relationships
+    db.session.refresh(order)
+    
+    # Process split payment
+    if split_type == 'equal':
+        number_of_splits = int(request.form.get('number_of_splits', 2))
+        return process_equal_split_payment(order, number_of_splits)
+    elif split_type == 'custom':
+        split_names = request.form.getlist('split_name[]')
+        split_amounts = request.form.getlist('split_amount[]')
+        split_payment_methods = request.form.getlist('split_payment_method[]')
+        return process_custom_split_payment(order, split_names, split_amounts, split_payment_methods)
+    elif split_type == 'items':
+        split_names = request.form.getlist('split_name[]')
+        split_items = request.form.getlist('split_items[]')
+        split_payment_methods = request.form.getlist('split_payment_method[]')
+        return process_item_split_payment(order, split_names, split_items, split_payment_methods)
+    else:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Invalid split type'}), 400
+        flash('Invalid split type', 'error')
+        return redirect(url_for('orders.view_cart'))
+
+def process_equal_split_payment(order, number_of_splits):
+    """Process equal split payment"""
+    balance_due = order.get_balance_due()
+    equal_amount = balance_due / number_of_splits
+    
+    payments_created = []
+    for i in range(number_of_splits):
+        payment = Payment(
+            order_id=order.id,
+            amount=equal_amount,
+            method=PaymentMethod.CASH  # Default to cash, can be customized
+        )
+        db.session.add(payment)
+        payments_created.append(payment)
+    
+    # Create split bill record
+    split_bill = SplitBill(
+        order_id=order.id,
+        split_type='equal',
+        total_amount=balance_due,
+        split_details=json.dumps([
+            {
+                'name': f'Person {i + 1}',
+                'amount': equal_amount,
+                'payment_method': 'cash'
+            }
+            for i in range(number_of_splits)
+        ]),
+        created_by=current_user.id
+    )
+    
+    db.session.add(split_bill)
+    db.session.commit()
+    
+    return finalize_split_payment(order, payments_created, split_bill)
+
+def process_custom_split_payment(order, split_names, split_amounts, split_payment_methods):
+    """Process custom amount split payment"""
+    payments_created = []
+    split_details = []
+    
+    for i, name in enumerate(split_names):
+        try:
+            amount = float(split_amounts[i])
+            if amount <= 0:
+                continue
+            
+            payment = Payment(
+                order_id=order.id,
+                amount=amount,
+                method=PaymentMethod(split_payment_methods[i])
+            )
+            
+            db.session.add(payment)
+            payments_created.append(payment)
+            
+            split_details.append({
+                'name': name,
+                'amount': amount,
+                'payment_method': split_payment_methods[i]
+            })
+            
+        except (ValueError, TypeError, IndexError):
+            continue
+    
+    # Create split bill record
+    split_bill = SplitBill(
+        order_id=order.id,
+        split_type='custom',
+        total_amount=sum(p.amount for p in payments_created),
+        split_details=json.dumps(split_details),
+        created_by=current_user.id
+    )
+    
+    db.session.add(split_bill)
+    db.session.commit()
+    
+    return finalize_split_payment(order, payments_created, split_bill)
+
+def process_item_split_payment(order, split_names, split_items, split_payment_methods):
+    """Process item-based split payment"""
+    payments_created = []
+    split_details = []
+    
+    # Get all order items for reference
+    order_items = {item.id: item for item in order.items}
+    
+    for i, name in enumerate(split_names):
+        try:
+            # Parse items for this split
+            items_data = []
+            if i < len(split_items):
+                try:
+                    items_data = json.loads(split_items[i])
+                except (json.JSONDecodeError, TypeError):
+                    items_data = []
+            
+            # Calculate total for this split based on assigned items
+            split_total = 0.0
+            for item_id in items_data:
+                if item_id in order_items:
+                    item = order_items[item_id]
+                    split_total += item.get_total_price()
+            
+            # Create payment record
+            payment = Payment(
+                order_id=order.id,
+                amount=split_total,
+                method=PaymentMethod(split_payment_methods[i] if i < len(split_payment_methods) else 'cash')
+            )
+            
+            db.session.add(payment)
+            payments_created.append(payment)
+            
+            split_details.append({
+                'name': name,
+                'amount': split_total,
+                'payment_method': split_payment_methods[i] if i < len(split_payment_methods) else 'cash',
+                'items': items_data
+            })
+            
+        except (ValueError, TypeError, IndexError):
+            continue
+    
+    # Create split bill record
+    split_bill = SplitBill(
+        order_id=order.id,
+        split_type='items',
+        total_amount=sum(p.amount for p in payments_created),
+        split_details=json.dumps(split_details),
+        created_by=current_user.id
+    )
+    
+    db.session.add(split_bill)
+    db.session.commit()
+    
+    return finalize_split_payment(order, payments_created, split_bill)
+
+def finalize_split_payment(order, payments_created, split_bill):
+    """Finalize split payment process"""
+    # Clear cart and customer selection
+    session.pop('cart', None)
+    session.pop('selected_customer_id', None)
+    
+    # Check if order is fully paid
+    if order.is_fully_paid():
+        old_status = order.status
+        order.status = OrderStatus.CONFIRMED
+        db.session.commit()
+        
+        # Emit order status update to kitchen
+        from app.socketio_events import emit_order_status_update
+        emit_order_status_update(order, old_status)
+        
+        # Update kitchen stats
+        emit_kitchen_stats()
+        
+        # Send order confirmation notification
+        try:
+            notification_service.send_order_confirmation(order)
+        except Exception as e:
+            # Log error but don't fail payment
+            print(f"Error sending order confirmation: {e}")
+        
+        response_data = {
+            'success': True,
+            'message': f'Split bill processed successfully for order {order.order_number}',
+            'redirect': url_for('orders.order_details', order_id=order.id),
+            'update_totals': True,
+            'order_data': order.to_dict(),
+            'split_bill_id': split_bill.id
+        }
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify(response_data)
+        
+        flash(response_data['message'], 'success')
+        return redirect(response_data['redirect'])
+    
+    response_data = {
+        'success': True,
+        'message': f'Split bill created for order {order.order_number}',
+        'redirect': url_for('orders.checkout', order_id=order.id),
+        'update_totals': True,
+        'order_data': order.to_dict(),
+        'split_bill_id': split_bill.id
+    }
+    
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify(response_data)
+    
+    flash(response_data['message'], 'success')
+    return redirect(response_data['redirect'])
 
 @bp.route('/split-payment/<int:order_id>', methods=['POST'])
 @login_required
@@ -1074,4 +1422,97 @@ def api_split_bills_report():
             'payment_method_counts': payment_method_counts,
             'payment_method_amounts': payment_method_amounts
         }
+    })
+
+# Customer attachment routes
+@bp.route('/<int:order_id>/attach-customer', methods=['POST'])
+@login_required
+def attach_customer(order_id):
+    """Attach a customer to an order"""
+    order = Order.query.get_or_404(order_id)
+    
+    if request.is_json:
+        data = request.get_json()
+        customer_id = data.get('customer_id')
+    else:
+        customer_id = request.form.get('customer_id', type=int)
+    
+    if not customer_id:
+        return jsonify({'success': False, 'message': 'Customer ID is required'}), 400
+    
+    customer = Customer.query.get(customer_id)
+    if not customer:
+        return jsonify({'success': False, 'message': 'Customer not found'}), 404
+    
+    # Attach customer to order
+    order.customer_id = customer_id
+    db.session.commit()
+    
+    # Update customer statistics if order is paid
+    if order.is_fully_paid():
+        customer.update_order_statistics(float(order.total))
+        db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': f'Customer {customer.get_full_name()} attached to order',
+        'customer': customer.to_dict()
+    })
+
+# Cart customer selection routes
+@bp.route('/cart/select-customer', methods=['POST'])
+@login_required
+def select_cart_customer():
+    """Select customer for cart"""
+    if request.is_json:
+        data = request.get_json()
+        customer_id = data.get('customer_id')
+    else:
+        customer_id = request.form.get('customer_id', type=int)
+    
+    if not customer_id:
+        return jsonify({'success': False, 'message': 'Customer ID is required'}), 400
+    
+    customer = Customer.query.get(customer_id)
+    if not customer:
+        return jsonify({'success': False, 'message': 'Customer not found'}), 404
+    
+    # Store customer ID in session
+    session['selected_customer_id'] = customer_id
+    
+    return jsonify({
+        'success': True,
+        'message': f'Customer {customer.get_full_name()} selected',
+        'customer': customer.to_dict()
+    })
+
+@bp.route('/cart/clear-customer', methods=['POST'])
+@login_required
+def clear_cart_customer():
+    """Clear customer selection from cart"""
+    session.pop('selected_customer_id', None)
+    
+    return jsonify({
+        'success': True,
+        'message': 'Customer selection cleared'
+    })
+
+@bp.route('/<int:order_id>/remove-customer', methods=['POST'])
+@login_required
+def remove_customer(order_id):
+    """Remove customer from an order"""
+    order = Order.query.get_or_404(order_id)
+    
+    if not order.customer_id:
+        return jsonify({'success': False, 'message': 'No customer attached to this order'}), 400
+    
+    customer = order.customer
+    
+    # Remove customer from order
+    order.customer_id = None
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': f'Customer {customer.get_full_name()} removed from order'
     })

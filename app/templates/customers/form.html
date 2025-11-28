@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} Customer{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">{{ action }} Customer</h1>
+        <p class="text-gray-600 mt-2">
+            {% if customer %}
+                Edit customer information and preferences
+            {% else %}
+                Add a new customer to the system
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-md">
+        <form method="POST" class="p-6">
+            <!-- Personal Information -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b">Personal Information</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="first_name" class="block text-sm font-medium text-gray-700 mb-2">
+                            First Name <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" 
+                               id="first_name" 
+                               name="first_name" 
+                               value="{{ customer.first_name if customer else '' }}"
+                               required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label for="last_name" class="block text-sm font-medium text-gray-700 mb-2">
+                            Last Name <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" 
+                               id="last_name" 
+                               name="last_name" 
+                               value="{{ customer.last_name if customer else '' }}"
+                               required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                            Email Address
+                        </label>
+                        <input type="email" 
+                               id="email" 
+                               name="email" 
+                               value="{{ customer.email if customer else '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">
+                            Phone Number
+                        </label>
+                        <input type="tel" 
+                               id="phone" 
+                               name="phone" 
+                               value="{{ customer.phone if customer else '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label for="company_name" class="block text-sm font-medium text-gray-700 mb-2">
+                            Company Name
+                        </label>
+                        <input type="text" 
+                               id="company_name" 
+                               name="company_name" 
+                               value="{{ customer.company_name if customer else '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label for="preferred_contact_method" class="block text-sm font-medium text-gray-700 mb-2">
+                            Preferred Contact Method
+                        </label>
+                        <select id="preferred_contact_method" 
+                                name="preferred_contact_method" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="email" {% if not customer or customer.preferred_contact_method == 'email' %}selected{% endif %}>Email</option>
+                            <option value="phone" {% if customer and customer.preferred_contact_method == 'phone' %}selected{% endif %}>Phone</option>
+                            <option value="sms" {% if customer and customer.preferred_contact_method == 'sms' %}selected{% endif %}>SMS</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Address Information -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b">Address Information</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label for="address_line1" class="block text-sm font-medium text-gray-700 mb-2">
+                            Address Line 1
+                        </label>
+                        <input type="text" 
+                               id="address_line1" 
+                               name="address_line1" 
+                               value="{{ customer.address_line1 if customer else '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label for="address_line2" class="block text-sm font-medium text-gray-700 mb-2">
+                            Address Line 2
+                        </label>
+                        <input type="text" 
+                               id="address_line2" 
+                               name="address_line2" 
+                               value="{{ customer.address_line2 if customer else '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label for="city" class="block text-sm font-medium text-gray-700 mb-2">
+                            City
+                        </label>
+                        <input type="text" 
+                               id="city" 
+                               name="city" 
+                               value="{{ customer.city if customer else '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label for="state" class="block text-sm font-medium text-gray-700 mb-2">
+                            State/Province
+                        </label>
+                        <input type="text" 
+                               id="state" 
+                               name="state" 
+                               value="{{ customer.state if customer else '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label for="postal_code" class="block text-sm font-medium text-gray-700 mb-2">
+                            Postal Code
+                        </label>
+                        <input type="text" 
+                               id="postal_code" 
+                               name="postal_code" 
+                               value="{{ customer.postal_code if customer else '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label for="country" class="block text-sm font-medium text-gray-700 mb-2">
+                            Country
+                        </label>
+                        <input type="text" 
+                               id="country" 
+                               name="country" 
+                               value="{{ customer.country if customer else '' }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preferences and Notes -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b">Preferences and Notes</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label for="dietary_restrictions" class="block text-sm font-medium text-gray-700 mb-2">
+                            Dietary Restrictions
+                        </label>
+                        <textarea id="dietary_restrictions" 
+                                  name="dietary_restrictions" 
+                                  rows="3"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ customer.dietary_restrictions if customer else '' }}</textarea>
+                        <p class="text-sm text-gray-500 mt-1">e.g., Vegetarian, Vegan, Gluten-free, etc.</p>
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label for="allergies" class="block text-sm font-medium text-gray-700 mb-2">
+                            Allergies
+                        </label>
+                        <textarea id="allergies" 
+                                  name="allergies" 
+                                  rows="3"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ customer.allergies if customer else '' }}</textarea>
+                        <p class="text-sm text-gray-500 mt-1">e.g., Nuts, Dairy, Shellfish, etc.</p>
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label for="special_notes" class="block text-sm font-medium text-gray-700 mb-2">
+                            Special Notes
+                        </label>
+                        <textarea id="special_notes" 
+                                  name="special_notes" 
+                                  rows="3"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ customer.special_notes if customer else '' }}</textarea>
+                        <p class="text-sm text-gray-500 mt-1">Any special preferences or notes for service</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loyalty Program -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b">Loyalty Program</h2>
+                
+                <div class="space-y-4">
+                    <div class="flex items-center">
+                        <input type="checkbox" 
+                               id="loyalty_member" 
+                               name="loyalty_member" 
+                               {% if customer and customer.loyalty_member %}checked{% endif %}
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="loyalty_member" class="ml-2 block text-sm text-gray-900">
+                            Enroll in Loyalty Program
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <input type="checkbox" 
+                               id="marketing_consent" 
+                               name="marketing_consent" 
+                               {% if customer and customer.marketing_consent %}checked{% endif %}
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="marketing_consent" class="ml-2 block text-sm text-gray-900">
+                            I consent to receive marketing communications
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="mt-4 p-4 bg-blue-50 rounded-md">
+                    <h4 class="text-sm font-semibold text-blue-900 mb-2">Loyalty Program Benefits:</h4>
+                    <ul class="text-sm text-blue-800 space-y-1">
+                        <li>• Earn points on every purchase</li>
+                        <li>• Redeem points for discounts</li>
+                        <li>• Special member-only promotions</li>
+                        <li>• Birthday rewards</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex justify-end space-x-4 pt-6 border-t">
+                <a href="{{ url_for('customers.dashboard') }}" 
+                   class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                    {{ action }} Customer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-format phone number
+    const phoneInput = document.getElementById('phone');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 0) {
+                if (value.length <= 3) {
+                    value = value;
+                } else if (value.length <= 6) {
+                    value = `(${value.slice(0, 3)}) ${value.slice(3)}`;
+                } else {
+                    value = `(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(6, 10)}`;
+                }
+            }
+            e.target.value = value;
+        });
+    }
+    
+    // Check for return_to_cart parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnToCart = urlParams.get('return_to_cart');
+    
+    if (returnToCart === 'true') {
+        // Update form action to return to cart after submission
+        const form = document.querySelector('form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                // Add a hidden input to track return destination
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'return_to_cart';
+                hiddenInput.value = 'true';
+                form.appendChild(hiddenInput);
+            });
+        }
+    }
+});
+</script>
+{% endblock %}

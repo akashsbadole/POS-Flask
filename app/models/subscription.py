@@ -65,7 +65,7 @@ class Subscription(db.Model):
     id = Column(Integer, primary_key=True)
     restaurant_id = Column(Integer, ForeignKey('restaurants.id'), nullable=False)
     plan_id = Column(Integer, ForeignKey('subscription_plans.id'), nullable=False)
-    status = Column(Enum(SubscriptionStatus), default=SubscriptionStatus.TRIAL)
+    status = Column(String(20), default='trial')
     billing_cycle = Column(String(20), default='monthly')  # monthly, yearly
     start_date = Column(DateTime, default=datetime.utcnow)
     end_date = Column(DateTime)
@@ -88,6 +88,7 @@ class Subscription(db.Model):
     plan = relationship('SubscriptionPlan', back_populates='subscriptions')
     payments = relationship('SubscriptionPayment', back_populates='subscription')
     usage_logs = relationship('SubscriptionUsage', back_populates='subscription')
+    payment_transactions = relationship('PaymentTransaction', back_populates='subscription')
     
     def __repr__(self):
         return f'<Subscription {self.restaurant.name} - {self.plan.name}>'

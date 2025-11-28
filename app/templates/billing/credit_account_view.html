@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}Credit Account - {{ account.customer.get_full_name() }} - Restaurant POS{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6" x-data="creditAccountView()">
+    <!-- Header -->
+    <div class="mb-6">
+        <nav class="flex mb-4" aria-label="Breadcrumb">
+            <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                <li class="inline-flex items-center">
+                    <a href="{{ url_for('credit.credit_accounts') }}" class="text-gray-700 hover:text-gray-900 inline-flex items-center">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Credit Accounts
+                    </a>
+                </li>
+                <li>
+                    <div class="flex items-center">
+                        <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                        <span class="text-gray-500">{{ account.customer.get_full_name() }}</span>
+                    </div>
+                </li>
+            </ol>
+        </nav>
+        
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">{{ account.customer.get_full_name() }}</h1>
+                <p class="text-gray-600 mt-1">
+                    {% if account.customer.company_name %}{{ account.customer.company_name }} - {% endif %}
+                    {{ account.customer.email or account.customer.phone }}
+                </p>
+            </div>
+            <div class="flex space-x-3">
+                {% if account.is_active %}
+                    <a href="{{ url_for('credit.credit_payment', account_id=account.id) }}" 
+                       class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+                        <i class="fas fa-money-bill-wave mr-2"></i>Make Payment
+                    </a>
+                    <a href="{{ url_for('credit.credit_adjust', account_id=account.id) }}" 
+                       class="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 transition-colors">
+                        <i class="fas fa-balance-scale mr-2"></i>Adjust Balance
+                    </a>
+                    <form method="POST" action="{{ url_for('credit.credit_account_deactivate', account_id=account.id) }}" 
+                          class="inline" onsubmit="return confirm('Are you sure you want to deactivate this credit account?')">
+                        <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors">
+                            <i class="fas fa-ban mr-2"></i>Deactivate
+                        </button>
+                    </form>
+                {% else %}
+                    <a href="{{ url_for('credit.credit_account_activate', account_id=account.id) }}" 
+                       class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-toggle-on mr-2"></i>Activate Account
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Status Card -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="text-center">
+                <div class="text-3xl font-bold text-gray-900">${{ "%.2f"|format(account.credit_limit) }}</div>
+                <div class="text-sm text-gray-500 mt-1">Credit Limit</div>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl font-bold {% if account.current_balance > 0 %}text-red-600{% else %}text-gray-900{% endif %}">
+                    ${{ "%.2f"|format(account.current_balance) }}
+                </div>
+                <div class="text-sm text-gray-500 mt-1">Current Balance</div>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl font-bold {% if account.available_credit > 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                    ${{ "%.2f"|format(account.available_credit) }}
+                </div>
+                <div class="text-sm text-gray-500 mt-1">Available Credit</div>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl font-bold text-gray-900">{{ account.credit_terms }}</div>
+                <div class="text-sm text-gray-500 mt-1">Payment Terms (days)</div>
+            </div>
+        </div>
+        
+        <div class="mt-6 pt-6 border-t border-gray-200">
+            <div class="flex justify-between items-center">
+                <div>
+                    <span class="text-sm text-gray-500">Account Status:</span>
+                    {% if account.is_active %}
+                        <span class="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            Active
+                        </span>
+                    {% else %}
+                        <span class="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                            Inactive
+                        </span>
+                    {% endif %}
+                </div>
+                <div class="text-sm text-gray-500">
+                    {% if account.last_activity %}
+                        Last activity: {{ account.last_activity.strftime('%Y-%m-%d %H:%M') }}
+                    {% else %}
+                        No activity yet
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="bg-white rounded-lg shadow-md">
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex">
+                <button @click="activeTab = 'transactions'" 
+                        :class="activeTab === 'transactions' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="py-2 px-6 border-b-2 font-medium text-sm">
+                    <i class="fas fa-exchange-alt mr-2"></i>Transactions
+                </button>
+                <button @click="activeTab = 'orders'" 
+                        :class="activeTab === 'orders' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="py-2 px-6 border-b-2 font-medium text-sm">
+                    <i class="fas fa-shopping-cart mr-2"></i>Recent Orders
+                </button>
+                <button @click="activeTab = 'details'" 
+                        :class="activeTab === 'details' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="py-2 px-6 border-b-2 font-medium text-sm">
+                    <i class="fas fa-info-circle mr-2"></i>Account Details
+                </button>
+            </nav>
+        </div>
+
+        <!-- Transactions Tab -->
+        <div x-show="activeTab === 'transactions'" class="p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Recent Transactions</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for transaction in transactions %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ transaction.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if transaction.transaction_type == 'CHARGE' %}
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                        Charge
+                                    </span>
+                                {% elif transaction.transaction_type == 'PAYMENT' %}
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        Payment
+                                    </span>
+                                {% else %}
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                        {{ transaction.transaction_type }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-900">
+                                {{ transaction.get_transaction_description() }}
+                                {% if transaction.notes %}
+                                    <br><span class="text-gray-500 text-xs">{{ transaction.notes }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                {% if transaction.amount > 0 %}
+                                    <span class="text-red-600">+${{ "%.2f"|format(transaction.amount) }}</span>
+                                {% else %}
+                                    <span class="text-green-600">${{ "%.2f"|format(transaction.amount) }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {% if transaction.user %}
+                                    {{ transaction.user.name }}
+                                {% else %}
+                                    System
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                                No transactions found
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Orders Tab -->
+        <div x-show="activeTab === 'orders'" class="p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Recent Orders</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order #</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for order in orders %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                #{{ order.id }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ order.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                ${{ "%.2f"|format(order.total_amount) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ order.payment_method }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if order.status == 'completed' %}
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        Completed
+                                    </span>
+                                {% else %}
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                        {{ order.status }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="px-6 py-4 text-center text-gray-500">
+                                No orders found
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Details Tab -->
+        <div x-show="activeTab === 'details'" class="p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Account Details</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="text-sm font-medium text-gray-900 mb-3">Customer Information</h4>
+                    <dl class="space-y-2">
+                        <div class="flex justify-between">
+                            <dt class="text-sm text-gray-500">Name:</dt>
+                            <dd class="text-sm text-gray-900">{{ account.customer.get_full_name() }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm text-gray-500">Email:</dt>
+                            <dd class="text-sm text-gray-900">{{ account.customer.email or 'N/A' }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm text-gray-500">Phone:</dt>
+                            <dd class="text-sm text-gray-900">{{ account.customer.phone or 'N/A' }}</dd>
+                        </div>
+                        {% if account.customer.company_name %}
+                        <div class="flex justify-between">
+                            <dt class="text-sm text-gray-500">Company:</dt>
+                            <dd class="text-sm text-gray-900">{{ account.customer.company_name }}</dd>
+                        </div>
+                        {% endif %}
+                    </dl>
+                </div>
+                
+                <div>
+                    <h4 class="text-sm font-medium text-gray-900 mb-3">Credit Settings</h4>
+                    <dl class="space-y-2">
+                        <div class="flex justify-between">
+                            <dt class="text-sm text-gray-500">Credit Limit:</dt>
+                            <dd class="text-sm text-gray-900">${{ "%.2f"|format(account.credit_limit) }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm text-gray-500">Approval Limit:</dt>
+                            <dd class="text-sm text-gray-900">${{ "%.2f"|format(account.approval_limit) }}</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm text-gray-500">Payment Terms:</dt>
+                            <dd class="text-sm text-gray-900">{{ account.credit_terms }} days</dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-sm text-gray-500">Account Created:</dt>
+                            <dd class="text-sm text-gray-900">{{ account.created_at.strftime('%Y-%m-%d') }}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function creditAccountView() {
+    return {
+        activeTab: 'transactions',
+        init() {
+            // Initialize any Alpine.js functionality here
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -115,6 +115,8 @@ class KeyboardNavigation {
         if (event.altKey) parts.push('alt');
         if (event.shiftKey) parts.push('shift');
         
+        if (!event.key) return '';
+        
         let key = event.key.toLowerCase();
         
         // Handle special keys
@@ -671,8 +673,17 @@ class KeyboardNavigation {
     }
 
     toggleAccessibilityMode() {
-        document.body.classList.toggle('high-contrast');
-        document.body.classList.toggle('large-text');
+        const classes = ['high-contrast', 'large-text'];
+        
+        if (window.bodyClassManager) {
+            // Use centralized manager with immediate update
+            window.bodyClassManager.toggleAccessibilityClasses(classes);
+        } else {
+            // Fallback to direct manipulation
+            document.body.classList.toggle('high-contrast');
+            document.body.classList.toggle('large-text');
+        }
+        
         this.announceToScreenReader('Accessibility mode toggled');
     }
 

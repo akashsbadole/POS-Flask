@@ -16,7 +16,8 @@ def index():
     """Main landing page - redirect to login or appropriate dashboard"""
     if current_user.is_authenticated:
         if current_user.role == 'cashier':
-            return redirect(url_for('cashier.dashboard'))
+            # Cashier functionality not yet implemented, redirect to orders list
+            return redirect(url_for('orders.list_orders'))
         elif current_user.role == 'kitchen':
             return redirect(url_for('kitchen.display'))
         elif current_user.role in ['manager', 'admin', 'super_admin']:
@@ -28,7 +29,8 @@ def index():
 def dashboard():
     """Role-based dashboard redirect"""
     if current_user.role == 'cashier':
-        return redirect(url_for('cashier.dashboard'))
+        # Cashier functionality not yet implemented, redirect to orders list
+        return redirect(url_for('orders.list_orders'))
     elif current_user.role == 'kitchen':
         return redirect(url_for('kitchen.display'))
     elif current_user.role in ['manager', 'admin', 'super_admin']:
@@ -642,11 +644,111 @@ def api_settings_save():
     
     try:
         settings_data = request.get_json()
-        # TODO: Implement actual settings storage
-        # For now, just return success
-        return jsonify({'success': True})
+        if not settings_data:
+            return jsonify({'error': 'No settings data provided'}), 400
+        
+        from app.services.settings_service import SettingsService
+        results = SettingsService.update_multiple_settings(
+            settings_data,
+            user_id=current_user.id,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        # Check if all updates were successful
+        if all(results.values()):
+            # Broadcast update to connected clients
+            try:
+                from flask_socketio import emit
+                emit('settings_updated', {
+                    'settings': SettingsService.get_all_settings(),
+                    'updated_by': current_user.name
+                }, broadcast=True)
+            except ImportError:
+                # SocketIO not available, skip broadcasting
+                pass
+            except Exception as e:
+                current_app.logger.warning(f"Failed to broadcast settings update: {str(e)}")
+            
+            return jsonify({'success': True, 'results': results})
+        else:
+            failed = [k for k, v in results.items() if not v]
+            return jsonify({'error': f'Failed to update: {", ".join(failed)}'}), 400
+    
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        current_app.logger.error(f"Error saving settings: {str(e)}")
+        return jsonify({'error': 'Failed to save settings'}), 500
+
+@bp.route('/api/settings/reset', methods=['POST'])
+@login_required
+def api_settings_reset():
+    """API endpoint to reset settings"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        category = request.get_json().get('category') if request.get_json() else None
+        
+        from app.services.settings_service import SettingsService
+        success = SettingsService.reset_to_defaults(category)
+        
+        if success:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': 'Failed to reset settings'}), 500
+    except Exception as e:
+        current_app.logger.error(f"Error resetting settings: {str(e)}")
+        return jsonify({'error': 'Failed to reset settings'}), 500
+
+@bp.route('/api/settings/export')
+@login_required
+def api_settings_export():
+    """API endpoint to export settings"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        from app.services.settings_service import SettingsService
+        settings = SettingsService.export_settings()
+        return jsonify(settings)
+    except Exception as e:
+        current_app.logger.error(f"Error exporting settings: {str(e)}")
+        return jsonify({'error': 'Failed to export settings'}), 500
+
+@bp.route('/api/settings/import', methods=['POST'])
+@login_required
+def api_settings_import():
+    """API endpoint to import settings"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        settings_data = request.get_json()
+        if not settings_data:
+            return jsonify({'error': 'No settings data provided'}), 400
+        
+        from app.services.settings_service import SettingsService
+        results = SettingsService.import_settings(settings_data, current_user.id)
+        
+        return jsonify({'success': True, 'results': results})
+    except Exception as e:
+        current_app.logger.error(f"Error importing settings: {str(e)}")
+        return jsonify({'error': 'Failed to import settings'}), 500
+
+@bp.route('/api/settings/category/<category>')
+@login_required
+def api_settings_category(category):
+    """API endpoint to load specific category settings"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        from app.services.settings_service import SettingsService
+        settings = SettingsService.get_category_settings(category)
+        return jsonify({'settings': settings})
+    except Exception as e:
+        current_app.logger.error(f"Error loading category settings: {str(e)}")
+        return jsonify({'error': 'Failed to load settings'}), 500
 
 @bp.errorhandler(404)
 def not_found_error(error):

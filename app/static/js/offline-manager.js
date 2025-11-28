@@ -60,17 +60,17 @@ class OfflineDataManager {
             user: this.getUserValidationSchema()
         };
         
-        // Bind methods to preserve 'this' context
-        this.init = this.init.bind(this);
+        // Initialize first, then bind methods to preserve 'this' context
+        this.init();
+        this.setupEventListeners();
+        
+        // Bind methods after they're defined
         this.setupEventListeners = this.setupEventListeners.bind(this);
         this.syncPendingOperations = this.syncPendingOperations.bind(this);
         this.showSyncNotification = this.showSyncNotification.bind(this);
         this.handleSyncComplete = this.handleSyncComplete.bind(this);
         this.validateData = this.validateData.bind(this);
         this.resolveConflict = this.resolveConflict.bind(this);
-        
-        this.init();
-        this.setupEventListeners();
     }
 
     async init() {

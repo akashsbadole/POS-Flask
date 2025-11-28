@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+
+{% block title %}Track Delivery - {{ order.order_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.tracking-container {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+}
+.timeline-item {
+    @apply relative flex items-start;
+}
+.timeline-item::before {
+    content: '';
+    @apply absolute left-6 top-8 h-full w-0.5 bg-gray-200;
+}
+.timeline-item:last-child::before {
+    @apply hidden;
+}
+.timeline-dot {
+    @apply relative z-10 flex h-12 w-12 items-center justify-center rounded-full border-2 border-white bg-gray-100;
+}
+.timeline-dot.completed {
+    @apply bg-green-600 text-white;
+}
+.timeline-dot.active {
+    @apply bg-blue-600 text-white;
+}
+.timeline-dot.pending {
+    @apply bg-gray-300 text-white;
+}
+.timeline-content {
+    @apply ml-6 min-w-0 flex-1 pb-8;
+}
+.order-summary {
+    @apply bg-gray-50 rounded-lg p-4;
+}
+.status-badge {
+    @apply inline-flex px-3 py-1 text-sm font-semibold rounded-full;
+}
+.status-pending { @apply bg-yellow-100 text-yellow-800; }
+.status-confirmed { @apply bg-blue-100 text-blue-800; }
+.status-preparing { @apply bg-purple-100 text-purple-800; }
+.status-ready { @apply bg-green-100 text-green-800; }
+.status-served { @apply bg-gray-100 text-gray-800; }
+.status-cancelled { @apply bg-red-100 text-red-800; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6" x-data="deliveryTracking()">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Track Delivery</h1>
+        <div class="flex space-x-3">
+            <button @click="enableNotifications()" 
+                    x-show="!notificationEnabled"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                Enable Notifications
+            </button>
+            <a href="{{ url_for('online_ordering.index') }}" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                Back to Ordering
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Tracking -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Order Status -->
+            <div class="tracking-container">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900">{{ order.order_number }}</h2>
+                        <p class="text-sm text-gray-500">Placed on {{ order.created_at.strftime('%d %B %Y at %I:%M %p') }}</p>
+                    </div>
+                    <div class="status-badge status-{{ order.status.value }}">
+                        {{ order.status.value.replace('_', ' ').title() }}
+                    </div>
+                </div>
+                
+                <!-- Timeline -->
+                <div class="space-y-6">
+                    <div class="timeline-item">
+                        <div class="timeline-dot completed">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div class="timeline-content">
+                            <h3 class="text-lg font-medium text-gray-900">Order Placed</h3>
+                            <p class="text-sm text-gray-500">{{ order.created_at.strftime('%d %B %Y at %I:%M %p') }}</p>
+                            <p class="text-sm text-gray-700 mt-1">Your order has been received and is being processed.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item">
+                        <div class="timeline-dot {{ 'completed' if order.status.value != 'pending' else 'active' }}">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                        </div>
+                        <div class="timeline-content">
+                            <h3 class="text-lg font-medium text-gray-900">Order Confirmed</h3>
+                            <p class="text-sm text-gray-500">
+                                {% if order.status.value != 'pending' %}
+                                    {{ order.updated_at.strftime('%d %B %Y at %I:%M %p') if order.updated_at else 'Processing...' }}
+                                {% else %}
+                                    Pending
+                                {% endif %}
+                            </p>
+                            <p class="text-sm text-gray-700 mt-1">Your order has been confirmed and is being prepared.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item">
+                        <div class="timeline-dot {{ 'completed' if order.status.value in ['ready', 'served'] else 'active' if order.status.value == 'preparing' else 'pending' }}">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                        </div>
+                        <div class="timeline-content">
+                            <h3 class="text-lg font-medium text-gray-900">Preparing Your Order</h3>
+                            <p class="text-sm text-gray-500">
+                                {% if order.status.value in ['preparing', 'ready', 'served'] %}
+                                    {% if order.timer_started_at %}
+                                        Started: {{ order.timer_started_at.strftime('%d %B %Y at %I:%M %p') }}
+                                    {% endif %}
+                                    {% if order.estimated_preparation_time %}
+                                        • Est. {{ (order.estimated_preparation_time / 60)|int }} minutes
+                                    {% endif %}
+                                {% else %}
+                                    Not started
+                                {% endif %}
+                            </p>
+                            <p class="text-sm text-gray-700 mt-1">Our team is carefully preparing your order.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item">
+                        <div class="timeline-dot {{ 'completed' if order.status.value == 'served' else 'active' if order.status.value == 'ready' else 'pending' }}">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </div>
+                        <div class="timeline-content">
+                            <h3 class="text-lg font-medium text-gray-900">Out for Delivery</h3>
+                            <p class="text-sm text-gray-500">
+                                {% if order.status.value == 'ready' %}
+                                    Ready for delivery
+                                {% elif order.status.value == 'served' %}
+                                    {% if order.completed_at %}
+                                        Delivered: {{ order.completed_at.strftime('%d %B %Y at %I:%M %p') }}
+                                    {% endif %}
+                                {% else %}
+                                    Pending
+                                {% endif %}
+                            </p>
+                            <p class="text-sm text-gray-700 mt-1">
+                                {% if order.status.value == 'ready' %}
+                                    Your order is ready and will be delivered soon.
+                                {% elif order.status.value == 'served' %}
+                                    Your order has been delivered successfully!
+                                {% else %}
+                                    Waiting for preparation to complete.
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Items -->
+            <div class="tracking-container">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Order Items</h2>
+                <div class="space-y-3">
+                    {% for item in order.items %}
+                    <div class="flex justify-between items-center pb-3 border-b border-gray-100 last:border-0">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-medium text-gray-900">{{ item.quantity }}x</span>
+                                <span class="text-gray-900">{{ item.item_name }}</span>
+                            </div>
+                            {% if item.variant_name %}
+                            <div class="text-sm text-gray-500">Variant: {{ item.variant_name }}</div>
+                            {% endif %}
+                            {% if item.notes %}
+                            <div class="text-sm text-gray-500">Notes: {{ item.notes }}</div>
+                            {% endif %}
+                            {% if item.add_ons %}
+                            <div class="text-sm text-gray-500">
+                                Add-ons: {{ item.add_ons|map(attribute='name')|join(', ') }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="text-right">
+                            <div class="font-medium text-gray-900">₹{{ "%.2f"|format(item.total_price) }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Order Summary -->
+            <div class="tracking-container">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <div class="text-sm text-gray-500">Subtotal</div>
+                        <div class="text-gray-900">₹{{ "%.2f"|format(order.subtotal) }}</div>
+                    </div>
+                    {% if order.tax_amount > 0 %}
+                    <div class="flex justify-between">
+                        <div class="text-sm text-gray-500">Tax (18%)</div>
+                        <div class="text-gray-900">₹{{ "%.2f"|format(order.tax_amount) }}</div>
+                    </div>
+                    {% endif %}
+                    {% if order.discount_amount > 0 %}
+                    <div class="flex justify-between">
+                        <div class="text-sm text-gray-500">Discount</div>
+                        <div class="text-red-600">-₹{{ "%.2f"|format(order.discount_amount) }}</div>
+                    </div>
+                    {% endif %}
+                    {% if order.service_charge > 0 %}
+                    <div class="flex justify-between">
+                        <div class="text-sm text-gray-500">Service Charge</div>
+                        <div class="text-gray-900">₹{{ "%.2f"|format(order.service_charge) }}</div>
+                    </div>
+                    {% endif %}
+                    <div class="pt-3 border-t border-gray-200">
+                        <div class="flex justify-between">
+                            <div class="font-medium text-gray-900">Total</div>
+                            <div class="font-bold text-lg text-gray-900">₹{{ "%.2f"|format(order.total) }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customer Information -->
+            <div class="tracking-container">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Delivery Information</h2>
+                <div class="space-y-3">
+                    <div>
+                        <div class="text-sm font-medium text-gray-500">Customer Name</div>
+                        <div class="text-gray-900">{{ order.customer_name or 'Guest Customer' }}</div>
+                    </div>
+                    {% if order.customer_code %}
+                    <div>
+                        <div class="text-sm font-medium text-gray-500">Customer Code</div>
+                        <div class="text-gray-900">{{ order.customer_code }}</div>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <div class="text-sm font-medium text-gray-500">Order Type</div>
+                        <div class="text-gray-900">{{ order.order_type.value.replace('_', ' ').title() }}</div>
+                    </div>
+                    {% if order.notes %}
+                    <div>
+                        <div class="text-sm font-medium text-gray-500">Delivery Notes</div>
+                        <div class="text-gray-700">{{ order.notes }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Estimated Time -->
+            {% if order.estimated_preparation_time %}
+            <div class="tracking-container">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Estimated Timing</h2>
+                <div class="order-summary">
+                    <div class="flex items-center space-x-3">
+                        <svg class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div>
+                            <div class="font-medium text-gray-900">Estimated Delivery Time</div>
+                            <div class="text-sm text-gray-600">
+                                {{ (order.estimated_preparation_time / 60)|int }} minutes from order confirmation
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Contact Support -->
+            <div class="tracking-container">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Need Help?</h2>
+                <div class="space-y-3">
+                    <a href="tel:+1234567890" class="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                        <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                        <div>
+                            <div class="font-medium text-blue-900">Call Support</div>
+                            <div class="text-sm text-blue-700">+91 12345 67890</div>
+                        </div>
+                    </a>
+                    
+                    <a href="mailto:support@restaurant.com" class="flex items-center space-x-3 p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+                        <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <div>
+                            <div class="font-medium text-green-900">Email Support</div>
+                            <div class="text-sm text-green-700">support@restaurant.com</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function deliveryTracking() {
+    return {
+        notificationEnabled: false,
+        
+        init() {
+            // Check if notifications are already enabled
+            if ('Notification' in window && Notification.permission === 'granted') {
+                this.notificationEnabled = true;
+            }
+            
+            // Auto-refresh every 30 seconds for active orders
+            {% if order.status.value in ['pending', 'confirmed', 'preparing', 'ready'] %}
+            this.startAutoRefresh();
+            {% endif %}
+        },
+        
+        enableNotifications() {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        this.notificationEnabled = true;
+                        this.showNotification('Notifications enabled', 'You will receive updates about your order status.');
+                    }
+                });
+            }
+        },
+        
+        showNotification(title, body) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, {
+                    body: body,
+                    icon: '/static/img/logo.png'
+                });
+            }
+        },
+        
+        startAutoRefresh() {
+            setInterval(() => {
+                // Check for order status updates
+                fetch(window.location.href)
+                    .then(response => response.text())
+                    .then(html => {
+                        // Simple check - in real implementation, would use API
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const newStatus = doc.querySelector('.status-badge');
+                        const currentStatus = document.querySelector('.status-badge');
+                        
+                        if (newStatus && currentStatus && newStatus.textContent !== currentStatus.textContent) {
+                            this.showNotification('Order Status Updated', `Your order is now: ${newStatus.textContent.trim()}`);
+                            window.location.reload();
+                        }
+                    })
+                    .catch(error => console.error('Error checking order status:', error));
+            }, 30000);
+        }
+    }
+}
+</script>
+{% endblock %}

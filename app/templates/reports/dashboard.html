@@ -120,7 +120,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8" x-data="reportsManager()">
+<div class="p-6" x-data="reportsManager()">
     <div class="flex items-center justify-between mb-8">
         <div>
             <h1 class="text-3xl font-bold text-gray-900 flex items-center">
@@ -413,12 +413,43 @@ function reportsManager() {
                 if (this.customStartDate) params.append('start_date', this.customStartDate);
                 if (this.customEndDate) params.append('end_date', this.customEndDate);
                 
-                const response = await fetch('/reports/api/stats?' + params.toString());
-                const data = await response.json();
-                this.stats = data;
-                this.processChartData(data);
+                // Update HTMX triggers with new date range
+                this.updateHtmxTriggers();
+                
+                // Trigger HTMX requests manually
+                const statsContainer = document.getElementById('stats-container');
+                const chartsContainer = document.getElementById('charts-container');
+                
+                if (statsContainer) {
+                    htmx.trigger(statsContainer, 'load');
+                }
+                if (chartsContainer) {
+                    htmx.trigger(chartsContainer, 'load');
+                }
             } catch (error) {
                 console.error('Error loading reports:', error);
+            }
+        },
+        
+        updateHtmxTriggers() {
+            // Update stats container with new date range
+            const statsContainer = document.getElementById('stats-container');
+            if (statsContainer) {
+                const params = new URLSearchParams();
+                params.append('days', this.dateRange);
+                if (this.customStartDate) params.append('start_date', this.customStartDate);
+                if (this.customEndDate) params.append('end_date', this.customEndDate);
+                statsContainer.setAttribute('hx-get', `/reports/api/stats?${params.toString()}`);
+            }
+            
+            // Update charts container with new date range
+            const chartsContainer = document.getElementById('charts-container');
+            if (chartsContainer) {
+                const params = new URLSearchParams();
+                params.append('days', this.dateRange);
+                if (this.customStartDate) params.append('start_date', this.customStartDate);
+                if (this.customEndDate) params.append('end_date', this.customEndDate);
+                chartsContainer.setAttribute('hx-get', `/reports/api/charts?${params.toString()}`);
             }
         },
         

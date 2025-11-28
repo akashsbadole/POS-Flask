@@ -10,6 +10,115 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Customer Information -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-lg shadow-sm border mb-6">
+                <div class="px-6 py-4 border-b">
+                    <h2 class="text-lg font-semibold">Customer Information</h2>
+                </div>
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex-1">
+                            {% if order.customer %}
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <span class="text-blue-600 font-medium">
+                                        {{ order.customer.first_name[0] }}{{ order.customer.last_name[0] }}
+                                    </span>
+                                </div>
+                                <div>
+                                    <h3 class="font-medium">{{ order.customer.get_full_name() }}</h3>
+                                    <p class="text-sm text-gray-600">{{ order.customer.customer_code }}</p>
+                                    {% if order.customer.loyalty_member %}
+                                    <div class="flex items-center space-x-2 mt-1">
+                                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                                            Loyalty Member
+                                        </span>
+                                        {% if order.customer.loyalty_tier %}
+                                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 capitalize">
+                                            {{ order.customer.loyalty_tier }}
+                                        </span>
+                                        {% endif %}
+                                        <span class="text-xs text-gray-600">{{ order.customer.loyalty_points }} points</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="text-center text-gray-500">
+                                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                </svg>
+                                <p class="mt-2 text-sm">No customer assigned to this order</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="showCustomerSearch()"
+                                    class="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <i class="fas fa-search mr-2"></i>
+                                Find Customer
+                            </button>
+                            {% if order.customer %}
+                            <button onclick="removeCustomer({{ order.id }})"
+                                    class="px-3 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
+                                <i class="fas fa-times mr-2"></i>
+                                Remove
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if order.customer %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="font-medium text-gray-700">Contact:</span>
+                            <div class="mt-1">
+                                {% if order.customer.email %}
+                                <a href="mailto:{{ order.customer.email }}" class="text-blue-600 hover:text-blue-800">{{ order.customer.email }}</a>
+                                {% endif %}
+                                {% if order.customer.phone %}
+                                <br>
+                                <a href="tel:{{ order.customer.phone }}" class="text-blue-600 hover:text-blue-800">{{ order.customer.phone }}</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div>
+                            <span class="font-medium text-gray-700">Order History:</span>
+                            <div class="mt-1">
+                                {{ order.customer.total_orders }} orders • ${{ "%.2f"|format(order.customer.total_spent) }} total
+                            </div>
+                        </div>
+                        {% if order.customer.address_line1 %}
+                        <div class="md:col-span-2">
+                            <span class="font-medium text-gray-700">Address:</span>
+                            <div class="mt-1 text-gray-600">
+                                {{ order.customer.get_full_address() }}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if order.customer.dietary_restrictions or order.customer.allergies %}
+                        <div class="md:col-span-2">
+                            <span class="font-medium text-gray-700">Special Requirements:</span>
+                            <div class="mt-1">
+                                {% if order.customer.dietary_restrictions %}
+                                <div class="text-sm">
+                                    <span class="font-medium">Dietary:</span> {{ order.customer.dietary_restrictions }}
+                                </div>
+                                {% endif %}
+                                {% if order.customer.allergies %}
+                                <div class="text-sm">
+                                    <span class="font-medium">Allergies:</span> {{ order.customer.allergies }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
         <!-- Order Items -->
         <div class="lg:col-span-2">
             <div class="bg-white rounded-lg shadow-sm border">
@@ -96,6 +205,14 @@
                                             <option value="upi">UPI</option>
                                             <option value="wallet">Wallet</option>
                                             <option value="gift_card">Gift Card</option>
+                                            {% if order.customer %}
+                                            {% set credit_summary = order.customer.get_credit_summary() %}
+                                            {% if credit_summary.get('has_credit_account') and credit_summary.get('is_active') %}
+                                            <option value="credit" {% if credit_summary.get('available_credit', 0) >= order.get_balance_due() %}selected{% endif %}>
+                                                Credit Account (${{ "%.2f"|format(credit_summary.get('available_credit', 0)) }} available)
+                                            </option>
+                                            {% endif %}
+                                            {% endif %}
                                         </select>
                                         <span id="payment-method-help" class="sr-only">Select payment method</span>
                                     </div>
@@ -116,6 +233,25 @@
                                         </div>
                                         <span id="payment-amount-help" class="sr-only">Enter payment amount</span>
                                     </div>
+                                    
+                                    <!-- Loyalty Points Redemption -->
+                                    {% if order.customer and order.customer.loyalty_member and order.customer.loyalty_points > 0 %}
+                                    <div class="mt-4 pt-4 border-t">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <label class="text-sm font-medium text-gray-700">Redeem Loyalty Points:</label>
+                                            <input type="number" name="redeem_points"
+                                                   value="{{ request.form.redeem_points or 0 }}"
+                                                   min="0" max="{{ order.customer.loyalty_points }}"
+                                                   step="1"
+                                                   placeholder="Enter points to redeem"
+                                                   class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <span class="text-xs text-gray-500 ml-2">
+                                                ({{ order.customer.loyalty_points }} available = ${{ "%.2f"|format(order.customer.loyalty_points / 100) }})
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    
                                     <button type="submit"
                                             class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
                                             accesskey="p" data-shortcut="F1" aria-label="Process payment">
@@ -236,4 +372,137 @@
         </div>
     </div>
 </div>
+
+<!-- Customer Search Modal -->
+<div id="customer-search-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display: none;">
+    <div class="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+        <div class="px-6 py-4 border-b flex items-center justify-between">
+            <h3 class="text-lg font-semibold">Find Customer</h3>
+            <button onclick="hideCustomerSearch()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <div class="mb-4">
+                <input type="text" id="customer-search-input"
+                       placeholder="Search by name, email, phone, or customer code..."
+                       class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div id="customer-search-results" class="max-h-96 overflow-y-auto space-y-2">
+                <!-- Results will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showCustomerSearch() {
+    document.getElementById('customer-search-modal').style.display = 'flex';
+    document.getElementById('customer-search-input').focus();
+}
+
+function hideCustomerSearch() {
+    document.getElementById('customer-search-modal').style.display = 'none';
+    document.getElementById('customer-search-input').value = '';
+    document.getElementById('customer-search-results').innerHTML = '';
+}
+
+function attachCustomer(orderId, customerId) {
+    fetch(`/orders/${orderId}/attach-customer`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ customer_id: customerId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error attaching customer: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error attaching customer');
+    });
+}
+
+function removeCustomer(orderId) {
+    if (confirm('Are you sure you want to remove the customer from this order?')) {
+        fetch(`/orders/${orderId}/remove-customer`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error removing customer: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error removing customer');
+        });
+    }
+}
+
+// Customer search with debouncing
+let searchTimeout;
+document.getElementById('customer-search-input').addEventListener('input', function(e) {
+    clearTimeout(searchTimeout);
+    const query = e.target.value;
+    
+    if (query.length < 2) {
+        document.getElementById('customer-search-results').innerHTML = '';
+        return;
+    }
+    
+    searchTimeout = setTimeout(() => {
+        fetch(`/customers/quick-lookup?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                const resultsDiv = document.getElementById('customer-search-results');
+                if (data.customers && data.customers.length > 0) {
+                    resultsDiv.innerHTML = data.customers.map(customer => `
+                        <div class="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer" onclick="attachCustomer({{ order.id }}, ${customer.id})">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-medium">${customer.first_name} ${customer.last_name}</div>
+                                    <div class="text-sm text-gray-600">${customer.customer_code}</div>
+                                    <div class="text-sm text-gray-600">
+                                        ${customer.email || 'No email'}
+                                        ${customer.phone ? ' • ' + customer.phone : ''}
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm">${customer.loyalty_points} pts</div>
+                                    <div class="text-xs text-gray-500">${customer.total_orders} orders</div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    resultsDiv.innerHTML = '<div class="text-center text-gray-500 py-8">No customers found</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+                document.getElementById('customer-search-results').innerHTML = '<div class="text-center text-red-500 py-8">Search failed</div>';
+            });
+    }, 300);
+});
+
+// Close modal on Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        hideCustomerSearch();
+    }
+});
+</script>
 {% endblock %}

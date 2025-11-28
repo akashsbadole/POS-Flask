@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Kitchen Recipes{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Kitchen Recipes</h1>
+        <div class="flex space-x-4">
+            <a href="{{ url_for('kitchen.dashboard') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+                ← Back to Kitchen
+            </a>
+        </div>
+    </div>
+
+    <!-- Recipe Filters -->
+    <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+        <div class="flex flex-wrap gap-2 mb-4">
+            <button onclick="filterRecipes('all')" class="filter-btn px-4 py-2 rounded-lg bg-blue-500 text-white">
+                All Recipes
+            </button>
+            <button onclick="filterRecipes('scalable')" class="filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">
+                Scalable Only
+            </button>
+            <button onclick="filterRecipes('easy')" class="filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">
+                Easy
+            </button>
+            <button onclick="filterRecipes('medium')" class="filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">
+                Medium
+            </button>
+            <button onclick="filterRecipes('hard')" class="filter-btn px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300">
+                Hard
+            </button>
+        </div>
+        
+        <!-- Search -->
+        <div class="flex items-center space-x-4">
+            <input type="text" id="recipe-search" placeholder="Search recipes..." 
+                   class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   onkeyup="searchRecipes()">
+        </div>
+    </div>
+
+    <!-- Recipes Grid -->
+    <div id="recipes-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for recipe in recipes %}
+        <div class="recipe-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow" 
+             data-difficulty="{{ recipe.difficulty_level }}" 
+             data-scalable="{{ recipe.is_scalable|lower }}"
+             data-name="{{ recipe.name|lower }}">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-xl font-bold text-gray-800">{{ recipe.name }}</h3>
+                    <div class="flex space-x-2">
+                        {% if recipe.is_scalable %}
+                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                            Scalable
+                        </span>
+                        {% endif %}
+                        <span class="px-2 py-1 text-xs font-medium rounded-full 
+                            {% if recipe.difficulty_level == 'Easy' %}bg-green-100 text-green-800
+                            {% elif recipe.difficulty_level == 'Medium' %}bg-yellow-100 text-yellow-800
+                            {% else %}bg-red-100 text-red-800{% endif %}">
+                            {{ recipe.difficulty_level }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="space-y-2 mb-4">
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Servings:</span>
+                        <span class="text-sm font-medium">{{ recipe.base_serving_size or recipe.serving_size }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Prep Time:</span>
+                        <span class="text-sm font-medium">{{ recipe.prep_time or 0 }} min</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Cook Time:</span>
+                        <span class="text-sm font-medium">{{ recipe.cook_time or 0 }} min</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-sm text-gray-500">Cost/Serving:</span>
+                        <span class="text-sm font-medium">₹{{ "%.2f"|format(recipe.cost_per_serving) }}</span>
+                    </div>
+                </div>
+                
+                {% if recipe.calories %}
+                <div class="grid grid-cols-4 gap-2 mb-4 text-center">
+                    <div class="bg-blue-50 p-2 rounded">
+                        <div class="text-xs font-bold text-blue-600">{{ recipe.calories }}</div>
+                        <div class="text-xs text-gray-600">Cal</div>
+                    </div>
+                    <div class="bg-green-50 p-2 rounded">
+                        <div class="text-xs font-bold text-green-600">{{ recipe.protein or 0 }}g</div>
+                        <div class="text-xs text-gray-600">Protein</div>
+                    </div>
+                    <div class="bg-yellow-50 p-2 rounded">
+                        <div class="text-xs font-bold text-yellow-600">{{ recipe.carbohydrates or 0 }}g</div>
+                        <div class="text-xs text-gray-600">Carbs</div>
+                    </div>
+                    <div class="bg-red-50 p-2 rounded">
+                        <div class="text-xs font-bold text-red-600">{{ recipe.fat or 0 }}g</div>
+                        <div class="text-xs text-gray-600">Fat</div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="flex space-x-2">
+                    <button onclick="viewRecipeDetails({{ recipe.id }})" 
+                            class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded text-sm transition-colors">
+                        View Recipe
+                    </button>
+                    {% if recipe.is_scalable %}
+                    <button onclick="scaleRecipe({{ recipe.id }})" 
+                            class="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded text-sm transition-colors">
+                        Scale Recipe
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="text-center py-12 hidden">
+        <svg class="w-24 h-24 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+        </svg>
+        <h3 class="text-xl font-semibold text-gray-600 mb-2">No recipes found</h3>
+        <p class="text-gray-500">Try adjusting your filters or search terms</p>
+    </div>
+</div>
+
+<!-- Recipe Details Modal -->
+<div id="recipe-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 max-w-4xl w-full max-h-screen overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h2 id="modal-recipe-name" class="text-2xl font-bold"></h2>
+            <button onclick="closeRecipeModal()" class="text-gray-500 hover:text-gray-700">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <div id="modal-recipe-content">
+            <!-- Recipe details will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<script>
+function filterRecipes(filter) {
+    const cards = document.querySelectorAll('.recipe-card');
+    const emptyState = document.getElementById('empty-state');
+    let visibleCount = 0;
+    
+    cards.forEach(card => {
+        let show = true;
+        
+        if (filter === 'scalable') {
+            show = card.dataset.scalable === 'true';
+        } else if (filter === 'easy') {
+            show = card.dataset.difficulty === 'Easy';
+        } else if (filter === 'medium') {
+            show = card.dataset.difficulty === 'Medium';
+        } else if (filter === 'hard') {
+            show = card.dataset.difficulty === 'Hard';
+        }
+        
+        if (show) {
+            card.style.display = 'block';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    emptyState.classList.toggle('hidden', visibleCount > 0);
+    
+    // Update filter button styles
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('bg-blue-500', 'text-white');
+        btn.classList.add('bg-gray-200', 'text-gray-700');
+    });
+    event.target.classList.remove('bg-gray-200', 'text-gray-700');
+    event.target.classList.add('bg-blue-500', 'text-white');
+}
+
+function searchRecipes() {
+    const searchTerm = document.getElementById('recipe-search').value.toLowerCase();
+    const cards = document.querySelectorAll('.recipe-card');
+    const emptyState = document.getElementById('empty-state');
+    let visibleCount = 0;
+    
+    cards.forEach(card => {
+        const name = card.dataset.name;
+        if (name.includes(searchTerm)) {
+            card.style.display = 'block';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    emptyState.classList.toggle('hidden', visibleCount > 0);
+}
+
+function viewRecipeDetails(recipeId) {
+    fetch(`/recipes/${recipeId}`)
+        .then(response => response.text())
+        .then(html => {
+            // Extract the recipe details from the HTML
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const recipeContent = doc.querySelector('.container');
+            
+            if (recipeContent) {
+                document.getElementById('modal-recipe-name').textContent = 
+                    recipeContent.querySelector('h1').textContent;
+                document.getElementById('modal-recipe-content').innerHTML = 
+                    recipeContent.innerHTML;
+                document.getElementById('recipe-modal').classList.remove('hidden');
+            }
+        })
+        .catch(error => console.error('Error loading recipe:', error));
+}
+
+function scaleRecipe(recipeId) {
+    window.location.href = `/kitchen/recipe/${recipeId}/scale`;
+}
+
+function closeRecipeModal() {
+    document.getElementById('recipe-modal').classList.add('hidden');
+}
+</script>
+{% endblock %}

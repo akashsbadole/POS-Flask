@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Adjust Balance - {{ account.customer.get_full_name() }} - Restaurant POS{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="mb-6">
+        <nav class="flex mb-4" aria-label="Breadcrumb">
+            <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                <li class="inline-flex items-center">
+                    <a href="{{ url_for('credit.credit_accounts') }}" class="text-gray-700 hover:text-gray-900 inline-flex items-center">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Credit Accounts
+                    </a>
+                </li>
+                <li class="inline-flex items-center">
+                    <div class="flex items-center">
+                        <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                        <a href="{{ url_for('credit.credit_account_view', account_id=account.id) }}" 
+                           class="text-gray-700 hover:text-gray-900">
+                            {{ account.customer.get_full_name() }}
+                        </a>
+                    </div>
+                </li>
+                <li>
+                    <div class="flex items-center">
+                        <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                        <span class="text-gray-500">Adjust Balance</span>
+                    </div>
+                </li>
+            </ol>
+        </nav>
+        
+        <h1 class="text-3xl font-bold text-gray-900">Adjust Balance</h1>
+        <p class="text-gray-600 mt-2">{{ account.customer.get_full_name() }}</p>
+    </div>
+
+    <!-- Account Status Card -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6 max-w-2xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="text-center">
+                <div class="text-2xl font-bold text-gray-900">${{ "%.2f"|format(account.credit_limit) }}</div>
+                <div class="text-sm text-gray-500 mt-1">Credit Limit</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold {% if account.current_balance > 0 %}text-red-600{% else %}text-gray-900{% endif %}">
+                    ${{ "%.2f"|format(account.current_balance) }}
+                </div>
+                <div class="text-sm text-gray-500 mt-1">Current Balance</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold {% if account.available_credit > 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                    ${{ "%.2f"|format(account.available_credit) }}
+                </div>
+                <div class="text-sm text-gray-500 mt-1">Available Credit</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning Message -->
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 max-w-2xl mx-auto">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-yellow-800">Balance Adjustment Notice</h3>
+                <div class="mt-2 text-sm text-yellow-700">
+                    <p>Balance adjustments should only be made for corrections, goodwill gestures, or other legitimate business reasons. All adjustments are logged for audit purposes.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Adjustment Form -->
+    <div class="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">Adjustment Details</h2>
+            <p class="text-gray-600">Make a manual adjustment to the customer's credit balance.</p>
+        </div>
+
+        <form method="POST" class="space-y-6">
+            <!-- Adjustment Type -->
+            <div>
+                <label for="adjustment_type" class="block text-sm font-medium text-gray-700 mb-2">
+                    Adjustment Type *
+                </label>
+                <select id="adjustment_type" 
+                        name="adjustment_type" 
+                        required
+                        class="block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    <option value="MANUAL">Manual Adjustment</option>
+                    <option value="CORRECTION">Correction</option>
+                    <option value="GOODWILL">Goodwill Gesture</option>
+                    <option value="PROMOTION">Promotional Credit</option>
+                    <option value="REFUND">Refund Adjustment</option>
+                </select>
+            </div>
+
+            <!-- Adjustment Amount -->
+            <div>
+                <label for="amount" class="block text-sm font-medium text-gray-700 mb-2">
+                    Adjustment Amount *
+                </label>
+                <div class="mt-1 relative rounded-md shadow-sm">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span class="text-gray-500 sm:text-sm">$</span>
+                    </div>
+                    <input type="number" 
+                           id="amount" 
+                           name="amount" 
+                           step="0.01" 
+                           required
+                           class="pl-7 pr-12 py-3 block w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-lg">
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <span class="text-gray-500 sm:text-sm">USD</span>
+                    </div>
+                </div>
+                <p class="mt-2 text-sm text-gray-500">
+                    Use positive values to increase balance (charge customer) and negative values to decrease balance (credit customer).
+                </p>
+            </div>
+
+            <!-- Notes -->
+            <div>
+                <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">
+                    Adjustment Notes *
+                </label>
+                <textarea id="notes" 
+                          name="notes" 
+                          rows="3"
+                          required
+                          class="block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Explain the reason for this adjustment..."></textarea>
+                <p class="mt-2 text-sm text-gray-500">
+                    Please provide a detailed explanation for this adjustment. This will be recorded in the audit log.
+                </p>
+            </div>
+
+            <!-- Adjustment Summary -->
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-yellow-900 mb-2">Adjustment Summary</h3>
+                <div class="space-y-1 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-yellow-700">Current Balance:</span>
+                        <span class="font-medium text-yellow-900" id="current-balance">${{ "%.2f"|format(account.current_balance) }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-yellow-700">Adjustment Amount:</span>
+                        <span class="font-medium" id="adjustment-amount">$0.00</span>
+                    </div>
+                    <div class="flex justify-between pt-2 border-t border-yellow-200">
+                        <span class="text-yellow-700">New Balance:</span>
+                        <span class="font-medium text-yellow-900" id="new-balance">${{ "%.2f"|format(account.current_balance) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Confirmation Checkbox -->
+            <div class="flex items-center">
+                <input id="confirm" 
+                       name="confirm" 
+                       type="checkbox" 
+                       required
+                       class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                <label for="confirm" class="ml-2 block text-sm text-gray-900">
+                    I confirm that this adjustment is legitimate and necessary for business purposes.
+                </label>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <a href="{{ url_for('credit.credit_account_view', account_id=account.id) }}" 
+                   class="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="bg-yellow-600 text-white px-6 py-2 rounded-md hover:bg-yellow-700 transition-colors">
+                    <i class="fas fa-balance-scale mr-2"></i>Adjust Balance
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const amountInput = document.getElementById('amount');
+    const currentBalance = {{ account.current_balance }};
+    const currentBalanceSpan = document.getElementById('current-balance');
+    const adjustmentAmountSpan = document.getElementById('adjustment-amount');
+    const newBalanceSpan = document.getElementById('new-balance');
+
+    function updateAdjustmentSummary() {
+        const amount = parseFloat(amountInput.value || 0);
+        const newBalance = currentBalance + amount;
+        
+        // Update adjustment amount with appropriate color
+        if (amount > 0) {
+            adjustmentAmountSpan.textContent = '+$' + amount.toFixed(2);
+            adjustmentAmountSpan.className = 'font-medium text-red-600';
+        } else if (amount < 0) {
+            adjustmentAmountSpan.textContent = '-$' + Math.abs(amount).toFixed(2);
+            adjustmentAmountSpan.className = 'font-medium text-green-600';
+        } else {
+            adjustmentAmountSpan.textContent = '$0.00';
+            adjustmentAmountSpan.className = 'font-medium text-gray-900';
+        }
+        
+        // Update new balance with appropriate color
+        newBalanceSpan.textContent = '$' + newBalance.toFixed(2);
+        if (newBalance > 0) {
+            newBalanceSpan.className = 'font-medium text-red-600';
+        } else if (newBalance === 0) {
+            newBalanceSpan.className = 'font-medium text-green-600';
+        } else {
+            newBalanceSpan.className = 'font-medium text-green-600';
+        }
+    }
+
+    amountInput.addEventListener('input', updateAdjustmentSummary);
+    
+    // Initialize summary
+    updateAdjustmentSummary();
+});
+</script>
+{% endblock %}

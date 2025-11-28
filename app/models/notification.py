@@ -1,198 +1,178 @@
 """
-Notification models for tracking email and SMS notifications
+Notification model for Restaurant POS System
+Handles system notifications including license renewal reminders
 """
-
 from datetime import datetime
-from typing import Optional
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app import db
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey
+from sqlalchemy.orm import relationship
+
 
 class Notification(db.Model):
-    """Main notification model for tracking sent notifications"""
+    """System notifications for users and restaurants"""
     __tablename__ = 'notifications'
     
-    id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.Enum('email', 'sms'), nullable=False)
-    recipient = db.Column(db.String(255), nullable=False)
-    subject = db.Column(db.String(255))
-    content = db.Column(db.Text, nullable=False)
-    context = db.Column(db.JSON)  # Store template context as JSON
-    priority = db.Column(db.Enum('low', 'normal', 'high'), default='normal')
-    status = db.Column(db.Enum('pending', 'sent', 'failed', 'retrying'), default='pending')
-    error_message = db.Column(db.Text)
-    retry_count = db.Column(db.Integer, default=0)
-    max_retries = db.Column(db.Integer, default=3)
-    
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    sent_at = db.Column(db.DateTime)
-    failed_at = db.Column(db.DateTime)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = Column(Integer, primary_key=True)
+    type = Column(String(50), nullable=False, index=True)  # license_renewal, system_alert, etc.
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    reference_id = Column(String(50))  # ID of related object (license_id, etc.)
+    reference_type = Column(String(50))  # Type of reference (license, order, etc.)
+    urgency = Column(String(20), default='info')  # urgent, warning, info
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    restaurant_id = Column(Integer, ForeignKey('restaurants.id'), nullable=True)
+    is_read = Column(Boolean, default=False)
+    is_email_sent = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    read_at = Column(DateTime)
     
     # Relationships
-    logs = relationship('NotificationLog', backref='notification', cascade='all, delete-orphan')
+    user = relationship('User')
+    restaurant = relationship('Restaurant')
+    
+    def __repr__(self):
+        return f'<Notification {self.title}>'
+    
+    def mark_as_read(self):
+        """Mark notification as read"""
+        self.is_read = True
+        self.read_at = datetime.utcnow()
+        db.session.commit()
     
     def to_dict(self):
-        """Convert notification to dictionary for API responses"""
+        """Convert to dictionary for API responses"""
         return {
             'id': self.id,
             'type': self.type,
-            'recipient': self.recipient,
-            'subject': self.subject,
-            'content': self.content,
-            'context': self.context,
-            'priority': self.priority,
-            'status': self.status,
-            'error_message': self.error_message,
-            'retry_count': self.retry_count,
-            'max_retries': self.max_retries,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'sent_at': self.sent_at.isoformat() if self.sent_at else None,
-            'failed_at': self.failed_at.isoformat() if self.failed_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'title': self.title,
+            'message': self.message,
+            'reference_id': self.reference_id,
+            'reference_type': self.reference_type,
+            'urgency': self.urgency,
+            'user_id': self.user_id,
+            'restaurant_id': self.restaurant_id,
+            'is_read': self.is_read,
+            'is_email_sent': self.is_email_sent,
+            'created_at': self.created_at.isoformat() if getattr(self, 'created_at', None) else None,
+            'read_at': self.read_at.isoformat() if getattr(self, 'read_at', None) else None
         }
-    
-    def __repr__(self):
-        return f'<Notification {self.type} to {self.recipient} ({self.status})>'
+
 
 class NotificationLog(db.Model):
-    """Log of notification delivery attempts"""
+    """Log of sent notifications"""
     __tablename__ = 'notification_logs'
     
-    id = db.Column(db.Integer, primary_key=True)
-    notification_id = db.Column(db.Integer, db.ForeignKey('notifications.id'), nullable=False)
-    channel = db.Column(db.Enum('email', 'sms'), nullable=False)
-    status = db.Column(db.Enum('pending', 'sent', 'failed'), nullable=False)
-    error_message = db.Column(db.Text)
-    attempt_at = db.Column(db.DateTime, default=datetime.utcnow)
-    response_data = db.Column(db.JSON)  # Store response data from providers
+    id = Column(Integer, primary_key=True)
+    notification_id = Column(Integer, ForeignKey('notifications.id'), nullable=False)
+    channel = Column(String(20), nullable=False)  # email, sms, push
+    recipient = Column(String(255), nullable=False)
+    status = Column(String(20), nullable=False)  # sent, failed, pending
+    error_message = Column(Text)
+    sent_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    notification = relationship('Notification')
+    
+    def __repr__(self):
+        return f'<NotificationLog {self.notification.title} - {self.channel}>'
     
     def to_dict(self):
-        """Convert notification log to dictionary for API responses"""
+        """Convert to dictionary for API responses"""
         return {
             'id': self.id,
             'notification_id': self.notification_id,
             'channel': self.channel,
+            'recipient': self.recipient,
             'status': self.status,
             'error_message': self.error_message,
-            'attempt_at': self.attempt_at.isoformat() if self.attempt_at else None,
-            'response_data': self.response_data
+            'sent_at': self.sent_at.isoformat() if getattr(self, 'sent_at', None) else None
         }
-    
-    def __repr__(self):
-        return f'<NotificationLog {self.channel} {self.status}>'
+
 
 class NotificationPreference(db.Model):
-    """User preferences for different types of notifications"""
+    """User notification preferences"""
     __tablename__ = 'notification_preferences'
     
-    id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=True)  # Per-order preferences
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # User preferences
-    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)  # Restaurant defaults
-    
-    notification_type = db.Column(db.Enum('order_confirmation', 'order_receipt', 'order_status_update', 
-                                        'low_stock_alert', 'license_renewal', 'marketing'), nullable=False)
-    channel = db.Column(db.Enum('email', 'sms'), nullable=False)
-    is_enabled = db.Column(db.Boolean, default=True)
-    
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    notification_type = Column(String(50), nullable=False)
+    email_enabled = Column(Boolean, default=True)
+    sms_enabled = Column(Boolean, default=False)
+    push_enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    order = relationship('Order', backref='notification_preferences')
-    user = relationship('User', backref='notification_preferences')
-    restaurant = relationship('Restaurant', backref='notification_preferences')
-    
-    def to_dict(self):
-        """Convert notification preference to dictionary for API responses"""
-        return {
-            'id': self.id,
-            'order_id': self.order_id,
-            'user_id': self.user_id,
-            'restaurant_id': self.restaurant_id,
-            'notification_type': self.notification_type,
-            'channel': self.channel,
-            'is_enabled': self.is_enabled,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
-        }
+    user = relationship('User')
     
     def __repr__(self):
-        return f'<NotificationPreference {self.notification_type} {self.channel} ({self.is_enabled})>'
-
-class EmailTemplate(db.Model):
-    """Email templates for different notification types"""
-    __tablename__ = 'email_templates'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
-    subject = db.Column(db.String(255), nullable=False)
-    html_content = db.Column(db.Text, nullable=False)
-    text_content = db.Column(db.Text)
-    variables = db.Column(db.JSON)  # Available template variables
-    is_active = db.Column(db.Boolean, default=True)
-    is_default = db.Column(db.Boolean, default=False)
-    
-    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
-    
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    restaurant = relationship('Restaurant', backref='email_templates')
+        return f'<NotificationPreference {self.user.username} - {self.notification_type}>'
     
     def to_dict(self):
-        """Convert email template to dictionary for API responses"""
+        """Convert to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'notification_type': self.notification_type,
+            'email_enabled': self.email_enabled,
+            'sms_enabled': self.sms_enabled,
+            'push_enabled': self.push_enabled,
+            'created_at': self.created_at.isoformat() if getattr(self, 'created_at', None) else None,
+            'updated_at': self.updated_at.isoformat() if getattr(self, 'updated_at', None) else None
+        }
+
+
+class EmailTemplate(db.Model):
+    """Email templates for notifications"""
+    __tablename__ = 'email_templates'
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False, unique=True)
+    subject = Column(String(200), nullable=False)
+    html_content = Column(Text, nullable=False)
+    text_content = Column(Text)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<EmailTemplate {self.name}>'
+    
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
         return {
             'id': self.id,
             'name': self.name,
             'subject': self.subject,
             'html_content': self.html_content,
             'text_content': self.text_content,
-            'variables': self.variables,
             'is_active': self.is_active,
-            'is_default': self.is_default,
-            'restaurant_id': self.restaurant_id,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'created_at': self.created_at.isoformat() if getattr(self, 'created_at', None) else None,
+            'updated_at': self.updated_at.isoformat() if getattr(self, 'updated_at', None) else None
         }
-    
-    def __repr__(self):
-        return f'<EmailTemplate {self.name}>'
+
 
 class SmsTemplate(db.Model):
-    """SMS templates for different notification types"""
+    """SMS templates for notifications"""
     __tablename__ = 'sms_templates'
     
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
-    content = db.Column(db.Text, nullable=False)
-    variables = db.Column(db.JSON)  # Available template variables
-    is_active = db.Column(db.Boolean, default=True)
-    is_default = db.Column(db.Boolean, default=False)
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False, unique=True)
+    content = Column(Text, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
-    
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    restaurant = relationship('Restaurant', backref='sms_templates')
+    def __repr__(self):
+        return f'<SmsTemplate {self.name}>'
     
     def to_dict(self):
-        """Convert SMS template to dictionary for API responses"""
+        """Convert to dictionary for API responses"""
         return {
             'id': self.id,
             'name': self.name,
             'content': self.content,
-            'variables': self.variables,
             'is_active': self.is_active,
-            'is_default': self.is_default,
-            'restaurant_id': self.restaurant_id,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'created_at': self.created_at.isoformat() if getattr(self, 'created_at', None) else None,
+            'updated_at': self.updated_at.isoformat() if getattr(self, 'updated_at', None) else None
         }
-    
-    def __repr__(self):
-        return f'<SmsTemplate {self.name}>'

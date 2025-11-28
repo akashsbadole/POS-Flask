@@ -163,11 +163,16 @@ class ReorderingUtils {
      * Undo menu reorder operation
      */
     async undoMenuReorder(operation) {
+        const csrfToken = document.querySelector('[name=csrf_token]');
+        if (!csrfToken) {
+            throw new Error('CSRF token not found');
+        }
+        
         const response = await fetch('/api/menu/reorder-items', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                'X-CSRFToken': csrfToken.value
             },
             body: JSON.stringify({
                 items: [{
@@ -190,11 +195,16 @@ class ReorderingUtils {
      * Redo menu reorder operation
      */
     async redoMenuReorder(operation) {
+        const csrfToken = document.querySelector('[name=csrf_token]');
+        if (!csrfToken) {
+            throw new Error('CSRF token not found');
+        }
+        
         const response = await fetch('/api/menu/reorder-items', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                'X-CSRFToken': csrfToken.value
             },
             body: JSON.stringify({
                 items: [{
@@ -217,11 +227,16 @@ class ReorderingUtils {
      * Undo category reorder operation
      */
     async undoCategoryReorder(operation) {
+        const csrfToken = document.querySelector('[name=csrf_token]');
+        if (!csrfToken) {
+            throw new Error('CSRF token not found');
+        }
+        
         const response = await fetch('/api/menu/reorder-categories', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                'X-CSRFToken': csrfToken.value
             },
             body: JSON.stringify({
                 categories: [{
@@ -243,11 +258,16 @@ class ReorderingUtils {
      * Redo category reorder operation
      */
     async redoCategoryReorder(operation) {
+        const csrfToken = document.querySelector('[name=csrf_token]');
+        if (!csrfToken) {
+            throw new Error('CSRF token not found');
+        }
+        
         const response = await fetch('/api/menu/reorder-categories', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                'X-CSRFToken': csrfToken.value
             },
             body: JSON.stringify({
                 categories: [{
@@ -358,13 +378,19 @@ class ReorderingUtils {
                 display_order: index
             }));
             
+            // Get CSRF token once
+            const csrfToken = document.querySelector('[name=csrf_token]');
+            if (!csrfToken) {
+                throw new Error('CSRF token not found');
+            }
+            
             // Save both
             await Promise.all([
                 fetch('/api/menu/reorder-items', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                        'X-CSRFToken': csrfToken.value
                     },
                     body: JSON.stringify({ items: itemsData })
                 }),
@@ -372,7 +398,7 @@ class ReorderingUtils {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                        'X-CSRFToken': csrfToken.value
                     },
                     body: JSON.stringify({ categories: categoriesData })
                 })
@@ -395,11 +421,16 @@ class ReorderingUtils {
         this.isReordering = true;
         
         try {
+            const csrfToken = document.querySelector('[name=csrf_token]');
+            if (!csrfToken) {
+                throw new Error('CSRF token not found');
+            }
+            
             const response = await fetch('/api/menu/bulk-reorder', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                    'X-CSRFToken': csrfToken.value
                 },
                 body: JSON.stringify({
                     operation: 'reset_alphabetical',
@@ -429,11 +460,16 @@ class ReorderingUtils {
         this.isReordering = true;
         
         try {
+            const csrfToken = document.querySelector('[name=csrf_token]');
+            if (!csrfToken) {
+                throw new Error('CSRF token not found');
+            }
+            
             const response = await fetch('/api/menu/bulk-reorder', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                    'X-CSRFToken': csrfToken.value
                 },
                 body: JSON.stringify({
                     operation: 'sort_by_price',

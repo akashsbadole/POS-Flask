@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Make Payment - {{ account.customer.get_full_name() }} - Restaurant POS{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="mb-6">
+        <nav class="flex mb-4" aria-label="Breadcrumb">
+            <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                <li class="inline-flex items-center">
+                    <a href="{{ url_for('credit.credit_accounts') }}" class="text-gray-700 hover:text-gray-900 inline-flex items-center">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Credit Accounts
+                    </a>
+                </li>
+                <li class="inline-flex items-center">
+                    <div class="flex items-center">
+                        <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                        <a href="{{ url_for('credit.credit_account_view', account_id=account.id) }}" 
+                           class="text-gray-700 hover:text-gray-900">
+                            {{ account.customer.get_full_name() }}
+                        </a>
+                    </div>
+                </li>
+                <li>
+                    <div class="flex items-center">
+                        <i class="fas fa-chevron-right text-gray-400 mx-2"></i>
+                        <span class="text-gray-500">Make Payment</span>
+                    </div>
+                </li>
+            </ol>
+        </nav>
+        
+        <h1 class="text-3xl font-bold text-gray-900">Make Payment</h1>
+        <p class="text-gray-600 mt-2">{{ account.customer.get_full_name() }}</p>
+    </div>
+
+    <!-- Account Status Card -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6 max-w-2xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="text-center">
+                <div class="text-2xl font-bold text-gray-900">${{ "%.2f"|format(account.credit_limit) }}</div>
+                <div class="text-sm text-gray-500 mt-1">Credit Limit</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold text-red-600">${{ "%.2f"|format(account.current_balance) }}</div>
+                <div class="text-sm text-gray-500 mt-1">Current Balance</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold text-green-600">${{ "%.2f"|format(account.available_credit) }}</div>
+                <div class="text-sm text-gray-500 mt-1">Available Credit</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Form -->
+    <div class="bg-white rounded-lg shadow-md p-6 max-w-2xl mx-auto">
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">Payment Details</h2>
+            <p class="text-gray-600">Process a payment towards the customer's credit balance.</p>
+        </div>
+
+        <form method="POST" class="space-y-6">
+            <!-- Payment Amount -->
+            <div>
+                <label for="amount" class="block text-sm font-medium text-gray-700 mb-2">
+                    Payment Amount *
+                </label>
+                <div class="mt-1 relative rounded-md shadow-sm">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span class="text-gray-500 sm:text-sm">$</span>
+                    </div>
+                    <input type="number" 
+                           id="amount" 
+                           name="amount" 
+                           step="0.01" 
+                           min="0.01"
+                           max="{{ account.current_balance }}"
+                           required
+                           class="pl-7 pr-12 py-3 block w-full border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-lg">
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <span class="text-gray-500 sm:text-sm">USD</span>
+                    </div>
+                </div>
+                <p class="mt-2 text-sm text-gray-500">
+                    Maximum payment amount: ${{ "%.2f"|format(account.current_balance) }}
+                </p>
+            </div>
+
+            <!-- Payment Method -->
+            <div>
+                <label for="payment_method" class="block text-sm font-medium text-gray-700 mb-2">
+                    Payment Method *
+                </label>
+                <select id="payment_method" 
+                        name="payment_method" 
+                        required
+                        class="block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    <option value="CASH">Cash</option>
+                    <option value="CARD">Credit/Debit Card</option>
+                    <option value="CHECK">Check</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                    <option value="OTHER">Other</option>
+                </select>
+            </div>
+
+            <!-- Notes -->
+            <div>
+                <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">
+                    Notes (Optional)
+                </label>
+                <textarea id="notes" 
+                          name="notes" 
+                          rows="3"
+                          class="block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Add any notes about this payment..."></textarea>
+            </div>
+
+            <!-- Payment Summary -->
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-green-900 mb-2">Payment Summary</h3>
+                <div class="space-y-1 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-green-700">Current Balance:</span>
+                        <span class="font-medium text-green-900">${{ "%.2f"|format(account.current_balance) }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-green-700">Payment Amount:</span>
+                        <span class="font-medium text-green-900" id="payment-amount">$0.00</span>
+                    </div>
+                    <div class="flex justify-between pt-2 border-t border-green-200">
+                        <span class="text-green-700">New Balance:</span>
+                        <span class="font-medium text-green-900" id="new-balance">${{ "%.2f"|format(account.current_balance) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <a href="{{ url_for('credit.credit_account_view', account_id=account.id) }}" 
+                   class="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition-colors">
+                    <i class="fas fa-money-bill-wave mr-2"></i>Process Payment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const amountInput = document.getElementById('amount');
+    const currentBalance = {{ account.current_balance }};
+    const paymentAmountSpan = document.getElementById('payment-amount');
+    const newBalanceSpan = document.getElementById('new-balance');
+
+    function updatePaymentSummary() {
+        const amount = parseFloat(amountInput.value || 0);
+        const newBalance = currentBalance - amount;
+        
+        paymentAmountSpan.textContent = '$' + amount.toFixed(2);
+        newBalanceSpan.textContent = '$' + newBalance.toFixed(2);
+        
+        // Update colors based on new balance
+        if (newBalance > 0) {
+            newBalanceSpan.className = 'font-medium text-red-600';
+        } else if (newBalance === 0) {
+            newBalanceSpan.className = 'font-medium text-green-600';
+        } else {
+            newBalanceSpan.className = 'font-medium text-green-600';
+        }
+    }
+
+    amountInput.addEventListener('input', updatePaymentSummary);
+    
+    // Initialize summary
+    updatePaymentSummary();
+});
+</script>
+{% endblock %}

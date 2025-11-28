@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block title %}Hardware Settings{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Hardware Settings</h1>
+        <p class="mt-2 text-gray-600">Configure hardware preferences and defaults</p>
+    </div>
+
+    <form id="hardwareSettingsForm" class="space-y-8">
+        <!-- Printer Settings -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">Printer Settings</h2>
+            </div>
+            <div class="p-6 space-y-6">
+                <div>
+                    <label for="defaultPrinter" class="block text-sm font-medium text-gray-700">Default Printer</label>
+                    <select id="defaultPrinter" name="default_printer" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                        <option value="">Select a printer</option>
+                        {% for printer in hardware_status.printers %}
+                        <option value="{{ printer.name }}" {% if printer.name == hardware_status.current_printer %}selected{% endif %}>
+                            {{ printer.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <p class="mt-2 text-sm text-gray-500">This printer will be used by default for receipts and kitchen tickets.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="receiptAutoPrint" class="block text-sm font-medium text-gray-700">Auto-print Receipts</label>
+                        <div class="mt-1">
+                            <input type="checkbox" id="receiptAutoPrint" name="receipt_auto_print" value="true" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <span class="ml-2 text-sm text-gray-600">Automatically print receipts after payment</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="kitchenAutoPrint" class="block text-sm font-medium text-gray-700">Auto-print Kitchen Tickets</label>
+                        <div class="mt-1">
+                            <input type="checkbox" id="kitchenAutoPrint" name="kitchen_auto_print" value="true" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <span class="ml-2 text-sm text-gray-600">Automatically print kitchen tickets for new orders</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="printerFont" class="block text-sm font-medium text-gray-700">Printer Font Size</label>
+                    <select id="printerFont" name="printer_font" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                        <option value="small">Small</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="large">Large</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="paperWidth" class="block text-sm font-medium text-gray-700">Paper Width</label>
+                    <select id="paperWidth" name="paper_width" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                        <option value="58mm">58mm (2.25")</option>
+                        <option value="80mm" selected>80mm (3.15")</option>
+                        <option value="76mm">76mm (3")</option>
+                    </select>
+                    <p class="mt-2 text-sm text-gray-500">Select the width of your thermal paper roll.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cash Drawer Settings -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">Cash Drawer Settings</h2>
+            </div>
+            <div class="p-6 space-y-6">
+                <div>
+                    <label for="defaultCashDrawer" class="block text-sm font-medium text-gray-700">Default Cash Drawer</label>
+                    <select id="defaultCashDrawer" name="default_cash_drawer" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                        <option value="">Select a cash drawer</option>
+                        {% for drawer in hardware_status.cash_drawers %}
+                        <option value="{{ drawer.name }}" {% if drawer.name == hardware_status.current_drawer %}selected{% endif %}>
+                            {{ drawer.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <p class="mt-2 text-sm text-gray-500">This cash drawer will be opened by default for cash payments.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="autoOpenDrawer" class="block text-sm font-medium text-gray-700">Auto-open Cash Drawer</label>
+                        <div class="mt-1">
+                            <input type="checkbox" id="autoOpenDrawer" name="auto_open_drawer" value="true" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <span class="ml-2 text-sm text-gray-600">Automatically open drawer for cash payments</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="requireDrawerOpen" class="block text-sm font-medium text-gray-700">Require Drawer Open</label>
+                        <div class="mt-1">
+                            <input type="checkbox" id="requireDrawerOpen" name="require_drawer_open" value="true" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <span class="ml-2 text-sm text-gray-600">Require drawer to be opened before completing cash payment</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="drawerOpenDuration" class="block text-sm font-medium text-gray-700">Drawer Open Signal Duration</label>
+                    <select id="drawerOpenDuration" name="drawer_open_duration" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                        <option value="100">100ms</option>
+                        <option value="200" selected>200ms</option>
+                        <option value="500">500ms</option>
+                        <option value="1000">1000ms</option>
+                    </select>
+                    <p class="mt-2 text-sm text-gray-500">Duration of the electrical signal to open the cash drawer.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Settings -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">Advanced Settings</h2>
+            </div>
+            <div class="p-6 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="hardwareTimeout" class="block text-sm font-medium text-gray-700">Hardware Timeout</label>
+                        <input type="number" id="hardwareTimeout" name="hardware_timeout" value="30" min="5" max="120" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                        <p class="mt-2 text-sm text-gray-500">Seconds to wait for hardware response (5-120).</p>
+                    </div>
+
+                    <div>
+                        <label for="retryAttempts" class="block text-sm font-medium text-gray-700">Retry Attempts</label>
+                        <input type="number" id="retryAttempts" name="retry_attempts" value="3" min="1" max="10" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                        <p class="mt-2 text-sm text-gray-500">Number of retry attempts for failed operations.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="debugMode" class="block text-sm font-medium text-gray-700">Debug Mode</label>
+                    <div class="mt-1">
+                        <input type="checkbox" id="debugMode" name="debug_mode" value="true" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <span class="ml-2 text-sm text-gray-600">Enable detailed hardware logging for troubleshooting</span>
+                    </div>
+                    <p class="mt-2 text-sm text-gray-500">Only enable this when troubleshooting hardware issues.</p>
+                </div>
+
+                <div>
+                    <label for="fallbackToBrowser" class="block text-sm font-medium text-gray-700">Browser Fallback</label>
+                    <div class="mt-1">
+                        <input type="checkbox" id="fallbackToBrowser" name="fallback_to_browser" value="true" checked class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <span class="ml-2 text-sm text-gray-600">Use browser printing when hardware printer fails</span>
+                    </div>
+                    <p class="mt-2 text-sm text-gray-500">Automatically switch to browser printing if hardware printer is unavailable.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save Button -->
+        <div class="flex justify-end">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg">
+                Save Settings
+            </button>
+        </div>
+    </form>
+
+    <!-- Status Message -->
+    <div id="statusMessage" class="hidden fixed top-4 right-4 max-w-sm w-full bg-white shadow-lg rounded-lg pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden">
+        <div class="p-4">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <svg id="statusIcon" class="h-6 w-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="ml-3 w-0 flex-1 pt-0.5">
+                    <p id="statusText" class="text-sm font-medium text-gray-900">Settings saved successfully!</p>
+                    <p id="statusSubtext" class="mt-1 text-sm text-gray-500">Your hardware preferences have been updated.</p>
+                </div>
+                <div class="ml-4 flex-shrink-0 flex">
+                    <button onclick="hideStatusMessage()" class="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <span class="sr-only">Dismiss</span>
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('hardwareSettingsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const settings = {};
+    
+    // Convert form data to JSON
+    for (let [key, value] of formData.entries()) {
+        if (value === 'true') {
+            settings[key] = true;
+        } else if (value === 'false') {
+            settings[key] = false;
+        } else {
+            settings[key] = value;
+        }
+    }
+    
+    // Handle checkboxes properly
+    const checkboxes = this.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        settings[checkbox.name] = checkbox.checked;
+    });
+    
+    // Show loading state
+    showStatusMessage('Saving...', 'Your hardware settings are being saved.', 'loading');
+    
+    // Send to server
+    fetch('/hardware/settings/save', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showStatusMessage('Success!', 'Your hardware settings have been saved.', 'success');
+        } else {
+            showStatusMessage('Error', data.error || 'Failed to save settings.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving settings:', error);
+        showStatusMessage('Error', 'Failed to save settings. Please try again.', 'error');
+    });
+});
+
+function showStatusMessage(title, message, type) {
+    const statusDiv = document.getElementById('statusMessage');
+    const statusIcon = document.getElementById('statusIcon');
+    const statusText = document.getElementById('statusText');
+    const statusSubtext = document.getElementById('statusSubtext');
+    
+    // Set content
+    statusText.textContent = title;
+    statusSubtext.textContent = message;
+    
+    // Set icon and color based on type
+    if (type === 'success') {
+        statusIcon.className = 'h-6 w-6 text-green-400';
+        statusIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>';
+        statusDiv.className = statusDiv.className.replace(/bg-\w+-100/g, 'bg-green-100').replace(/text-\w+-800/g, 'text-green-800');
+    } else if (type === 'error') {
+        statusIcon.className = 'h-6 w-6 text-red-400';
+        statusIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>';
+        statusDiv.className = statusDiv.className.replace(/bg-\w+-100/g, 'bg-red-100').replace(/text-\w+-800/g, 'text-red-800');
+    } else if (type === 'loading') {
+        statusIcon.className = 'h-6 w-6 text-blue-400 animate-spin';
+        statusIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>';
+        statusDiv.className = statusDiv.className.replace(/bg-\w+-100/g, 'bg-blue-100').replace(/text-\w+-800/g, 'text-blue-800');
+    }
+    
+    // Show message
+    statusDiv.classList.remove('hidden');
+    
+    // Auto-hide after 5 seconds (except for loading)
+    if (type !== 'loading') {
+        setTimeout(() => {
+            hideStatusMessage();
+        }, 5000);
+    }
+}
+
+function hideStatusMessage() {
+    document.getElementById('statusMessage').classList.add('hidden');
+}
+</script>
+{% endblock %}

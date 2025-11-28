@@ -18,7 +18,6 @@
         </a>
     </div>
 
-    {% if tables %}
     <div class="bg-white rounded-lg shadow overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-200">
             <div class="flex justify-between items-center">
@@ -29,14 +28,14 @@
                                x-model="searchQuery"
                                @input.debounce.300ms="performSearch()"
                                placeholder="Search tables..."
-                               class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                               class="pl-15 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                             <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-2a2 2 0 00-2.828 2.828l1.172 1.172H4a2 2 0 00-2.828 2.828L4 7.172V4a2 2 0 002.828 2.828l1.172-1.172L16 16z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                             </svg>
                         </div>
                     </div>
-                    <select x-model="selectedStatus" @change="filterByStatus(selectedStatus)"
+                    <select x-model="selectedStatus" @change="performSearch()"
                             class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">All Status</option>
                         <option value="free">Available</option>
@@ -45,33 +44,18 @@
                         <option value="cleaning">Cleaning</option>
                         <option value="maintenance">Maintenance</option>
                     </select>
-                    <button @click="showAddTableModal()"
-                            class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                        Add Table
-                    </button>
                 </div>
             </div>
         </div>
         
         <!-- Loading indicator -->
-        <div x-show="isLoading" class="flex justify-center py-8" id="loading-indicator">
+        <div x-show="isLoading" class="flex justify-center py-8">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
         
-        <!-- Table content with HTMX -->
-        <div id="table-list"
-             hx-get="{{ url_for('tables.partials_table_list') }}"
-             hx-trigger="load"
-             hx-target="#table-list"
-             hx-indicator="#loading-indicator">
-            <!-- Table content will be loaded here -->
-        </div>
-        
-        <!-- Static table as fallback -->
-        <div class="overflow-x-auto" x-show="!isLoading">
+        <!-- Table content -->
+        <div x-show="!isLoading" class="overflow-x-auto">
+            {% if tables %}
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
@@ -150,28 +134,26 @@
                     {% endfor %}
                 </tbody>
             </table>
-        </div>
-    </div>
-    {% else %}
-    <div class="bg-white rounded-lg shadow">
-        <div class="p-12 text-center">
-            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-            </svg>
-            <h3 class="mt-2 text-sm font-medium text-gray-900">No tables</h3>
-            <p class="mt-1 text-sm text-gray-500">Get started by creating your first table.</p>
-            <div class="mt-6">
-                <a href="{{ url_for('tables.create_table') }}" 
-                   class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                    </svg>
-                    Add Table
-                </a>
+            {% else %}
+            <div class="p-12 text-center">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No tables</h3>
+                <p class="mt-1 text-sm text-gray-500">Get started by creating your first table.</p>
+                <div class="mt-6">
+                    <a href="{{ url_for('tables.create_table') }}" 
+                       class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        Add Table
+                    </a>
+                </div>
             </div>
+            {% endif %}
         </div>
     </div>
-    {% endif %}
 
     <div class="mt-6 flex justify-between">
         <div class="text-sm text-gray-500">
@@ -183,7 +165,6 @@
         </a>
     </div>
 </div>
-{% endblock %}
 
 <script>
 function tablesManager() {
@@ -191,54 +172,15 @@ function tablesManager() {
         isLoading: false,
         searchQuery: '',
         selectedStatus: '',
-        tables: {{ tables|tojson|safe }},
         
         init() {
-            // Initialize with empty search
-            this.performSearch();
+            console.log('Tables manager initialized');
         },
         
         performSearch() {
-            this.isLoading = true;
-            
-            // Build query parameters
-            const params = new URLSearchParams();
-            if (this.searchQuery) params.append('search', this.searchQuery);
-            if (this.selectedStatus) params.append('status', this.selectedStatus);
-            
-            // Make HTMX request to update table list
-            const url = `{{ url_for('tables.partials_table_list') }}?${params.toString()}`;
-            
-            htmx.ajax('GET', url, {
-                target: '#table-list',
-                swap: 'innerHTML',
-                headers: {
-                    'HX-Trigger': 'search'
-                }
-            }).then(() => {
-                this.isLoading = false;
-            }).catch(error => {
-                console.error('Search error:', error);
-                this.isLoading = false;
-                this.showNotification('Error searching tables', 'error');
-            });
-        },
-        
-        filterByStatus(status) {
-            this.selectedStatus = status;
-            this.performSearch();
-        },
-        
-        showAddTableModal() {
-            // Show modal for adding new table
-            const modal = document.getElementById('add-table-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            } else {
-                // Fallback to navigation if modal doesn't exist
-                window.location.href = '{{ url_for("tables.create_table") }}';
-            }
+            // If you want to implement HTMX search, do it here
+            // For now, this is a placeholder for client-side filtering
+            console.log('Search:', this.searchQuery, 'Status:', this.selectedStatus);
         },
         
         editTable(id) {
@@ -259,11 +201,13 @@ function tablesManager() {
                 .then(data => {
                     this.isLoading = false;
                     if (data.success) {
-                        // Refresh the table list
-                        this.performSearch();
                         this.showNotification('Table deleted successfully', 'success');
+                        // Reload the page to refresh the table list
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
                     } else {
-                        this.showNotification('Error deleting table: ' + data.message, 'error');
+                        this.showNotification('Error deleting table: ' + (data.message || 'Unknown error'), 'error');
                     }
                 })
                 .catch(error => {
@@ -272,10 +216,6 @@ function tablesManager() {
                     this.showNotification('Error deleting table', 'error');
                 });
             }
-        },
-        
-        refreshTableList() {
-            this.performSearch();
         },
         
         showNotification(message, type = 'info') {
@@ -302,3 +242,4 @@ function tablesManager() {
     }
 }
 </script>
+{% endblock %}

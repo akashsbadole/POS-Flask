@@ -21,7 +21,9 @@ class User(UserMixin, db.Model):
     
     # Relationships
     orders = db.relationship('Order', back_populates='user')
+    created_customers = db.relationship('Customer', back_populates='creator')
     restaurant = db.relationship('Restaurant', back_populates='users')
+    credit_transactions = db.relationship('CreditTransaction', back_populates='user')
     
     def set_password(self, password):
         """Set password hash"""

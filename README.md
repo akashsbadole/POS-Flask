@@ -426,3 +426,10 @@ The system is designed to be scalable, maintainable, and user-friendly, providin
 `Admin login: admin@restaurant.com
 Admin password: admin123
 Admin PIN: 1234`
+
+----
+npx tailwindcss -i ./app/static/css/input.css -o ./app/static/css/tailwind.css --minify
+
+npm run build-css-prod
+
+npx tailwindcss -i ./app/static/css/input.css -o ./app/static/css/tailwind.css  - this is working

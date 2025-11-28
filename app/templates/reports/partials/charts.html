@@ -1,0 +1,47 @@
+<!-- Revenue Chart -->
+<div class="chart-container chart-animate">
+    <h3 class="chart-title">
+        <span class="mr-2">📈</span> Revenue Trend
+    </h3>
+    <div class="h-64 flex items-end justify-between space-x-2">
+        {% for day in revenue_data %}
+        <div class="flex-1 flex flex-col items-center">
+            <div class="w-full revenue-bar"
+                 style="height: {{ (day.revenue / max_revenue * 100)|round(0) }}%"
+                 title="{{ day.date }}: ₹{{ "%.2f"|format(day.revenue) }}">
+            </div>
+            <span class="text-xs text-gray-600 mt-2">{{ day.date }}</span>
+        </div>
+        {% else %}
+            <p class="text-gray-500 text-center py-4">No payment data available</p>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Payment Methods -->
+<div class="chart-container chart-animate">
+    <h3 class="chart-title">
+        <span class="mr-2">💳</span> Payment Methods
+    </h3>
+    <div class="space-y-3">
+        {% if payment_breakdown %}
+            {% for method, amount in payment_breakdown.items() %}
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <span class="payment-icon mr-2 payment-icon-{{ method.lower() }}"></span>
+                <span class="capitalize text-sm font-medium text-gray-700">{{ method }}</span>
+            </div>
+            <div class="flex items-center">
+                <div class="w-32 bg-gray-200 rounded-full h-2 mr-3">
+                    <div class="bg-blue-600 h-2 rounded-full" 
+                         style="width: {{ (amount / total_payments * 100)|round(0) }}%"></div>
+                </div>
+                <span class="text-sm font-medium text-gray-900">₹{{ "%.2f"|format(amount) }}</span>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+            <p class="text-gray-500 text-center py-4">No payment data available</p>
+        {% endif %}
+    </div>
+</div>

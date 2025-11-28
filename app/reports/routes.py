@@ -34,7 +34,31 @@ def dashboard():
     # Calculate statistics
     stats = calculate_report_stats(start_date, end_date)
     
-    return render_template('reports/dashboard.html', stats=stats, days=days)
+    # Process chart data for initial display
+    revenue_data = []
+    max_revenue = 0
+    
+    for date_str, day_stats in (stats.get('daily_stats') or {}).items():
+        revenue = day_stats.get('revenue', 0)
+        revenue_data.append({
+            'date': datetime.strptime(date_str, '%Y-%m-%d').strftime('%b %d'),
+            'revenue': revenue
+        })
+        max_revenue = max(max_revenue, revenue)
+    
+    if max_revenue == 0:
+        max_revenue = 1
+    
+    payment_breakdown = stats.get('payment_breakdown', {})
+    total_payments = sum(payment_breakdown.values()) or 1
+    
+    return render_template('reports/dashboard.html',
+                         stats=stats,
+                         days=days,
+                         revenue_data=revenue_data,
+                         max_revenue=max_revenue,
+                         payment_breakdown=payment_breakdown,
+                         total_payments=total_payments)
 
 @bp.route('/sales')
 @login_required
@@ -320,12 +344,70 @@ def get_api_stats():
         return jsonify({'error': 'Access denied'}), 403
     
     days = request.args.get('days', 7, type=int)
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=days)
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    else:
+        start_date = datetime.now() - timedelta(days=days)
+    
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    else:
+        end_date = datetime.now()
     
     stats = calculate_report_stats(start_date, end_date)
     
-    return jsonify(stats)
+    # Return partial template for HTMX
+    return render_template('reports/partials/stats.html', stats=stats)
+
+@bp.route('/api/charts')
+@login_required
+def get_api_charts():
+    """API endpoint to get charts data"""
+    if not current_user.can_access_manager_features():
+        return jsonify({'error': 'Access denied'}), 403
+    
+    days = request.args.get('days', 7, type=int)
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    else:
+        start_date = datetime.now() - timedelta(days=days)
+    
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    else:
+        end_date = datetime.now()
+    
+    stats = calculate_report_stats(start_date, end_date)
+    
+    # Process chart data for API response
+    revenue_data = []
+    max_revenue = 0
+    
+    for date_str, day_stats in (stats.get('daily_stats') or {}).items():
+        revenue = day_stats.get('revenue', 0)
+        revenue_data.append({
+            'date': datetime.strptime(date_str, '%Y-%m-%d').strftime('%b %d'),
+            'revenue': revenue
+        })
+        max_revenue = max(max_revenue, revenue)
+    
+    if max_revenue == 0:
+        max_revenue = 1
+    
+    payment_breakdown = stats.get('payment_breakdown', {})
+    total_payments = sum(payment_breakdown.values()) or 1
+    
+    return render_template('reports/partials/charts.html',
+                         revenue_data=revenue_data,
+                         max_revenue=max_revenue,
+                         payment_breakdown=payment_breakdown,
+                         total_payments=total_payments)
 
 @bp.route('/api/items-sold')
 @login_required

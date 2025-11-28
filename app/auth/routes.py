@@ -127,7 +127,7 @@ def pin_login():
     flash('Invalid PIN', 'error')
     return redirect(url_for('auth.login'))
 
-@bp.route('/logout')
+@bp.route('/logout', methods=['GET', 'POST'])
 @login_required
 def logout():
     """Handle user logout"""

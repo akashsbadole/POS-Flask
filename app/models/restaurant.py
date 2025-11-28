@@ -23,6 +23,7 @@ class Restaurant(db.Model):
     
     # Relationships
     users = db.relationship('User', back_populates='restaurant', lazy='select')
+    customers = db.relationship('Customer', back_populates='restaurant', lazy='select')
     orders = db.relationship('Order', back_populates='restaurant', lazy='select')
     tables = db.relationship('Table', back_populates='restaurant', lazy='select')
     menu_items = db.relationship('MenuItem', back_populates='restaurant', lazy='select')

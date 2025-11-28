@@ -1,0 +1,252 @@
+{% extends "online_ordering/base.html" %}
+
+{% block title %}Order Confirmation{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Success Header -->
+    <div class="bg-green-50 border-2 border-green-200 rounded-lg p-8 mb-8 text-center">
+        <div class="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-check text-white text-3xl"></i>
+        </div>
+        <h1 class="text-4xl font-bold text-green-800 mb-2">Order Confirmed!</h1>
+        <p class="text-xl text-green-700 mb-4">
+            Thank you for your order. We've received it and will start preparing it right away.
+        </p>
+        <div class="text-lg text-green-700">
+            Order Number: <span class="font-bold">{{ order.order_number }}</span>
+        </div>
+    </div>
+
+    <!-- Order Details -->
+    <div class="bg-white rounded-lg shadow-md p-8 mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 mb-6">Order Details</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Customer Information -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Customer Information</h3>
+                <div class="space-y-2">
+                    <div class="flex">
+                        <span class="text-gray-600 font-medium">Name:</span>
+                        <span class="ml-2">{{ order.customer.get_full_name() }}</span>
+                    </div>
+                    {% if order.customer.email %}
+                    <div class="flex">
+                        <span class="text-gray-600 font-medium">Email:</span>
+                        <span class="ml-2">{{ order.customer.email }}</span>
+                    </div>
+                    {% endif %}
+                    {% if order.customer.phone %}
+                    <div class="flex">
+                        <span class="text-gray-600 font-medium">Phone:</span>
+                        <span class="ml-2">{{ order.customer.phone }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Order Information -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Order Information</h3>
+                <div class="space-y-2">
+                    <div class="flex">
+                        <span class="text-gray-600 font-medium">Order Number:</span>
+                        <span class="ml-2 font-bold">{{ order.order_number }}</span>
+                    </div>
+                    <div class="flex">
+                        <span class="text-gray-600 font-medium">Order Type:</span>
+                        <span class="ml-2 capitalize">{{ order.order_type or 'Pickup' }}</span>
+                    </div>
+                    <div class="flex">
+                        <span class="text-gray-600 font-medium">Placed At:</span>
+                        <span class="ml-2">{{ order.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                    </div>
+                    <div class="flex">
+                        <span class="text-gray-600 font-medium">Status:</span>
+                        <span class="ml-2">
+                            {% if order.status == 'PENDING' %}
+                                <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                                    Pending
+                                </span>
+                            {% elif order.status == 'CONFIRMED' %}
+                                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                                    Confirmed
+                                </span>
+                            {% elif order.status == 'PREPARING' %}
+                                <span class="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
+                                    Preparing
+                                </span>
+                            {% elif order.status == 'READY' %}
+                                <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                                    Ready
+                                </span>
+                            {% elif order.status == 'COMPLETED' %}
+                                <span class="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">
+                                    Completed
+                                </span>
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% if order.notes %}
+                    <div class="flex">
+                        <span class="text-gray-600 font-medium">Notes:</span>
+                        <span class="ml-2">{{ order.notes }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Items -->
+    <div class="bg-white rounded-lg shadow-md p-8 mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 mb-6">Order Items</h2>
+        
+        <div class="space-y-4">
+            {% for item in order.items %}
+            <div class="border-b pb-4 last:border-b-0">
+                <div class="flex items-start space-x-4">
+                    <!-- Item Image -->
+                    <div class="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0">
+                        {% if item.menu_item.image_url %}
+                        <img src="{{ item.menu_item.image_url }}" 
+                             alt="{{ item.menu_item.name }}" 
+                             class="w-full h-full object-cover rounded-lg">
+                        {% else %}
+                        <div class="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-utensils text-xl text-gray-400"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Item Details -->
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-lg text-gray-900 mb-1">{{ item.menu_item.name }}</h3>
+                        
+                        <!-- Variant -->
+                        {% if item.variant %}
+                        <div class="text-sm text-gray-600 mb-1">
+                            <span class="font-medium">Variant:</span> {{ item.variant.name }}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Add-ons -->
+                        {% if item.add_ons %}
+                        <div class="text-sm text-gray-600 mb-1">
+                            <span class="font-medium">Add-ons:</span>
+                            {% for add_on in item.add_ons %}
+                                {{ add_on.name }}{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Notes -->
+                        {% if item.notes %}
+                        <div class="text-sm text-gray-600 mb-2">
+                            <span class="font-medium">Notes:</span> {{ item.notes }}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Price and Quantity -->
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <span class="text-sm text-gray-600">Unit Price:</span>
+                                <span class="font-semibold">${{ "%.2f"|format(item.unit_price) }}</span>
+                            </div>
+                            
+                            <div class="flex items-center space-x-3">
+                                <span class="text-sm text-gray-600">Quantity:</span>
+                                <span class="font-semibold">{{ item.quantity }}</span>
+                            </div>
+                            
+                            <div class="text-right">
+                                <p class="font-semibold text-lg">${{ "%.2f"|format(item.unit_price * item.quantity) }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Summary -->
+    <div class="bg-white rounded-lg shadow-md p-8 mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 mb-6">Order Summary</h2>
+        
+        <div class="space-y-2">
+            <div class="flex justify-between">
+                <span class="text-gray-600">Subtotal:</span>
+                <span class="font-semibold">${{ "%.2f"|format(order.subtotal) }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-600">Tax (8.75%):</span>
+                <span class="font-semibold">${{ "%.2f"|format(order.tax) }}</span>
+            </div>
+            {% if order.discount_amount > 0 %}
+            <div class="flex justify-between">
+                <span class="text-gray-600">Discount:</span>
+                <span class="font-semibold text-green-600">-${{ "%.2f"|format(order.discount_amount) }}</span>
+            </div>
+            {% endif %}
+            <div class="border-t pt-2">
+                <div class="flex justify-between text-lg">
+                    <span class="font-semibold">Total:</span>
+                    <span class="font-bold text-blue-600">${{ "%.2f"|format(order.total) }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Next Steps -->
+    <div class="bg-blue-50 rounded-lg p-8 mb-8">
+        <h2 class="text-2xl font-semibold text-gray-900 mb-4">What's Next?</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-clock text-white text-2xl"></i>
+                </div>
+                <h3 class="font-semibold text-lg text-gray-900 mb-2">Preparation Time</h3>
+                <p class="text-gray-600">
+                    {% if order.order_type == 'delivery' %}
+                    Your order will be delivered in approximately <strong>30-45 minutes</strong>.
+                    {% else %}
+                    Your order will be ready for pickup in approximately <strong>15-20 minutes</strong>.
+                    {% endif %}
+                </p>
+            </div>
+            
+            <div class="text-center">
+                <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-mobile-alt text-white text-2xl"></i>
+                </div>
+                <h3 class="font-semibold text-lg text-gray-900 mb-2">Track Your Order</h3>
+                <p class="text-gray-600 mb-4">
+                    You can track your order status in real-time using the order number.
+                </p>
+                <a href="{{ url_for('online_ordering.track_order', order_number=order.order_number) }}" 
+                   class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-search mr-2"></i>
+                    Track Order
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="text-center">
+        <a href="{{ url_for('online_ordering.index') }}" 
+           class="inline-block bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors mr-4">
+            <i class="fas fa-home mr-2"></i>
+            Back to Home
+        </a>
+        <a href="{{ url_for('online_ordering.menu') }}" 
+           class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+            <i class="fas fa-utensils mr-2"></i>
+            Order Again
+        </a>
+    </div>
+</div>
+{% endblock %}

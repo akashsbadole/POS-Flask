@@ -30,6 +30,19 @@ class Table(db.Model):
     orders = db.relationship('Order', back_populates='table')
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
     
+    # Table merge/split relationships
+    merged_tables = db.relationship('Table',
+                                secondary='table_merges',
+                                primaryjoin='Table.id == table_merges.c.parent_table_id',
+                                secondaryjoin='Table.id == table_merges.c.child_table_id',
+                                backref='parent_tables')
+    parent_merges = db.relationship('TableMerge',
+                                  foreign_keys='TableMerge.parent_table_id',
+                                  back_populates='parent_table')
+    child_merges = db.relationship('TableMerge',
+                                 foreign_keys='TableMerge.child_table_id',
+                                 back_populates='child_table')
+    
     def get_current_order(self):
         """Get the current active order for this table"""
         return Order.query.filter(
@@ -109,6 +122,128 @@ class Table(db.Model):
                 return (datetime.utcnow() - current_order.created_at).total_seconds() / 60
         return 0
     
+    def merge_with(self, other_table, merged_by_user=None, notes=None):
+        """Merge this table with another table"""
+        if not self.can_be_merged() or not other_table.can_be_merged():
+            return False, "Both tables must be free or cleaning to be merged"
+        
+        # Create merge record
+        merge = TableMerge(
+            operation_type='merge',
+            parent_table_id=self.id,
+            child_table_id=other_table.id,
+            merged_by=merged_by_user.id if merged_by_user else None,
+            notes=notes
+        )
+        db.session.add(merge)
+        
+        # Update table status
+        other_table.status = TableStatus.MAINTENANCE  # Mark child table as unavailable
+        other_table.updated_at = datetime.utcnow()
+        
+        # Transfer any active orders from child table to parent table
+        child_order = other_table.get_current_order()
+        if child_order:
+            child_order.table_id = self.id
+            self.occupy()
+        
+        db.session.commit()
+        return True, f"Table {other_table.number} merged with {self.number}"
+    
+    def split_from(self, split_by_user=None, notes=None):
+        """Split this table back to individual tables"""
+        # Find most recent merge operation
+        last_merge = TableMerge.query.filter_by(
+            parent_table_id=self.id,
+            operation_type='merge',
+            split_at=None
+        ).order_by(TableMerge.merged_at.desc()).first()
+        
+        if not last_merge:
+            return False, "No merge operation found to split"
+        
+        # Mark merge as split
+        last_merge.split_at = datetime.utcnow()
+        last_merge.split_by = split_by_user.id if split_by_user else None
+        if notes:
+            last_merge.notes = notes
+        
+        # Reactivate child table
+        child_table = Table.query.get(last_merge.child_table_id)
+        if child_table:
+            child_table.status = TableStatus.FREE
+            child_table.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        return True, f"Table {self.number} split successfully"
+    
+    def get_merged_tables(self):
+        """Get all tables merged with this table"""
+        # Query the association table to get merged tables
+        merged = db.session.execute(
+            db.select(table_merges.c.child_table_id)
+            .where(table_merges.c.parent_table_id == self.id)
+        ).scalars().all()
+        
+        return Table.query.filter(Table.id.in_(merged)).all() if merged else []
+    
+    def is_merged(self):
+        """Check if this table is currently merged with others"""
+        # Check if table is either a parent or child in any unsplit merge
+        parent_count = db.session.execute(
+            db.select(db.func.count(table_merges.c.child_table_id))
+            .where(table_merges.c.parent_table_id == self.id)
+        ).scalar()
+        
+        child_count = db.session.execute(
+            db.select(db.func.count(table_merges.c.parent_table_id))
+            .where(table_merges.c.child_table_id == self.id)
+        ).scalar()
+        
+        return (parent_count or 0) > 0 or (child_count or 0) > 0
+    
+    def can_be_split(self):
+        """Check if this table can be split"""
+        return self.is_merged() and self.status != TableStatus.OCCUPIED
+    
+    def get_merge_info(self):
+        """Get information about table merges"""
+        merge_info = []
+        
+        # Get tables this table has merged (as parent)
+        child_merges = db.session.execute(
+            db.select(table_merges.c.child_table_id, table_merges.c.merged_at)
+            .where(table_merges.c.parent_table_id == self.id)
+        ).all()
+        
+        for child_id, merged_at in child_merges:
+            child_table = Table.query.get(child_id)
+            if child_table:
+                merge_info.append({
+                    'table_id': child_table.id,
+                    'table_number': child_table.number,
+                    'relationship': 'parent',
+                    'merged_at': merged_at.isoformat() if merged_at else None
+                })
+        
+        # Get tables this table is merged into (as child)
+        parent_merges = db.session.execute(
+            db.select(table_merges.c.parent_table_id, table_merges.c.merged_at)
+            .where(table_merges.c.child_table_id == self.id)
+        ).all()
+        
+        for parent_id, merged_at in parent_merges:
+            parent_table = Table.query.get(parent_id)
+            if parent_table:
+                merge_info.append({
+                    'table_id': parent_table.id,
+                    'table_number': parent_table.number,
+                    'relationship': 'child',
+                    'merged_at': merged_at.isoformat() if merged_at else None
+                })
+        
+        return merge_info
+    
     def to_dict(self, include_session=False):
         """Convert table to dictionary for API responses"""
         result = {
@@ -173,3 +308,53 @@ class TableSession(db.Model):
     
     def __repr__(self):
         return f'<TableSession Table {self.table.number if self.table else "Unknown"} - Order {self.order.order_number if self.order else "Unknown"}>'
+
+
+# Table merge association table
+table_merges = db.Table('table_merges',
+    db.Column('parent_table_id', db.Integer, db.ForeignKey('tables.id'), primary_key=True),
+    db.Column('child_table_id', db.Integer, db.ForeignKey('tables.id'), primary_key=True),
+    db.Column('merged_at', db.DateTime, default=datetime.utcnow),
+    db.Column('merged_by', db.Integer, db.ForeignKey('users.id')),
+    db.Column('notes', db.Text)
+)
+
+
+class TableMerge(db.Model):
+    """Model to track table merge and split operations"""
+    __tablename__ = 'table_merge_operations'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    operation_type = db.Column(db.Enum('merge', 'split', name='merge_operation_type'), nullable=False)
+    parent_table_id = db.Column(db.Integer, db.ForeignKey('tables.id'), nullable=True)
+    child_table_id = db.Column(db.Integer, db.ForeignKey('tables.id'), nullable=True)
+    merged_at = db.Column(db.DateTime, default=datetime.utcnow)
+    split_at = db.Column(db.DateTime, nullable=True)
+    merged_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    split_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    notes = db.Column(db.Text)
+    
+    # Relationships
+    parent_table = db.relationship('Table', foreign_keys=[parent_table_id], back_populates='parent_merges')
+    child_table = db.relationship('Table', foreign_keys=[child_table_id], back_populates='child_merges')
+    merged_by_user = db.relationship('User', foreign_keys=[merged_by])
+    split_by_user = db.relationship('User', foreign_keys=[split_by])
+    
+    def to_dict(self):
+        """Convert table merge operation to dictionary"""
+        return {
+            'id': self.id,
+            'operation_type': self.operation_type,
+            'parent_table_id': self.parent_table_id,
+            'parent_table_number': self.parent_table.number if self.parent_table else None,
+            'child_table_id': self.child_table_id,
+            'child_table_number': self.child_table.number if self.child_table else None,
+            'merged_at': self.merged_at.isoformat() if self.merged_at else None,
+            'split_at': self.split_at.isoformat() if self.split_at else None,
+            'merged_by': self.merged_by_user.name if self.merged_by_user else None,
+            'split_by': self.split_by_user.name if self.split_by_user else None,
+            'notes': self.notes
+        }
+    
+    def __repr__(self):
+        return f'<TableMerge {self.operation_type}: Table {self.parent_table_id} -> {self.child_table_id}>'
