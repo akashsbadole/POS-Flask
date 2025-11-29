@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Assign Waiter - Table {{ table.number }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="mb-6">
+                <h1 class="text-2xl font-bold text-gray-800">Assign Waiter to Table {{ table.number }}</h1>
+                <p class="text-gray-600 mt-2">Select a waiter to assign to this table</p>
+            </div>
+
+            <!-- Table Information -->
+            <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <span class="text-sm font-medium text-gray-500">Table Number:</span>
+                        <p class="text-lg font-semibold">{{ table.number }}</p>
+                    </div>
+                    <div>
+                        <span class="text-sm font-medium text-gray-500">Capacity:</span>
+                        <p class="text-lg font-semibold">{{ table.capacity }} guests</p>
+                    </div>
+                    <div>
+                        <span class="text-sm font-medium text-gray-500">Status:</span>
+                        <p class="text-lg font-semibold">
+                            <span class="px-2 py-1 rounded-full text-xs font-medium {{ table.get_status_color() }} text-white">
+                                {{ table.get_status_text() }}
+                            </span>
+                        </p>
+                    </div>
+                    <div>
+                        <span class="text-sm font-medium text-gray-500">Section:</span>
+                        <p class="text-lg font-semibold">{{ table.floor_section or 'Not specified' }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Assignment -->
+            {% if table.current_waiter %}
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h3 class="text-sm font-medium text-blue-800 mb-2">Current Assignment</h3>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-medium text-blue-900">{{ table.current_waiter.name }}</p>
+                        <p class="text-sm text-blue-700">{{ table.current_waiter.get_role_display_name() }}</p>
+                    </div>
+                    <form method="POST" action="{{ url_for('tables.relieve_waiter', table_id=table.id) }}" 
+                          class="inline" 
+                          onsubmit="return confirm('Are you sure you want to relieve {{ table.current_waiter.name }} from this table?')">
+                        <button type="submit" class="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm">
+                            Relieve Waiter
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Assignment Form -->
+            <form method="POST" class="space-y-6">
+                {{ csrf_token() }}
+                
+                <div>
+                    <label for="waiter_id" class="block text-sm font-medium text-gray-700 mb-2">
+                        Select Waiter <span class="text-red-500">*</span>
+                    </label>
+                    <select id="waiter_id" name="waiter_id" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">-- Choose a waiter --</option>
+                        {% for waiter in available_waiters %}
+                        <option value="{{ waiter.id }}" 
+                                {% if table.current_waiter and table.current_waiter.id == waiter.id %}disabled{% endif %}>
+                            {{ waiter.name }} - {{ waiter.get_role_display_name() }}
+                            {% if table.current_waiter and table.current_waiter.id == waiter.id %} (Currently assigned){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">
+                        Assignment Notes (Optional)
+                    </label>
+                    <textarea id="notes" name="notes" rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Add any notes about this assignment..."></textarea>
+                </div>
+
+                <div class="flex justify-end space-x-3">
+                    <a href="{{ url_for('tables.manage_tables') }}" 
+                       class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </a>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        Assign Waiter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

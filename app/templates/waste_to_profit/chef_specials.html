@@ -1,0 +1,339 @@
+{% extends "waste_to_profit/base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Chef's Specials</h1>
+        <div class="flex space-x-2">
+            <a href="{{ url_for('waste_to_profit.chef_special_suggestions') }}" class="btn-primary">Get AI Suggestions</a>
+            <a href="{{ url_for('waste_to_profit.create_chef_special') }}" class="btn-success">Create Special</a>
+            <a href="{{ url_for('waste_to_profit.chef_special_analytics') }}" class="btn-secondary">Analytics</a>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-green-600" id="active-count">{{ specials|length }}</div>
+                    <div class="metric-label">Active Specials</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-blue-600" id="revenue-count">$0</div>
+                    <div class="metric-label">Total Revenue</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-yellow-600" id="profit-count">$0</div>
+                    <div class="metric-label">Total Profit</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-purple-600" id="waste-saved">0kg</div>
+                    <div class="metric-label">Waste Saved</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="card mb-6">
+        <div class="card-header">
+            <h3 class="card-title">Filters</h3>
+        </div>
+        <div class="card-body">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="form-group">
+                    <label class="form-label">Search</label>
+                    <input type="text" id="search-input" class="form-input" placeholder="Search specials..." onkeyup="filterTable()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select id="status-filter" class="form-select" onchange="filterTable()">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="draft">Draft</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Price Range</label>
+                    <select id="price-filter" class="form-select" onchange="filterTable()">
+                        <option value="">All Prices</option>
+                        <option value="0-10">$0 - $10</option>
+                        <option value="10-20">$10 - $20</option>
+                        <option value="20+">$20+</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chef's Specials Table -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Chef's Specials</h3>
+            <div class="flex space-x-2">
+                <button class="btn-primary btn-sm" onclick="exportData()">Export</button>
+                <button class="btn-secondary btn-sm" onclick="printData()">Print</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="waste-table" id="specials-table">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)">Name <i class="fas fa-sort"></i></th>
+                            <th>Description</th>
+                            <th onclick="sortTable(2)">Price <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(3)">Profit Margin <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(4)">Quantity Sold <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(5)">Revenue <i class="fas fa-sort"></i></th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="specials-tbody">
+                        {% for special in specials %}
+                        <tr data-status="{{ special.status }}" data-price="{{ special.special_price }}">
+                            <td class="font-medium">{{ special.name }}</td>
+                            <td class="text-sm text-gray-600">{{ special.description[:50] }}{% if special.description|length > 50 %}...{% endif %}</td>
+                            <td class="font-medium">${{ "%.2f"|format(special.special_price) }}</td>
+                            <td>
+                                <span class="badge badge-{{ 'success' if special.profit_margin > 0.5 else 'warning' if special.profit_margin > 0.3 else 'danger' }}">
+                                    {{ "%.1f"|format(special.profit_margin * 100) }}%
+                                </span>
+                            </td>
+                            <td>{{ special.quantity_sold or 0 }}</td>
+                            <td>${{ "%.2f"|format((special.quantity_sold or 0) * special.special_price) }}</td>
+                            <td>
+                                <span class="badge badge-{{ 'success' if special.status == 'active' else 'secondary' if special.status == 'inactive' else 'info' }}">
+                                    {{ special.status.title() }}
+                                </span>
+                            </td>
+                            <td>{{ special.created_at.strftime('%Y-%m-%d') if special.created_at else 'N/A' }}</td>
+                            <td>
+                                <div class="flex space-x-1">
+                                    <button class="btn-primary btn-sm" onclick="viewSpecial({{ special.id }})">View</button>
+                                    <button class="btn-secondary btn-sm" onclick="editSpecial({{ special.id }})">Edit</button>
+                                    {% if special.status == 'active' %}
+                                    <button class="btn-warning btn-sm" onclick="deactivateSpecial({{ special.id }})">Deactivate</button>
+                                    {% else %}
+                                    <button class="btn-success btn-sm" onclick="activateSpecial({{ special.id }})">Activate</button>
+                                    {% endif %}
+                                    <button class="btn-danger btn-sm" onclick="deleteSpecial({{ special.id }})">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Chart -->
+    <div class="card mt-6">
+        <div class="card-header">
+            <h3 class="card-title">Performance Overview</h3>
+        </div>
+        <div class="card-body">
+            <canvas id="performance-chart" width="400" height="200"></canvas>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    updateSummaryCards();
+    initializePerformanceChart();
+});
+
+function updateSummaryCards() {
+    const rows = document.querySelectorAll('#specials-tbody tr');
+    let totalRevenue = 0, totalProfit = 0, wasteSaved = 0;
+
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        const revenue = parseFloat(cells[5].textContent.replace('$', ''));
+        const profitMargin = parseFloat(cells[3].textContent.replace('%', ''));
+        const profit = revenue * (profitMargin / 100);
+        
+        totalRevenue += revenue;
+        totalProfit += profit;
+        
+        // Estimate waste saved (simplified calculation)
+        wasteSaved += parseFloat(cells[4].textContent) * 0.2; // Assume 0.2kg waste saved per item
+    });
+
+    document.getElementById('revenue-count').textContent = `$${totalRevenue.toFixed(2)}`;
+    document.getElementById('profit-count').textContent = `$${totalProfit.toFixed(2)}`;
+    document.getElementById('waste-saved').textContent = `${wasteSaved.toFixed(1)}kg`;
+}
+
+function filterTable() {
+    const searchInput = document.getElementById('search-input').value.toLowerCase();
+    const statusFilter = document.getElementById('status-filter').value;
+    const priceFilter = document.getElementById('price-filter').value;
+    
+    const rows = document.querySelectorAll('#specials-tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const status = row.dataset.status;
+        const price = parseFloat(row.dataset.price);
+        
+        const matchesSearch = text.includes(searchInput);
+        const matchesStatus = !statusFilter || status === statusFilter;
+        
+        let matchesPrice = true;
+        if (priceFilter === '0-10') matchesPrice = price >= 0 && price <= 10;
+        else if (priceFilter === '10-20') matchesPrice = price > 10 && price <= 20;
+        else if (priceFilter === '20+') matchesPrice = price > 20;
+        
+        row.style.display = matchesSearch && matchesStatus && matchesPrice ? '' : 'none';
+    });
+}
+
+function sortTable(columnIndex) {
+    const table = document.getElementById('specials-table');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    rows.sort((a, b) => {
+        const aValue = a.cells[columnIndex].textContent.trim();
+        const bValue = b.cells[columnIndex].textContent.trim();
+        
+        // Handle numeric sorting
+        if (columnIndex >= 2 && columnIndex <= 5) {
+            return parseFloat(aValue.replace(/[^0-9.-]/g, '')) - parseFloat(bValue.replace(/[^0-9.-]/g, ''));
+        }
+        
+        // Handle text sorting
+        return aValue.localeCompare(bValue);
+    });
+    
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+function viewSpecial(specialId) {
+    window.location.href = `/waste-to-profit/chef-specials/${specialId}`;
+}
+
+function editSpecial(specialId) {
+    window.location.href = `/waste-to-profit/chef-specials/${specialId}/edit`;
+}
+
+function activateSpecial(specialId) {
+    window.location.href = `/waste-to-profit/chef-specials/${specialId}/activate`;
+}
+
+function deactivateSpecial(specialId) {
+    if (confirm('Are you sure you want to deactivate this special?')) {
+        window.location.href = `/waste-to-profit/chef-specials/${specialId}/deactivate`;
+    }
+}
+
+function deleteSpecial(specialId) {
+    if (confirm('Are you sure you want to delete this special? This action cannot be undone.')) {
+        window.location.href = `/waste-to-profit/chef-specials/${specialId}/delete`;
+    }
+}
+
+function exportData() {
+    const table = document.getElementById('specials-table');
+    const rows = table.querySelectorAll('tr');
+    let csv = [];
+    
+    rows.forEach(row => {
+        const cols = row.querySelectorAll('td, th');
+        const rowData = Array.from(cols).map(col => col.textContent.trim());
+        csv.push(rowData.join(','));
+    });
+    
+    const csvContent = csv.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', 'chef_specials.csv');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+function printData() {
+    window.print();
+}
+
+function initializePerformanceChart() {
+    const ctx = document.getElementById('performance-chart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+            datasets: [{
+                label: 'Revenue ($)',
+                data: [120, 190, 150, 250],
+                backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 1
+            }, {
+                label: 'Profit ($)',
+                data: [60, 95, 75, 125],
+                backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                borderColor: 'rgba(16, 185, 129, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

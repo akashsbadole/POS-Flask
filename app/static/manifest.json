@@ -1,14 +1,18 @@
 {
-    "name": "Restaurant POS",
+    "name": "Restaurant POS System",
     "short_name": "POS",
-    "description": "Restaurant Point of Sale System with offline capabilities",
-    "start_url": "/",
+    "description": "Advanced Restaurant Point of Sale System with offline capabilities and real-time sync",
+    "start_url": "/?source=pwa",
     "display": "standalone",
+    "display_override": ["window-controls-overlay", "standalone"],
     "background_color": "#ffffff",
     "theme_color": "#3b82f6",
-    "orientation": "portrait",
+    "orientation": "portrait-primary",
     "scope": "/",
     "lang": "en",
+    "dir": "ltr",
+    "categories": ["business", "productivity", "utilities"],
+    "prefer_related_applications": false,
     "icons": [
         {
             "src": "/static/images/icon-72x72.png",
@@ -78,7 +82,7 @@
             "name": "New Order",
             "short_name": "Order",
             "description": "Create a new order",
-            "url": "/cashier",
+            "url": "/orders/new?source=pwa",
             "icons": [
                 {
                     "src": "/static/images/icon-96x96.png",
@@ -87,10 +91,10 @@
             ]
         },
         {
-            "name": "Menu",
+            "name": "Menu Management",
             "short_name": "Menu",
-            "description": "View menu items",
-            "url": "/menu",
+            "description": "View and manage menu items",
+            "url": "/menu?source=pwa",
             "icons": [
                 {
                     "src": "/static/images/icon-96x96.png",
@@ -99,10 +103,34 @@
             ]
         },
         {
-            "name": "Kitchen",
+            "name": "Kitchen Display",
             "short_name": "Kitchen",
             "description": "Kitchen display system",
-            "url": "/kitchen",
+            "url": "/kitchen?source=pwa",
+            "icons": [
+                {
+                    "src": "/static/images/icon-96x96.png",
+                    "sizes": "96x96"
+                }
+            ]
+        },
+        {
+            "name": "Inventory",
+            "short_name": "Stock",
+            "description": "Manage inventory levels",
+            "url": "/inventory?source=pwa",
+            "icons": [
+                {
+                    "src": "/static/images/icon-96x96.png",
+                    "sizes": "96x96"
+                }
+            ]
+        },
+        {
+            "name": "Reports",
+            "short_name": "Reports",
+            "description": "View business reports",
+            "url": "/reports?source=pwa",
             "icons": [
                 {
                     "src": "/static/images/icon-96x96.png",
@@ -111,8 +139,61 @@
             ]
         }
     ],
-    "categories": [
-        "business",
-        "productivity"
+    "screenshots": [
+        {
+            "src": "/static/images/screenshot-mobile.png",
+            "sizes": "390x844",
+            "type": "image/png",
+            "form_factor": "narrow"
+        },
+        {
+            "src": "/static/images/screenshot-desktop.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide"
+        }
+    ],
+    "related_applications": [],
+    "edge_side_panel": {
+        "preferred_width": 400
+    },
+    "launch_handler": {
+        "client_mode": "focus-existing"
+    },
+    "protocol_handlers": [
+        {
+            "protocol": "web+pos",
+            "url": "/orders/new?order=%s"
+        }
+    ],
+    "share_target": {
+        "action": "/orders/new",
+        "method": "POST",
+        "enctype": "multipart/form-data",
+        "params": {
+            "title": "order_title",
+            "text": "order_notes",
+            "url": "order_url",
+            "files": [
+                {
+                    "name": "order_file",
+                    "accept": ["image/*", ".pdf"]
+                }
+            ]
+        }
+    },
+    "file_handlers": [
+        {
+            "action": "/orders/import",
+            "accept": {
+                "application/json": [".json"]
+            }
+        }
+    ],
+    "handle_links": "preferred",
+    "capture_links": "existing-client-navigate",
+    "scope_extensions": [
+        "/api/",
+        "/static/"
     ]
 }

@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Analytics Dashboard - Restaurant POS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.15.2/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        [x-cloak] { display: none !important; }
+        .metric-card {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        .loading-skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-healthy { background-color: #10b981; }
+        .status-warning { background-color: #f59e0b; }
+        .status-critical { background-color: #ef4444; }
+        .performance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        .tab-active {
+            border-bottom: 2px solid #4f46e5;
+            color: #4f46e5;
+        }
+    </style>
+</head>
+<body class="bg-gray-50" x-data="aiAnalytics()">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-chart-bar text-2xl text-indigo-600 mr-3"></i>
+                    <h1 class="text-xl font-semibold text-gray-900">AI Analytics Dashboard</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <select x-model="dateRange" @change="updateDateRange()"
+                                class="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                            <option value="quarter">This Quarter</option>
+                            <option value="year">This Year</option>
+                        </select>
+                        <i class="fas fa-calendar absolute right-3 top-3 text-gray-400 pointer-events-none"></i>
+                    </div>
+                    <button @click="refreshDashboard()" 
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                        <i class="fas fa-sync-alt mr-2" :class="{'fa-spin': loading}"></i>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="bg-white border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav class="flex space-x-8">
+                <button @click="activeTab = 'overview'" 
+                        :class="activeTab === 'overview' ? 'tab-active' : 'text-gray-500 hover:text-gray-700'"
+                        class="py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                    Overview
+                </button>
+                <button @click="activeTab = 'models'" 
+                        :class="activeTab === 'models' ? 'tab-active' : 'text-gray-500 hover:text-gray-700'"
+                        class="py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                    Model Performance
+                </button>
+                <button @click="activeTab = 'recommendations'" 
+                        :class="activeTab === 'recommendations' ? 'tab-active' : 'text-gray-500 hover:text-gray-700'"
+                        class="py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                    Recommendations
+                </button>
+                <button @click="activeTab = 'abtests'" 
+                        :class="activeTab === 'abtests' ? 'tab-active' : 'text-gray-500 hover:text-gray-700'"
+                        class="py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                    A/B Tests
+                </button>
+                <button @click="activeTab = 'predictions'" 
+                        :class="activeTab === 'predictions' ? 'tab-active' : 'text-gray-500 hover:text-gray-700'"
+                        class="py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                    Predictions
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Overview Tab -->
+        <div x-show="activeTab === 'overview'" class="space-y-6">
+            <!-- Key Metrics -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="metric-card bg-white rounded-lg p-6 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Total Predictions</p>
+                            <p class="text-3xl font-bold text-gray-900" x-text="overviewMetrics.totalPredictions"></p>
+                            <div class="flex items-center mt-2">
+                                <i class="fas fa-arrow-up text-green-500 mr-1"></i>
+                                <span class="text-sm text-green-600" x-text="overviewMetrics.predictionGrowth + '%'"></span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-indigo-100 rounded-lg">
+                            <i class="fas fa-brain text-indigo-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-card bg-white rounded-lg p-6 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Avg. Confidence</p>
+                            <p class="text-3xl font-bold text-gray-900" x-text="overviewMetrics.avgConfidence + '%'"></p>
+                            <div class="flex items-center mt-2">
+                                <i class="fas fa-arrow-up text-green-500 mr-1"></i>
+                                <span class="text-sm text-green-600" x-text="overviewMetrics.confidenceImprovement + '%'"></span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-green-100 rounded-lg">
+                            <i class="fas fa-chart-line text-green-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-card bg-white rounded-lg p-6 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Revenue Impact</p>
+                            <p class="text-3xl font-bold text-gray-900">$<span x-text="overviewMetrics.revenueImpact"></span></p>
+                            <div class="flex items-center mt-2">
+                                <i class="fas fa-arrow-up text-green-500 mr-1"></i>
+                                <span class="text-sm text-green-600" x-text="overviewMetrics.revenueGrowth + '%'"></span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-blue-100 rounded-lg">
+                            <i class="fas fa-dollar-sign text-blue-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-card bg-white rounded-lg p-6 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">System Health</p>
+                            <p class="text-3xl font-bold text-gray-900" x-text="overviewMetrics.systemHealth + '%'"></p>
+                            <div class="flex items-center mt-2">
+                                <span class="status-indicator" :class="getHealthStatusClass(overviewMetrics.systemHealth)"></span>
+                                <span class="text-sm" x-text="getHealthStatusLabel(overviewMetrics.systemHealth)"></span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-purple-100 rounded-lg">
+                            <i class="fas fa-heartbeat text-purple-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Prediction Volume Chart -->
+                <div class="bg-white rounded-lg p-6 shadow-sm">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Prediction Volume Over Time</h3>
+                    <div class="chart-container">
+                        <canvas id="predictionVolumeChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Model Performance Chart -->
+                <div class="bg-white rounded-lg p-6 shadow-sm">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Model Performance Comparison</h3>
+                    <div class="chart-container">
+                        <canvas id="modelPerformanceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Features Status -->
+            <div class="bg-white rounded-lg p-6 shadow-sm">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">AI Features Status</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <template x-for="feature in aiFeatures" :key="feature.name">
+                        <div class="border rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="font-medium text-gray-900" x-text="feature.name"></h4>
+                                <span class="status-indicator" :class="getStatusClass(feature.status)"></span>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600">Status:</span>
+                                    <span class="font-medium" x-text="feature.status"></span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600">Accuracy:</span>
+                                    <span class="font-medium" x-text="feature.accuracy + '%'"></span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-600">Usage:</span>
+                                    <span class="font-medium" x-text="feature.usage"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Performance Tab -->
+        <div x-show="activeTab === 'models'" class="space-y-6">
+            <div class="performance-grid">
+                <template x-for="model in modelPerformance" :key="model.type">
+                    <div class="bg-white rounded-lg p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900" x-text="model.name"></h3>
+                            <span class="status-indicator" :class="getStatusClass(model.status)"></span>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-sm text-gray-600">Accuracy</span>
+                                    <span class="text-sm font-medium" x-text="model.accuracy + '%'"></span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-green-500 h-2 rounded-full transition-all duration-300"
+                                         :style="`width: ${model.accuracy}%`"></div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-sm text-gray-600">Performance Score</span>
+                                    <span class="text-sm font-medium" x-text="model.performanceScore"></span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                         :style="`width: ${model.performanceScore * 100}%`"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <span class="text-gray-600">Predictions:</span>
+                                    <span class="font-medium block" x-text="model.predictions"></span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-600">Last Updated:</span>
+                                    <span class="font-medium block" x-text="formatDate(model.lastUpdated)"></span>
+                                </div>
+                            </div>
+                            
+                            <div class="pt-4 border-t border-gray-200">
+                                <button @click="viewModelDetails(model)"
+                                        class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                                    View Details
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Recommendations Tab -->
+        <div x-show="activeTab === 'recommendations'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow-sm">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-900">Recommendation Performance</h3>
+                        <div class="flex space-x-2">
+                            <button @click="recommendationView = 'summary'"
+                                    :class="recommendationView === 'summary' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-700'"
+                                    class="px-3 py-1 rounded-md text-sm">
+                                Summary
+                            </button>
+                            <button @click="recommendationView = 'detailed'"
+                                    :class="recommendationView === 'detailed' ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-700'"
+                                    class="px-3 py-1 rounded-md text-sm">
+                                Detailed
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-6">
+                    <!-- Summary View -->
+                    <div x-show="recommendationView === 'summary'" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <template x-for="type in recommendationTypes" :key="type.name">
+                            <div class="text-center">
+                                <div class="text-3xl font-bold text-gray-900 mb-2" x-text="type.count"></div>
+                                <div class="text-lg font-medium text-gray-700 mb-1" x-text="type.name"></div>
+                                <div class="text-sm text-gray-500" x-text="type.acceptanceRate + '% acceptance'"></div>
+                                <div class="mt-3">
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="bg-green-500 h-2 rounded-full"
+                                             :style="`width: ${type.acceptanceRate}%`"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <!-- Detailed View -->
+                    <div x-show="recommendationView === 'detailed'">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Accepted</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rejected</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acceptance Rate</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue Impact</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <template x-for="type in recommendationTypes" :key="type.name">
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900" x-text="type.name"></td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="type.count"></td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="type.accepted"></td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="type.rejected"></td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="type.acceptanceRate + '%'"></td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$<span x-text="type.revenueImpact"></span></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- A/B Tests Tab -->
+        <div x-show="activeTab === 'abtests'" class="space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <template x-for="test in abTests" :key="test.id">
+                    <div class="bg-white rounded-lg p-6 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900" x-text="test.name"></h3>
+                            <span class="px-2 py-1 text-xs rounded-full"
+                                  :class="getTestStatusClass(test.status)"
+                                  x-text="test.status"></span>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <p class="text-sm text-gray-600" x-text="test.description"></p>
+                            
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <span class="text-gray-600">Started:</span>
+                                    <span class="font-medium block" x-text="formatDate(test.startDate)"></span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-600">Participants:</span>
+                                    <span class="font-medium block" x-text="test.participants"></span>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-2">
+                                <template x-for="(variant, index) in test.variants" :key="index">
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-gray-600" x-text="variant.name + ':'"></span>
+                                        <span class="font-medium" x-text="variant.conversionRate + '%'"></span>
+                                    </div>
+                                </template>
+                            </div>
+                            
+                            <div class="pt-4 border-t border-gray-200">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Winner:</span>
+                                    <span class="text-sm font-medium text-green-600" x-text="test.winner || 'In progress'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Predictions Tab -->
+        <div x-show="activeTab === 'predictions'" class="space-y-6">
+            <div class="bg-white rounded-lg shadow-sm">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-900">Recent Predictions</h3>
+                        <div class="flex space-x-2">
+                            <select x-model="predictionFilter" @change="filterPredictions()"
+                                    class="px-3 py-1 border border-gray-300 rounded-md text-sm">
+                                <option value="">All Types</option>
+                                <option value="upselling">Upselling</option>
+                                <option value="pricing">Dynamic Pricing</option>
+                                <option value="forecasting">Sales Forecasting</option>
+                                <option value="churn">Churn Prediction</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Confidence</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Result</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <template x-for="prediction in filteredPredictions" :key="prediction.id">
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="formatDateTime(prediction.timestamp)"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="prediction.type"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="prediction.model"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <div class="flex items-center">
+                                            <span x-text="prediction.confidence + '%'"></span>
+                                            <div class="ml-2 w-16 bg-gray-200 rounded-full h-2">
+                                                <div class="bg-blue-500 h-2 rounded-full"
+                                                     :style="`width: ${prediction.confidence}%`"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="prediction.result"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span class="px-2 py-1 text-xs rounded-full"
+                                              :class="getPredictionStatusClass(prediction.status)"
+                                              x-text="prediction.status"></span>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function aiAnalytics() {
+            return {
+                loading: false,
+                activeTab: 'overview',
+                dateRange: 'week',
+                recommendationView: 'summary',
+                predictionFilter: '',
+                overviewMetrics: {
+                    totalPredictions: 0,
+                    predictionGrowth: 0,
+                    avgConfidence: 0,
+                    confidenceImprovement: 0,
+                    revenueImpact: 0,
+                    revenueGrowth: 0,
+                    systemHealth: 0
+                },
+                aiFeatures: [],
+                modelPerformance: [],
+                recommendationTypes: [],
+                abTests: [],
+                predictions: [],
+                filteredPredictions: [],
+                charts: {},
+                
+                init() {
+                    this.loadDashboardData();
+                    this.startRealTimeUpdates();
+                },
+                
+                async loadDashboardData() {
+                    this.loading = true;
+                    try {
+                        await Promise.all([
+                            this.loadOverviewMetrics(),
+                            this.loadAIFeatures(),
+                            this.loadModelPerformance(),
+                            this.loadRecommendationData(),
+                            this.loadABTestData(),
+                            this.loadPredictionData()
+                        ]);
+                        
+                        this.$nextTick(() => {
+                            this.initializeCharts();
+                        });
+                    } catch (error) {
+                        console.error('Error loading dashboard data:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async loadOverviewMetrics() {
+                    try {
+                        const response = await fetch('/ai/analytics/overview');
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.overviewMetrics = data.metrics;
+                        }
+                    } catch (error) {
+                        console.error('Error loading overview metrics:', error);
+                    }
+                },
+                
+                async loadAIFeatures() {
+                    try {
+                        const response = await fetch('/ai/analytics/features');
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.aiFeatures = data.features;
+                        }
+                    } catch (error) {
+                        console.error('Error loading AI features:', error);
+                    }
+                },
+                
+                async loadModelPerformance() {
+                    try {
+                        const response = await fetch('/ai/analytics/models');
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.modelPerformance = data.models;
+                        }
+                    } catch (error) {
+                        console.error('Error loading model performance:', error);
+                    }
+                },
+                
+                async loadRecommendationData() {
+                    try {
+                        const response = await fetch('/ai/analytics/recommendations');
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.recommendationTypes = data.types;
+                        }
+                    } catch (error) {
+                        console.error('Error loading recommendation data:', error);
+                    }
+                },
+                
+                async loadABTestData() {
+                    try {
+                        const response = await fetch('/ai/analytics/abtests');
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.abTests = data.tests;
+                        }
+                    } catch (error) {
+                        console.error('Error loading A/B test data:', error);
+                    }
+                },
+                
+                async loadPredictionData() {
+                    try {
+                        const response = await fetch('/ai/analytics/predictions');
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.predictions = data.predictions;
+                            this.filteredPredictions = [...this.predictions];
+                        }
+                    } catch (error) {
+                        console.error('Error loading prediction data:', error);
+                    }
+                },
+                
+                async refreshDashboard() {
+                    await this.loadDashboardData();
+                },
+                
+                updateDateRange() {
+                    // Reload data with new date range
+                    this.loadDashboardData();
+                },
+                
+                filterPredictions() {
+                    if (!this.predictionFilter) {
+                        this.filteredPredictions = [...this.predictions];
+                    } else {
+                        this.filteredPredictions = this.predictions.filter(p => 
+                            p.type === this.predictionFilter
+                        );
+                    }
+                },
+                
+                initializeCharts() {
+                    this.initializePredictionVolumeChart();
+                    this.initializeModelPerformanceChart();
+                },
+                
+                initializePredictionVolumeChart() {
+                    const ctx = document.getElementById('predictionVolumeChart');
+                    if (!ctx) return;
+                    
+                    this.charts.predictionVolume = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: this.generateDateLabels(),
+                            datasets: [{
+                                label: 'Predictions',
+                                data: this.generatePredictionData(),
+                                borderColor: 'rgb(99, 102, 241)',
+                                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                },
+                
+                initializeModelPerformanceChart() {
+                    const ctx = document.getElementById('modelPerformanceChart');
+                    if (!ctx) return;
+                    
+                    this.charts.modelPerformance = new Chart(ctx, {
+                        type: 'radar',
+                        data: {
+                            labels: ['Accuracy', 'Speed', 'Reliability', 'Scalability', 'Efficiency'],
+                            datasets: this.modelPerformance.map(model => ({
+                                label: model.name,
+                                data: [
+                                    model.accuracy,
+                                    model.speed * 100,
+                                    model.reliability * 100,
+                                    model.scalability * 100,
+                                    model.efficiency * 100
+                                ],
+                                borderColor: this.getRandomColor(),
+                                backgroundColor: this.getRandomColor(0.2)
+                            }))
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                r: {
+                                    beginAtZero: true,
+                                    max: 100
+                                }
+                            }
+                        }
+                    });
+                },
+                
+                generateDateLabels() {
+                    const labels = [];
+                    const days = this.dateRange === 'today' ? 1 : 
+                                this.dateRange === 'week' ? 7 : 
+                                this.dateRange === 'month' ? 30 : 90;
+                    
+                    for (let i = days - 1; i >= 0; i--) {
+                        const date = new Date();
+                        date.setDate(date.getDate() - i);
+                        labels.push(date.toLocaleDateString());
+                    }
+                    
+                    return labels;
+                },
+                
+                generatePredictionData() {
+                    // Generate sample data - in real implementation, this would come from API
+                    const days = this.dateRange === 'today' ? 1 : 
+                                this.dateRange === 'week' ? 7 : 
+                                this.dateRange === 'month' ? 30 : 90;
+                    
+                    const data = [];
+                    for (let i = 0; i < days; i++) {
+                        data.push(Math.floor(Math.random() * 1000) + 500);
+                    }
+                    
+                    return data;
+                },
+                
+                getRandomColor(alpha = 1) {
+                    const colors = [
+                        `rgba(99, 102, 241, ${alpha})`,
+                        `rgba(34, 197, 94, ${alpha})`,
+                        `rgba(251, 146, 60, ${alpha})`,
+                        `rgba(168, 85, 247, ${alpha})`,
+                        `rgba(236, 72, 153, ${alpha})`
+                    ];
+                    return colors[Math.floor(Math.random() * colors.length)];
+                },
+                
+                getStatusClass(status) {
+                    const classes = {
+                        'healthy': 'status-healthy',
+                        'warning': 'status-warning',
+                        'critical': 'status-critical',
+                        'active': 'status-healthy',
+                        'inactive': 'status-warning',
+                        'error': 'status-critical'
+                    };
+                    return classes[status] || 'status-warning';
+                },
+                
+                getHealthStatusClass(health) {
+                    if (health >= 90) return 'status-healthy';
+                    if (health >= 70) return 'status-warning';
+                    return 'status-critical';
+                },
+                
+                getHealthStatusLabel(health) {
+                    if (health >= 90) return 'Excellent';
+                    if (health >= 70) return 'Good';
+                    if (health >= 50) return 'Fair';
+                    return 'Poor';
+                },
+                
+                getTestStatusClass(status) {
+                    const classes = {
+                        'running': 'bg-blue-100 text-blue-800',
+                        'completed': 'bg-green-100 text-green-800',
+                        'paused': 'bg-yellow-100 text-yellow-800',
+                        'failed': 'bg-red-100 text-red-800'
+                    };
+                    return classes[status] || 'bg-gray-100 text-gray-800';
+                },
+                
+                getPredictionStatusClass(status) {
+                    const classes = {
+                        'success': 'bg-green-100 text-green-800',
+                        'pending': 'bg-yellow-100 text-yellow-800',
+                        'failed': 'bg-red-100 text-red-800',
+                        'processing': 'bg-blue-100 text-blue-800'
+                    };
+                    return classes[status] || 'bg-gray-100 text-gray-800';
+                },
+                
+                formatDate(dateString) {
+                    if (!dateString) return 'N/A';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString();
+                },
+                
+                formatDateTime(dateString) {
+                    if (!dateString) return 'N/A';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                },
+                
+                viewModelDetails(model) {
+                    // Open model details modal or navigate to details page
+                    console.log('View model details:', model);
+                },
+                
+                startRealTimeUpdates() {
+                    // Update dashboard every 5 minutes
+                    setInterval(() => {
+                        if (!this.loading) {
+                            this.loadDashboardData();
+                        }
+                    }, 5 * 60 * 1000);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

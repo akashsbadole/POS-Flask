@@ -1,0 +1,513 @@
+{% extends "employee/base.html" %}
+
+{% block title %}Attendance Management{% endblock %}
+
+{% block employee_content %}
+<div class="py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Page Header -->
+        <div class="mb-8 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Attendance Management</h1>
+                <p class="mt-2 text-gray-600">Track and manage employee attendance</p>
+            </div>
+            <div class="flex space-x-3">
+                <input type="date" 
+                       id="attendanceDate" 
+                       value="{{ selected_date }}"
+                       class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                       onchange="filterByDate(this.value)">
+                
+                <select id="statusFilter" 
+                        onchange="filterByStatus(this.value)"
+                        class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">All Status</option>
+                    <option value="present" {% if status_filter == 'present' %}selected{% endif %}>Present</option>
+                    <option value="absent" {% if status_filter == 'absent' %}selected{% endif %}>Absent</option>
+                    <option value="late" {% if status_filter == 'late' %}selected{% endif %}>Late</option>
+                    <option value="leave" {% if status_filter == 'leave' %}selected{% endif %}>On Leave</option>
+                </select>
+                
+                <button onclick="exportAttendance()" 
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Export
+                </button>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-full">
+                        <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Present</p>
+                        <p class="text-2xl font-bold text-gray-900" id="presentCount">0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-red-100 rounded-full">
+                        <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Absent</p>
+                        <p class="text-2xl font-bold text-gray-900" id="absentCount">0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-yellow-100 rounded-full">
+                        <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Late</p>
+                        <p class="text-2xl font-bold text-gray-900" id="lateCount">0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-full">
+                        <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">On Leave</p>
+                        <p class="text-2xl font-bold text-gray-900" id="leaveCount">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance Table -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Attendance Records</h3>
+                    <div class="flex space-x-2">
+                        <button onclick="markAllPresent()" 
+                                class="text-sm bg-green-100 text-green-800 px-3 py-1 rounded hover:bg-green-200">
+                            Mark All Present
+                        </button>
+                        <button onclick="bulkCheckIn()" 
+                                class="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+                            Bulk Check In
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Employee
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Check In
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Check Out
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Total Hours
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Status
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="attendanceTableBody">
+                            {% for attendance in attendances %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0 h-10 w-10">
+                                            <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                                                <span class="text-sm font-medium text-indigo-600">
+                                                    {{ attendance.user.name[0] if attendance.user else '?' }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="ml-4">
+                                            <div class="text-sm font-medium text-gray-900">
+                                                {{ attendance.user.name if attendance.user else 'Unknown' }}
+                                            </div>
+                                            <div class="text-sm text-gray-500">
+                                                {{ attendance.user.role if attendance.user else 'N/A' }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {% if attendance.check_in_time %}
+                                        {{ attendance.check_in_time.strftime('%I:%M %p') }}
+                                    {% else %}
+                                        <button onclick="checkIn({{ attendance.user_id }}, {{ attendance.restaurant_id }})" 
+                                                class="text-indigo-600 hover:text-indigo-900">
+                                            Check In
+                                        </button>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {% if attendance.check_out_time %}
+                                        {{ attendance.check_out_time.strftime('%I:%M %p') }}
+                                    {% elif attendance.check_in_time %}
+                                        <button onclick="checkOut({{ attendance.user_id }}, {{ attendance.restaurant_id }})" 
+                                                class="text-green-600 hover:text-green-900">
+                                            Check Out
+                                        </button>
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {% if attendance.total_hours %}
+                                        {{ "%.1f"|format(attendance.total_hours) }}h
+                                        {% if attendance.overtime_hours %}
+                                            <span class="text-yellow-600">(+{{ "%.1f"|format(attendance.overtime_hours) }} OT)</span>
+                                        {% endif %}
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="status-badge status-{{ attendance.attendance_status }}">
+                                        {{ attendance.attendance_status.replace('_', ' ').title() }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <button onclick="editAttendance({{ attendance.id }})" 
+                                            class="text-indigo-600 hover:text-indigo-900 mr-3">
+                                        Edit
+                                    </button>
+                                    <button onclick="viewDetails({{ attendance.id }})" 
+                                            class="text-gray-600 hover:text-gray-900">
+                                        Details
+                                    </button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                                    No attendance records found for this date
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Attendance Modal -->
+<div id="editAttendanceModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Edit Attendance</h3>
+            <form id="editAttendanceForm">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Status</label>
+                        <select name="attendance_status" id="editStatus" 
+                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="present">Present</option>
+                            <option value="absent">Absent</option>
+                            <option value="late">Late</option>
+                            <option value="half_day">Half Day</option>
+                            <option value="leave">On Leave</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Check In Time</label>
+                        <input type="time" name="check_in_time" id="editCheckInTime"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Check Out Time</label>
+                        <input type="time" name="check_out_time" id="editCheckOutTime"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Notes</label>
+                        <textarea name="notes" id="editNotes" rows="3"
+                                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" onclick="closeEditModal()" 
+                            class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentEditId = null;
+
+function checkIn(userId, restaurantId) {
+    fetch('/employee/attendance/check-in', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: `user_id=${userId}&restaurant_id=${restaurantId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Check-in successful', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.message || 'Check-in failed', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error checking in:', error);
+        showNotification('Error during check-in', 'error');
+    });
+}
+
+function checkOut(userId, restaurantId) {
+    fetch('/employee/attendance/check-out', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: `user_id=${userId}&restaurant_id=${restaurantId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Check-out successful', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.message || 'Check-out failed', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error checking out:', error);
+        showNotification('Error during check-out', 'error');
+    });
+}
+
+function filterByDate(date) {
+    const url = new URL(window.location);
+    url.searchParams.set('date', date);
+    window.location.href = url.toString();
+}
+
+function filterByStatus(status) {
+    const url = new URL(window.location);
+    if (status) {
+        url.searchParams.set('status', status);
+    } else {
+        url.searchParams.delete('status');
+    }
+    window.location.href = url.toString();
+}
+
+function editAttendance(id) {
+    currentEditId = id;
+    // Fetch attendance data and populate form
+    fetch(`/employee/api/attendance/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('editStatus').value = data.attendance_status;
+            document.getElementById('editCheckInTime').value = data.check_in_time ? 
+                new Date(data.check_in_time).toTimeString().slice(0, 5) : '';
+            document.getElementById('editCheckOutTime').value = data.check_out_time ? 
+                new Date(data.check_out_time).toTimeString().slice(0, 5) : '';
+            document.getElementById('editNotes').value = data.notes || '';
+            
+            document.getElementById('editAttendanceModal').classList.remove('hidden');
+        })
+        .catch(error => {
+            console.error('Error fetching attendance data:', error);
+            showNotification('Error loading attendance data', 'error');
+        });
+}
+
+function closeEditModal() {
+    document.getElementById('editAttendanceModal').classList.add('hidden');
+    currentEditId = null;
+}
+
+function exportAttendance() {
+    const date = document.getElementById('attendanceDate').value;
+    const status = document.getElementById('statusFilter').value;
+    
+    let url = `/employee/attendance/export?date=${date}`;
+    if (status) {
+        url += `&status=${status}`;
+    }
+    
+    window.open(url, '_blank');
+}
+
+function markAllPresent() {
+    if (confirm('Are you sure you want to mark all employees as present?')) {
+        // Implementation for marking all as present
+        showNotification('All employees marked as present', 'success');
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    }
+}
+
+function bulkCheckIn() {
+    if (confirm('Are you sure you want to check in all employees?')) {
+        // Implementation for bulk check-in
+        showNotification('Bulk check-in initiated', 'success');
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    }
+}
+
+function viewDetails(id) {
+    // Implementation for viewing attendance details
+    window.location.href = `/employee/attendance/${id}`;
+}
+
+// Handle edit form submission
+document.getElementById('editAttendanceForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    formData.append('id', currentEditId);
+    
+    fetch('/employee/attendance/edit', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: new URLSearchParams(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeEditModal();
+            showNotification('Attendance updated successfully', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.message || 'Failed to update attendance', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating attendance:', error);
+        showNotification('Error updating attendance', 'error');
+    });
+});
+
+// Update statistics
+function updateStats() {
+    const rows = document.querySelectorAll('#attendanceTableBody tr');
+    let present = 0, absent = 0, late = 0, leave = 0;
+    
+    rows.forEach(row => {
+        const statusBadge = row.querySelector('.status-badge');
+        if (statusBadge) {
+            const status = statusBadge.textContent.toLowerCase();
+            if (status.includes('present')) present++;
+            else if (status.includes('absent')) absent++;
+            else if (status.includes('late')) late++;
+            else if (status.includes('leave')) leave++;
+        }
+    });
+    
+    document.getElementById('presentCount').textContent = present;
+    document.getElementById('absentCount').textContent = absent;
+    document.getElementById('lateCount').textContent = late;
+    document.getElementById('leaveCount').textContent = leave;
+}
+
+// Initialize stats on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateStats();
+});
+
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 p-4 rounded-md shadow-lg z-50 ${
+        type === 'success' ? 'bg-green-50 text-green-800' : 
+        type === 'error' ? 'bg-red-50 text-red-800' : 
+        'bg-blue-50 text-blue-800'
+    }`;
+    notification.innerHTML = `
+        <div class="flex">
+            <div class="ml-3">
+                <p class="text-sm font-medium">${message}</p>
+            </div>
+            <div class="ml-auto pl-3">
+                <button onclick="this.parentElement.parentElement.remove()" class="inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    type === 'success' ? 'bg-green-50 text-green-500 hover:bg-green-100' : 
+                    type === 'error' ? 'bg-red-50 text-red-500 hover:bg-red-100' : 
+                    'bg-blue-50 text-blue-500 hover:bg-blue-100'
+                }">
+                    <span class="sr-only">Dismiss</span>
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

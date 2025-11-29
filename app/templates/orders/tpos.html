@@ -1,0 +1,2135 @@
+{% extends "base.html" %}
+
+{% block title %}TPOS - Restaurant Point of Sale{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-100" x-data="tposManager()">
+    <!-- Header with Order Mode Selection -->
+    <div class="bg-white shadow-sm border-b">
+        <div class="px-4 py-3">
+            <div class="flex items-center justify-between">
+                <!-- Logo/Restaurant Name -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-utensils text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-900">Restaurant POS</h1>
+                        <p class="text-sm text-gray-500" x-text="getCurrentDateTime()"></p>
+                    </div>
+                </div>
+
+                <!-- Order Mode Selection -->
+                <div class="flex items-center space-x-2">
+                    <template x-for="mode in orderModes" :key="mode.key">
+                        <button @click="selectOrderMode(mode.key)"
+                                :class="getModeButtonClass(mode.key)"
+                                class="px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2">
+                            <i :class="mode.icon" class="text-lg"></i>
+                            <span x-text="mode.name"></span>
+                        </button>
+                    </template>
+                </div>
+
+                <!-- User Info -->
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <p class="text-sm text-gray-600" x-text="currentUser.name"></p>
+                        <p class="text-xs text-gray-500" x-text="currentUser.role"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main TPOS Layout -->
+    <div class="flex h-[calc(100vh-80px)]">
+        <!-- Left Sidebar - Menu & Categories -->
+        <div class="w-80 bg-white shadow-lg overflow-y-auto" 
+             :class="showTableSelector ? 'hidden' : ''">
+            
+            <!-- Menu Categories -->
+            <div class="p-4 border-b">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Menu Categories</h2>
+                
+                <!-- Category Search -->
+                <div class="mb-4">
+                    <input type="text" 
+                           x-model="categorySearchQuery"
+                           @input="filterCategories()"
+                           placeholder="Search categories..."
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <!-- Category List -->
+                <div class="space-y-2 max-h-64 overflow-y-auto">
+                    <template x-for="category in filteredCategories" :key="category.id">
+                        <button @click="selectCategory(category)"
+                                class="w-full text-left px-3 py-2 rounded-md transition-colors flex items-center space-x-3">
+                            <i :class="category.icon_class || 'fas fa-utensils'" class="text-sm"></i>
+                            <span x-text="category.name"></span>
+                            <span class="ml-auto text-xs text-gray-500" x-text="category.item_count || ''"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Menu Items -->
+            <div class="p-4">
+                <!-- Item Search -->
+                <div class="mb-4">
+                    <input type="text" 
+                           x-model="itemSearchQuery"
+                           @input="searchItems()"
+                           placeholder="Search menu items..."
+                           class="w-full px-3 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- Quick Add Buttons -->
+                <div class="mb-4" x-show="quickItems.length > 0">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Quick Add</h3>
+                    <div class="grid grid-cols-3 gap-2">
+                        <template x-for="item in quickItems" :key="item.id">
+                            <button @click="quickAddItem(item)"
+                                    class="bg-yellow-500 hover:bg-yellow-600 text-white p-3 rounded-lg transition-colors">
+                                <div class="text-center">
+                                    <i :class="item.icon_class || 'fas fa-star'" class="text-lg mb-1"></i>
+                                    <p class="text-xs font-medium" x-text="item.name"></p>
+                                    <p class="text-xs" x-text="'₹' + item.price"></p>
+                                </div>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Menu Items Grid -->
+                <div class="space-y-2 max-h-96 overflow-y-auto">
+                    <template x-for="item in filteredMenuItems" :key="item.id">
+                        <button @click="selectMenuItem(item)"
+                                class="w-full text-left p-3 rounded-lg transition-all duration-200 hover:shadow-md">
+                            <div class="flex items-start space-x-3">
+                                <!-- Item Image -->
+                                <div class="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0">
+                                    <img x-show="item.image_url" 
+                                         :src="item.image_url" 
+                                         :alt="item.name"
+                                         class="w-full h-full object-cover rounded-lg">
+                                    <div x-show="!item.image_url" 
+                                         class="w-full h-full bg-gray-300 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-image text-gray-400 text-2xl"></i>
+                                    </div>
+                                </div>
+                                
+                                <!-- Item Details -->
+                                <div class="flex-1 min-w-0">
+                                    <h4 class="font-semibold text-gray-900" x-text="item.name"></h4>
+                                    <p class="text-sm text-gray-600 mb-1" x-text="item.description"></p>
+                                    
+                                    <!-- Price and Variants -->
+                                    <div class="flex items-center justify-between">
+                                        <div class="text-lg font-bold text-green-600" x-text="'₹' + item.price"></div>
+                                        <div x-show="item.variants && item.variants.length > 0" 
+                                             class="text-xs text-blue-600">
+                                            <i class="fas fa-layer-group mr-1"></i>
+                                            <span x-text="item.variants.length + ' variants'"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </button>
+                        </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center - Table Selection (when in Table mode) -->
+        <div class="flex-1 bg-gray-50 overflow-hidden" 
+             x-show="currentOrderMode === 'table' && !showTableSelector">
+            
+            <!-- Table Layout Grid -->
+            <div class="p-6">
+                <div class="mb-4 flex items-center justify-between">
+                    <h2 class="text-2xl font-bold text-gray-900">Select Table</h2>
+                    <button @click="showTableSelector = !showTableSelector"
+                            class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        <i class="fas fa-th mr-2"></i>Table Layout
+                    </button>
+                </div>
+                
+                <!-- Tables Grid -->
+                <div class="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
+                    <template x-for="table in tables" :key="table.id">
+                        <button @click="selectTable(table)"
+                                :class="getTableClass(table)"
+                                @click.middle="showTableContextMenu($event, table)"
+                                class="relative p-6 rounded-xl transition-all duration-200 transform hover:scale-105">
+                            <!-- Table Status Indicator -->
+                            <div class="absolute top-2 right-2 w-4 h-4 rounded-full" 
+                                 :class="table.status_color"></div>
+                            
+                            <!-- Table Number -->
+                            <div class="text-center">
+                                <div class="text-3xl font-bold" x-text="table.number"></div>
+                                <div class="text-sm text-gray-600" x-text="table.capacity + ' seats'"></div>
+                                
+                                <!-- Current Order Info -->
+                                <div x-show="table.current_session" class="mt-2 p-2 bg-blue-100 rounded text-xs">
+                                    <p class="font-semibold">Order <span x-text="table.current_session.order_number || 'N/A'"></span></p>
+                                    <p class="text-xs" x-text="(table.current_session.guests || 0) + ' guests • ' + formatDuration(table.current_session.duration_minutes || 0)"></p>
+                                </div>
+                            </div>
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Table Selector View -->
+                       <div class="p-6" x-show="showTableSelector">
+                           <div class="mb-4">
+                               <h2 class="text-2xl font-bold text-gray-900 mb-4">Table Management</h2>
+                               
+                               <!-- Floor Layout View -->
+                               <div class="bg-white rounded-lg shadow-md p-4 mb-4">
+                                   <h3 class="text-lg font-semibold mb-3">Floor Layout</h3>
+                                   <div class="grid grid-cols-8 gap-2 p-4 bg-gray-50 rounded">
+                                       <template x-for="table in tables" :key="table.id">
+                                           <div @click="selectTable(table)"
+                                                :class="getTableClass(table)"
+                                                class="relative p-2 rounded border-2 transition-all duration-200">
+                                               <div class="text-center">
+                                                   <div class="text-sm font-bold" x-text="table.number"></div>
+                                                   <div class="w-3 h-3 rounded-full mx-auto mt-1"
+                                                        :class="table.status_color"></div>
+                                               </div>
+                                           </div>
+                                       </template>
+                                   </div>
+                               </div>
+                               
+                               <!-- Table List View -->
+                               <div class="bg-white rounded-lg shadow-md p-4 mb-4">
+                                   <h3 class="text-lg font-semibold mb-3">Table List</h3>
+                                   <div class="space-y-2">
+                                       <template x-for="table in tables" :key="table.id">
+                                           <div class="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                                               <div class="flex items-center space-x-3">
+                                                   <div class="w-3 h-3 rounded-full"
+                                                        :class="table.status_color"></div>
+                                                   <div>
+                                                       <div class="font-semibold" x-text="table.number"></div>
+                                                       <div class="text-sm text-gray-600" x-text="table.capacity + ' seats'"></div>
+                                                   </div>
+                                               </div>
+                                               
+                                               <div class="text-right">
+                                                   <span class="px-2 py-1 text-xs rounded"
+                                                         :class="getStatusBadgeClass(table.status)"
+                                                         x-text="table.status_text"></span>
+                                               </div>
+                                           </div>
+                                       </template>
+                                   </div>
+                               </div>
+                               
+                               <!-- Quick Menu Items for Table Orders -->
+                               <div class="bg-white rounded-lg shadow-md p-4">
+                                   <div class="flex items-center justify-between mb-3">
+                                       <h3 class="text-lg font-semibold">Quick Menu Items</h3>
+                                       <button @click="showQuickMenu = !showQuickMenu"
+                                               class="text-sm text-blue-600 hover:text-blue-800">
+                                           <span x-text="showQuickMenu ? 'Hide' : 'Show'"></span>
+                                       </button>
+                                   </div>
+                                   
+                                   <div x-show="showQuickMenu" x-transition>
+                                       <!-- Search Bar -->
+                                       <div class="mb-4">
+                                           <input type="text"
+                                                  x-model="quickMenuSearch"
+                                                  placeholder="Search menu items..."
+                                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                       </div>
+                                       
+                                       <!-- Categories Filter -->
+                                       <div class="mb-4 flex flex-wrap gap-2">
+                                           <button @click="selectedQuickCategory = null"
+                                                   :class="selectedQuickCategory === null ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-700'"
+                                                   class="px-3 py-1 rounded-full text-sm">
+                                               All Items
+                                           </button>
+                                           <template x-for="category in categories" :key="category.id">
+                                               <button @click="selectedQuickCategory = category.id"
+                                                       :class="selectedQuickCategory === category.id ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-700'"
+                                                       class="px-3 py-1 rounded-full text-sm"
+                                                       x-text="category.name">
+                                               </button>
+                                           </template>
+                                       </div>
+                                       
+                                       <!-- Menu Items Grid -->
+                                       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-96 overflow-y-auto">
+                                           <template x-for="item in filteredQuickMenuItems" :key="item.id">
+                                               <div @click="addToCartFromTable(item)"
+                                                    class="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer">
+                                                   <div class="text-center">
+                                                       <div class="text-lg mb-1" x-text="item.emoji || '🍽️'"></div>
+                                                       <div class="font-medium text-sm text-gray-900" x-text="item.name"></div>
+                                                       <div class="text-green-600 font-bold" x-text="'$' + item.price"></div>
+                                                   </div>
+                                               </div>
+                                           </template>
+                                       </div>
+                                   </div>
+                               </div>
+                           </div>
+                       </div>
+        </div>
+
+        <!-- Right Sidebar - Cart & Order Summary -->
+        <div class="w-96 bg-white shadow-lg overflow-y-auto flex flex-col">
+            <!-- Customer Selection -->
+            <div class="p-4 border-b">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-lg font-semibold text-gray-900">Customer</h3>
+                    <button @click="showCustomerSearch = true"
+                            class="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 text-sm">
+                        <i class="fas fa-user-plus"></i>
+                    </button>
+                </div>
+                
+                <!-- Selected Customer Display -->
+                <div x-show="selectedCustomer" class="mb-3 p-3 bg-blue-50 rounded-lg">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-user text-blue-600"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-semibold text-gray-900" x-text="(selectedCustomer && selectedCustomer.full_name) || 'Unknown Customer'"></p>
+                            <p class="text-sm text-gray-600" x-text="(selectedCustomer && (selectedCustomer.email || selectedCustomer.phone)) || 'No contact info'"></p>
+                            <p class="text-xs text-green-600">Points: <span x-text="(selectedCustomer && selectedCustomer.loyalty_points) || 0"></span></p>
+                        </div>
+                        <button @click="removeCustomer()"
+                                class="text-red-600 hover:text-red-800">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Customer Search -->
+                <div x-show="!selectedCustomer" class="mb-3">
+                    <input type="text" 
+                           x-model="customerSearchQuery"
+                           @input="searchCustomers()"
+                           placeholder="Search customer..."
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                    
+                    <div class="mt-2 max-h-32 overflow-y-auto">
+                        <template x-for="customer in customerSearchResults" :key="customer.id">
+                            <button @click="selectCustomer(customer)"
+                                    class="w-full text-left p-2 rounded hover:bg-gray-50 transition-colors">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="font-medium" x-text="customer.full_name"></p>
+                                        <p class="text-sm text-gray-600" x-text="customer.email || customer.phone"></p>
+                                    </div>
+                                    <div class="text-xs text-green-600">
+                                        <span x-text="customer.loyalty_points || 0"></span> pts
+                                    </div>
+                                </div>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cart Items -->
+            <div class="flex-1 p-4 border-b overflow-y-auto">
+                <h3 class="text-lg font-semibold text-gray-900 mb-3">Order Items</h3>
+                
+                <div x-show="Object.keys(cartItems).length === 0" 
+                     class="text-center py-8 text-gray-500">
+                    <i class="fas fa-shopping-cart text-4xl mb-2"></i>
+                    <p class="text-lg">Cart is empty</p>
+                    <p class="text-sm">Add items from the menu</p>
+                </div>
+
+                <div x-show="Object.keys(cartItems).length > 0" class="space-y-2">
+                    <template x-for="(item, key) in cartItems" :key="key">
+                        <div class="bg-white border rounded-lg p-3 hover:shadow-md transition-all">
+                            <div class="flex items-start justify-between mb-2">
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-gray-900" x-text="item.item_name"></h4>
+                                    
+                                    <!-- Variants and Add-ons -->
+                                    <div x-show="item.variant_name" class="text-sm text-gray-600 mb-1">
+                                        <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs" x-text="item.variant_name"></span>
+                                    </div>
+                                    
+                                    <div x-show="item.add_ons && item.add_ons.length > 0" class="text-sm text-gray-600 mb-1">
+                                        <span class="font-medium">Add-ons:</span>
+                                        <template x-for="add_on in item.add_ons">
+                                            <span x-text="add_on.name + (add_on.price > 0 ? ' (+₹' + add_on.price + ')' : '')"></span>
+                                        </template>
+                                    </div>
+                                    
+                                    <div x-show="item.notes" class="text-sm text-gray-600 mb-1">
+                                        <span class="font-medium">Notes:</span> <span x-text="item.notes"></span>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center space-x-2">
+                                    <!-- Quantity Controls -->
+                                    <div class="flex items-center space-x-1">
+                                        <button @click="updateQuantity(key, item.quantity - 1)"
+                                                :disabled="item.quantity <= 1"
+                                                class="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center transition-colors">
+                                            <i class="fas fa-minus text-xs"></i>
+                                        </button>
+                                        <input type="number" 
+                                               x-model="item.quantity"
+                                               @change="updateQuantity(key, $event.target.value)"
+                                               min="1"
+                                               class="w-16 text-center border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                                        <button @click="updateQuantity(key, item.quantity + 1)"
+                                                class="w-8 h-8 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center transition-colors">
+                                            <i class="fas fa-plus text-xs"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Item Total -->
+                                    <div class="text-right">
+                                        <p class="font-semibold text-gray-900">₹<span x-text="(item.unit_price * item.quantity).toFixed(2)"></span></p>
+                                    </div>
+                                    
+                                    <!-- Remove Button -->
+                                    <button @click="removeItem(key)"
+                                            class="text-red-600 hover:text-red-800 transition-colors">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                </div>
+            </div>
+
+            <!-- Order Summary -->
+            <div class="p-4 border-t">
+                <h3 class="text-lg font-semibold text-gray-900 mb-3">Order Summary</h3>
+                
+                <div class="space-y-2">
+                    <!-- Subtotal -->
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Subtotal:</span>
+                        <span class="font-semibold">₹<span x-text="subtotal.toFixed(2)"></span></span>
+                    </div>
+                    
+                    <!-- Discount -->
+                    <div class="flex justify-between" x-show="discountAmount > 0">
+                        <span class="text-gray-600">Discount:</span>
+                        <div class="flex items-center space-x-2">
+                            <span class="font-semibold text-green-600">-₹<span x-text="discountAmount.toFixed(2)"></span></span>
+                            <button @click="showDiscountModal = true"
+                                    class="text-blue-600 hover:text-blue-800 text-sm">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Add Discount Button (when no discount applied) -->
+                    <div class="flex justify-between" x-show="discountAmount == 0">
+                        <span class="text-gray-600">Discount:</span>
+                        <button @click="showDiscountModal = true"
+                                class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            <i class="fas fa-plus mr-1"></i>Add Discount
+                        </button>
+                    </div>
+                    
+                    <!-- Tax -->
+                    <div class="flex justify-between">
+                        <span class="text-gray-600" x-text="gstSettings.description + ':'"></span>
+                        <span class="font-semibold">₹<span x-text="tax.toFixed(2)"></span></span>
+                    </div>
+                    
+                    <!-- Total -->
+                    <div class="flex justify-between text-lg font-bold border-t pt-2">
+                        <span>Total:</span>
+                        <span class="text-blue-600">₹<span x-text="total.toFixed(2)"></span></span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="space-y-2 mt-4">
+                    <!-- Hold Order -->
+                    <button @click="holdOrder()"
+                            :disabled="Object.keys(cartItems).length === 0"
+                            class="w-full bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-3 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-pause mr-2"></i>Hold Order
+                    </button>
+                    
+                    <!-- Split Bill -->
+                    <button @click="showSplitOptions = true"
+                            :disabled="Object.keys(cartItems).length === 0"
+                            class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-divide mr-2"></i>Split Bill
+                    </button>
+                    
+                    <!-- Payment -->
+                    <button @click="showPaymentOptions = true"
+                            :disabled="Object.keys(cartItems).length === 0"
+                            class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-credit-card mr-2"></i>Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Item Selection Modal -->
+    <div x-show="showItemModal" x-cloak
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         @click.self="showItemModal = false">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
+            <div class="p-6 border-b">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-gray-900" x-text="selectedMenuItem?.name || 'Menu Item'"></h3>
+                    <button @click="showItemModal = false"
+                            class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-6">
+                <!-- Item Image and Description -->
+                <div class="mb-4">
+                    <img x-show="selectedMenuItem?.image_url" 
+                         :src="selectedMenuItem?.image_url" 
+                         :alt="selectedMenuItem?.name || 'Menu Item'"
+                         class="w-full h-48 object-cover rounded-lg">
+                    
+                    <p class="text-gray-600 mt-2" x-text="selectedMenuItem?.description || ''"></p>
+                </div>
+
+                <!-- Variants Selection -->
+                <div x-show="selectedMenuItem?.variants && selectedMenuItem.variants.length > 0" class="mb-4">
+                    <h4 class="text-lg font-semibold mb-3">Select Variant</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <template x-for="variant in selectedMenuItem?.variants || []" :key="variant.id">
+                            <button @click="selectVariant(variant)"
+                                    :class="getVariantClass(variant.id)"
+                                    class="p-4 border-2 rounded-lg transition-all">
+                                <div class="text-center">
+                                    <p class="font-medium" x-text="variant.name"></p>
+                                    <p class="text-sm text-gray-600">₹<span x-text="(parseFloat(selectedMenuItem?.price || 0) + parseFloat(variant.price_modifier)).toFixed(2)"></span></p>
+                                </div>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Add-ons Selection -->
+                <div x-show="selectedMenuItem?.add_ons && selectedMenuItem.add_ons.length > 0" class="mb-4">
+                    <h4 class="text-lg font-semibold mb-3">Add-ons</h4>
+                    <div class="space-y-2">
+                        <template x-for="addon in selectedMenuItem?.add_ons || []" :key="addon.id">
+                            <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" 
+                                       :value="addon.id"
+                                       x-model="selectedAddons"
+                                       class="mr-3">
+                                <div class="flex-1">
+                                    <p class="font-medium" x-text="addon.name"></p>
+                                    <p class="text-sm text-gray-600">₹<span x-text="addon.price.toFixed(2)"></span></p>
+                                </div>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Special Instructions -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Special Instructions</label>
+                    <textarea x-model="specialInstructions"
+                              placeholder="Any special requests..."
+                              rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+
+                <!-- Quantity and Add to Cart -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <label class="text-sm font-medium text-gray-700">Quantity:</label>
+                        <input type="number" 
+                               x-model="itemQuantity"
+                               min="1"
+                               value="1"
+                               class="w-20 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <button @click="addItemToCart()"
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md transition-colors">
+                        <i class="fas fa-cart-plus mr-2"></i>Add to Cart
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Options Modal -->
+    <div x-show="showPaymentOptions" x-cloak
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         @click.self="showPaymentOptions = false">
+        <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
+            <div class="p-6 border-b">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-gray-900">Payment Options</h3>
+                    <button @click="showPaymentOptions = false"
+                            class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-6">
+                <!-- Payment Method Selection -->
+                <div class="mb-6">
+                    <h4 class="text-lg font-semibold mb-3">Select Payment Method</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <template x-for="method in paymentMethods" :key="method.key">
+                            <button @click="selectPaymentMethod(method.key)"
+                                    :class="getPaymentMethodClass(method.key)"
+                                    class="p-4 border-2 rounded-lg transition-all">
+                                <div class="text-center">
+                                    <i :class="method.icon" class="text-2xl mb-2"></i>
+                                    <p class="font-medium" x-text="method.name"></p>
+                                </div>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Payment Amount -->
+                <div class="mb-6">
+                    <div class="text-center">
+                        <p class="text-3xl font-bold text-gray-900">₹<span x-text="total.toFixed(2)"></span></p>
+                        <p class="text-sm text-gray-600">Amount to pay</p>
+                    </div>
+                </div>
+
+                <!-- Cash Payment Form -->
+                <div x-show="selectedPaymentMethod === 'cash'" class="mb-6">
+                    <div class="flex items-center justify-center space-x-4">
+                        <label class="text-sm font-medium text-gray-700">Cash Received:</label>
+                        <input type="number" 
+                               x-model="cashReceived"
+                               :placeholder="total.toFixed(2)"
+                               step="0.01"
+                               class="w-32 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div x-show="cashChange >= 0" class="text-center">
+                        <p class="text-lg font-semibold text-green-600">Change: ₹<span x-text="cashChange.toFixed(2)"></span></p>
+                    </div>
+                </div>
+
+                <!-- Card Payment Form -->
+                <div x-show="selectedPaymentMethod === 'card'" class="mb-6">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-sm font-medium text-gray-700">Card Number:</label>
+                            <input type="text" 
+                                   x-model="cardNumber"
+                                   placeholder="**** **** **** ****"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-gray-700">Expiry Date:</label>
+                            <input type="text" 
+                                   x-model="cardExpiry"
+                                   placeholder="MM/YY"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium text-gray-700">CVV:</label>
+                            <input type="text" 
+                                   x-model="cardCVV"
+                                   placeholder="***"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex space-x-3">
+                    <button @click="showPaymentOptions = false"
+                            class="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-md hover:bg-gray-300 transition-colors">
+                        Cancel
+                    </button>
+                    <button @click="processPayment()"
+                            :disabled="!canProcessPayment()"
+                            class="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-check mr-2"></i>Process Payment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Split Bill Modal -->
+    <div x-show="showSplitOptions" x-cloak
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         @click.self="showSplitOptions = false">
+        <div class="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="p-6 border-b">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-gray-900">Split Bill Options</h3>
+                    <button @click="showSplitOptions = false"
+                            class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-6 overflow-y-auto max-h-[70vh]">
+                <!-- Split Type Selection -->
+                <div class="mb-6">
+                    <h4 class="text-lg font-semibold mb-3">Choose Split Type</h4>
+                    <div class="grid grid-cols-3 gap-4">
+                        <button @click="selectSplitType('equal')"
+                                :class="getSplitTypeClass('equal')"
+                                class="p-4 border-2 rounded-lg transition-all">
+                            <div class="text-center">
+                                <i class="fas fa-equals text-2xl text-blue-600 mb-2"></i>
+                                <h5 class="font-semibold">Equal Split</h5>
+                                <p class="text-sm text-gray-600">Divide equally among people</p>
+                            </div>
+                        </button>
+                        
+                        <button @click="selectSplitType('custom')"
+                                :class="getSplitTypeClass('custom')"
+                                class="p-4 border-2 rounded-lg transition-all">
+                            <div class="text-center">
+                                <i class="fas fa-dollar-sign text-2xl text-blue-600 mb-2"></i>
+                                <h5 class="font-semibold">Custom Amounts</h5>
+                                <p class="text-sm text-gray-600">Specify amounts for each person</p>
+                            </div>
+                        </button>
+                        
+                        <button @click="selectSplitType('items')"
+                                :class="getSplitTypeClass('items')"
+                                class="p-4 border-2 rounded-lg transition-all">
+                            <div class="text-center">
+                                <i class="fas fa-utensils text-2xl text-blue-600 mb-2"></i>
+                                <h5 class="font-semibold">Split by Items</h5>
+                                <p class="text-sm text-gray-600">Assign items to each person</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Split Configuration -->
+                <div x-show="splitType === 'equal'" class="mb-6">
+                    <h4 class="text-lg font-semibold mb-3">Number of People</h4>
+                    <div class="flex items-center justify-center space-x-4 mb-4">
+                        <button @click="numberOfSplits = Math.max(2, numberOfSplits - 1)"
+                                class="w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <span class="text-xl font-bold text-blue-600 w-12 text-center" x-text="numberOfSplits"></span>
+                        <button @click="numberOfSplits = numberOfSplits + 1"
+                                class="w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <template x-for="i in numberOfSplits" :key="i">
+                            <div class="p-4 bg-blue-50 rounded-lg text-center">
+                                <p class="text-sm text-gray-600">Person <span x-text="i"></span></p>
+                                <p class="text-lg font-bold text-blue-600">₹<span x-text="(total / numberOfSplits).toFixed(2)"></span></p>
+                                <select class="mt-2 w-full px-2 py-1 border border-gray-300 rounded text-sm equal-split-payment-method">
+                                    <option value="cash">Cash</option>
+                                    <option value="card">Card</option>
+                                    <option value="mobile">Mobile</option>
+                                    <option value="credit">Credit</option>
+                                </select>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Custom Amount Split -->
+                <div x-show="splitType === 'custom'" class="mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-lg font-semibold">Custom Amounts</h4>
+                        <button @click="addCustomSplit()"
+                                class="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm">
+                            <i class="fas fa-plus mr-1"></i>Add Person
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <template x-for="(split, index) in customSplits" :key="index">
+                            <div class="p-4 bg-gray-50 rounded-lg">
+                                <div class="flex items-center justify-between mb-2">
+                                    <input type="text" x-model="split.name"
+                                           placeholder="Person name"
+                                           class="font-medium px-2 py-1 border border-gray-300 rounded">
+                                    <button @click="removeCustomSplit(index)"
+                                            class="text-red-600 hover:text-red-800">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-sm text-gray-600">₹</span>
+                                    <input type="number" x-model="split.amount"
+                                           min="0" step="0.01"
+                                           class="flex-1 px-2 py-1 border border-gray-300 rounded">
+                                    <select x-model="split.payment_method"
+                                            class="px-2 py-1 border border-gray-300 rounded text-sm">
+                                        <option value="cash">Cash</option>
+                                        <option value="card">Card</option>
+                                        <option value="mobile">Mobile</option>
+                                        <option value="credit">Credit</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="mt-4 p-3 bg-yellow-50 rounded-lg">
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Total allocated:</span>
+                            <span class="font-bold">₹<span x-text="getCustomSplitTotal().toFixed(2)"></span></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Remaining:</span>
+                            <span class="font-bold" :class="getCustomSplitTotal() > total ? 'text-red-600' : 'text-green-600'">
+                                ₹<span x-text="(total - getCustomSplitTotal()).toFixed(2)"></span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Split by Items -->
+                <div x-show="splitType === 'items'" class="mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-lg font-semibold">Split by Items</h4>
+                        <button @click="addItemSplit()"
+                                class="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm">
+                            <i class="fas fa-plus mr-1"></i>Add Person
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <template x-for="(split, index) in itemSplits" :key="index">
+                            <div class="p-4 bg-gray-50 rounded-lg">
+                                <div class="flex items-center justify-between mb-2">
+                                    <input type="text" x-model="split.name"
+                                           placeholder="Person name"
+                                           class="font-medium px-2 py-1 border border-gray-300 rounded">
+                                    <button @click="removeItemSplit(index)"
+                                            class="text-red-600 hover:text-red-800">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                                <div class="max-h-40 overflow-y-auto mb-2">
+                                    <template x-for="(item, key) in cartItems" :key="key">
+                                        <label class="flex items-center p-2 hover:bg-gray-100 rounded">
+                                            <input type="checkbox"
+                                                   :value="key"
+                                                   x-model="split.items"
+                                                   class="mr-2">
+                                            <div class="flex-1">
+                                                <span class="text-sm font-medium" x-text="item.item_name"></span>
+                                                <span class="text-xs text-gray-600 ml-1">x<span x-text="item.quantity"></span></span>
+                                                <span class="text-xs text-green-600 ml-1">₹<span x-text="(item.unit_price * item.quantity).toFixed(2)"></span></span>
+                                            </div>
+                                        </label>
+                                    </template>
+                                </div>
+                                <div class="flex items-center justify-between pt-2 border-t">
+                                    <span class="text-sm font-medium">Total:</span>
+                                    <span class="font-bold text-blue-600">₹<span x-text="getItemSplitTotal(split.items).toFixed(2)"></span></span>
+                                </div>
+                                <select x-model="split.payment_method"
+                                        class="mt-2 w-full px-2 py-1 border border-gray-300 rounded text-sm">
+                                    <option value="cash">Cash</option>
+                                    <option value="card">Card</option>
+                                    <option value="mobile">Mobile</option>
+                                    <option value="credit">Credit</option>
+                                </select>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="mt-4 p-3 bg-yellow-50 rounded-lg">
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Total allocated:</span>
+                            <span class="font-bold">₹<span x-text="getItemSplitsTotal().toFixed(2)"></span></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Remaining:</span>
+                            <span class="font-bold" :class="getItemSplitsTotal() > total ? 'text-red-600' : 'text-green-600'">
+                                ₹<span x-text="(total - getItemSplitsTotal()).toFixed(2)"></span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex space-x-3 mt-6">
+                    <button @click="showSplitOptions = false"
+                            class="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-md hover:bg-gray-300 transition-colors">
+                        Cancel
+                    </button>
+                    <button @click="processSplitBill()"
+                            :disabled="!isSplitValid()"
+                            class="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-check mr-2"></i>Process Split Bill
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discount Modal -->
+    <div x-show="showDiscountModal" x-cloak
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         @click.self="showDiscountModal = false">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
+            <div class="p-6 border-b">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-semibold text-gray-900">Apply Discount</h3>
+                    <button @click="showDiscountModal = false"
+                            class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-6">
+                <!-- Discount Type Selection -->
+                <div class="mb-6">
+                    <h4 class="text-lg font-semibold mb-3">Discount Type</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button @click="discountType = 'percentage'"
+                                :class="getDiscountTypeClass('percentage')"
+                                class="p-4 border-2 rounded-lg transition-all">
+                            <div class="text-center">
+                                <i class="fas fa-percent text-2xl text-blue-600 mb-2"></i>
+                                <h5 class="font-semibold">Percentage</h5>
+                                <p class="text-sm text-gray-600">Discount by percentage</p>
+                            </div>
+                        </button>
+                        
+                        <button @click="discountType = 'fixed'"
+                                :class="getDiscountTypeClass('fixed')"
+                                class="p-4 border-2 rounded-lg transition-all">
+                            <div class="text-center">
+                                <i class="fas fa-dollar-sign text-2xl text-blue-600 mb-2"></i>
+                                <h5 class="font-semibold">Fixed Amount</h5>
+                                <p class="text-sm text-gray-600">Fixed discount amount</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Discount Value -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <span x-text="discountType === 'percentage' ? 'Discount Percentage:' : 'Discount Amount:'"></span>
+                    </label>
+                    <div class="relative">
+                        <input type="number"
+                               x-model="discountValue"
+                               :min="discountType === 'percentage' ? 0 : 0"
+                               :max="discountType === 'percentage' ? 100 : subtotal"
+                               :step="discountType === 'percentage' ? 0.1 : 0.01"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                        <span x-show="discountType === 'percentage'"
+                              class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
+                    </div>
+                    <div x-show="discountType === 'percentage'" class="mt-2 text-sm text-gray-600">
+                        Discount amount: ₹<span x-text="(subtotal * discountValue / 100).toFixed(2)"></span>
+                    </div>
+                </div>
+
+                <!-- Discount Reason -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Reason (Optional)</label>
+                    <input type="text"
+                           x-model="discountReason"
+                           placeholder="e.g., Staff discount, Promotion, etc."
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex space-x-3">
+                    <button @click="removeDiscount()"
+                            class="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-md hover:bg-gray-300 transition-colors">
+                        Remove Discount
+                    </button>
+                    <button @click="applyDiscount()"
+                            :disabled="!isDiscountValid()"
+                            class="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-check mr-2"></i>Apply Discount
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function tposManager() {
+    return {
+        // Order Modes
+        currentOrderMode: 'table', // table, takeaway, delivery
+        orderModes: [
+            { key: 'table', name: 'Table Service', icon: 'fas fa-table' },
+            { key: 'takeaway', name: 'Takeaway', icon: 'fas fa-shopping-bag' },
+            { key: 'delivery', name: 'Delivery', icon: 'fas fa-truck' }
+        ],
+        
+        // Current User
+        currentUser: {
+            name: 'John Doe',
+            role: 'Manager'
+        },
+        
+        // Table Management
+        tables: [],
+        selectedTable: null,
+        showTableSelector: false,
+        
+        // Quick Menu for Table Selector
+        showQuickMenu: false,
+        quickMenuSearch: '',
+        selectedQuickCategory: null,
+        
+        // Menu Management
+        categories: [],
+        selectedCategory: null,
+        categorySearchQuery: '',
+        menuItems: [],
+        quickItems: [],
+        itemSearchQuery: '',
+        filteredCategories: [],
+        filteredMenuItems: [],
+        
+        // Item Selection
+        showItemModal: false,
+        selectedMenuItem: null,
+        selectedVariant: null,
+        selectedAddons: [],
+        specialInstructions: '',
+        itemQuantity: 1,
+        
+        // Cart Management
+        cartItems: {},
+        selectedCustomer: null,
+        customerSearchQuery: '',
+        customerSearchResults: [],
+        
+        // Order Summary
+        subtotal: 0.00,
+        tax: 0.00,
+        total: 0.00,
+        discountAmount: 0.00,
+        
+        // GST Settings
+        gstSettings: {
+            enabled: true,
+            cgst_rate: 9.0,
+            sgst_rate: 9.0,
+            total_rate: 18.0,
+            description: 'GST (18%)'
+        },
+        
+        // Payment Processing
+        showPaymentOptions: false,
+        selectedPaymentMethod: null,
+        paymentMethods: [
+            { key: 'cash', name: 'Cash', icon: 'fas fa-money-bill-wave' },
+            { key: 'card', name: 'Card', icon: 'fas fa-credit-card' },
+            { key: 'mobile', name: 'Mobile', icon: 'fas fa-mobile-alt' },
+            { key: 'credit', name: 'Credit', icon: 'fas fa-credit-card' }
+        ],
+        cashReceived: 0,
+        cashChange: 0,
+        cardNumber: '',
+        cardExpiry: '',
+        cardCVV: '',
+        
+        // Split Bill
+        showSplitOptions: false,
+        splitType: 'equal', // equal, custom, items
+        numberOfSplits: 2,
+        customSplits: [
+            { name: 'Person 1', amount: 0, payment_method: 'cash' },
+            { name: 'Person 2', amount: 0, payment_method: 'cash' }
+        ],
+        itemSplits: [
+            { name: 'Person 1', items: [], payment_method: 'cash' },
+            { name: 'Person 2', items: [], payment_method: 'cash' }
+        ],
+        
+        // Discount Management
+        showDiscountModal: false,
+        discountType: 'percentage', // percentage, fixed
+        discountValue: 0,
+        discountReason: '',
+        
+        init() {
+            this.loadInitialData();
+            this.calculateTotals();
+        },
+        
+        async loadInitialData() {
+            try {
+                // Load menu categories
+                const categoriesResponse = await fetch('{{ url_for("orders.api_categories") }}');
+                if (categoriesResponse.ok) {
+                    const data = await categoriesResponse.json();
+                    this.categories = data.categories || [];
+                } else {
+                    console.error('Failed to load categories:', categoriesResponse.status, categoriesResponse.statusText);
+                }
+               
+                // Load menu items
+                const itemsResponse = await fetch('{{ url_for("orders.api_menu_items") }}');
+                if (itemsResponse.ok) {
+                    const data = await itemsResponse.json();
+                    this.menuItems = data.items || [];
+                } else {
+                    console.error('Failed to load menu items:', itemsResponse.status, itemsResponse.statusText);
+                }
+               
+                // Load quick items
+                const quickResponse = await fetch('{{ url_for("orders.api_quick_items") }}');
+                if (quickResponse.ok) {
+                    const data = await quickResponse.json();
+                    this.quickItems = data.items || [];
+                } else {
+                    console.error('Failed to load quick items:', quickResponse.status, quickResponse.statusText);
+                }
+               
+                // Load tables
+                const tablesResponse = await fetch('{{ url_for("tables.get_tables") }}');
+                if (tablesResponse.ok) {
+                    const data = await tablesResponse.json();
+                    this.tables = data || [];
+                    // Add status colors to tables
+                    this.tables.forEach(table => {
+                        table.status_color = this.getTableStatusColor(table.status);
+                        table.status_text = this.getTableStatusText(table.status);
+                    });
+                } else {
+                    console.error('Failed to load tables:', tablesResponse.status, tablesResponse.statusText);
+                }
+               
+                // Load cart
+                const cartResponse = await fetch('{{ url_for("orders.api_cart") }}');
+                if (cartResponse.ok) {
+                    const data = await cartResponse.json();
+                    this.cartItems = data.items || {};
+                } else {
+                    console.error('Failed to load cart:', cartResponse.status, cartResponse.statusText);
+                }
+               
+                // Load selected customer
+                const customerResponse = await fetch('{{ url_for("orders.api_selected_customer") }}');
+                if (customerResponse.ok) {
+                    const data = await customerResponse.json();
+                    if (data.success) {
+                        this.selectedCustomer = data.customer;
+                    }
+                } else {
+                    console.error('Failed to load selected customer:', customerResponse.status, customerResponse.statusText);
+                }
+               
+                // Load payment methods
+                const paymentMethodsResponse = await fetch('{{ url_for("orders.api_payment_methods") }}');
+                if (paymentMethodsResponse.ok) {
+                    const data = await paymentMethodsResponse.json();
+                    this.paymentMethods = data.payment_methods || [];
+                } else {
+                    console.error('Failed to load payment methods:', paymentMethodsResponse.status, paymentMethodsResponse.statusText);
+                }
+               
+                // Load GST settings
+                const gstResponse = await fetch('{{ url_for("orders.api_gst_settings") }}');
+                if (gstResponse.ok) {
+                    const data = await gstResponse.json();
+                    this.gstSettings = data || this.gstSettings;
+                } else {
+                    console.error('Failed to load GST settings:', gstResponse.status, gstResponse.statusText);
+                }
+               
+                // Load discount from cart API
+                if (cartResponse.ok) {
+                    const cartData = await cartResponse.json();
+                    if (cartData.discount) {
+                        this.discountType = cartData.discount.type || 'percentage';
+                        this.discountValue = cartData.discount.value || 0;
+                        this.discountReason = cartData.discount.reason || '';
+                        this.discountAmount = cartData.discount_amount || 0;
+                    }
+                }
+               
+                this.filteredCategories = this.categories;
+                this.filteredMenuItems = this.menuItems;
+            } catch (error) {
+                console.error('Error loading initial data:', error);
+            }
+        },
+        
+        // Order Mode Management
+        selectOrderMode(mode) {
+            this.currentOrderMode = mode;
+            if (mode === 'table') {
+                this.showTableSelector = false;
+            }
+        },
+        
+        getModeButtonClass(mode) {
+            return this.currentOrderMode === mode 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300';
+        },
+        
+        // Table Management
+        selectTable(table) {
+            this.selectedTable = table;
+            this.showTableSelector = false;
+            // If table has active order, load it
+            if (table.current_session && table.current_session.order_id) {
+                this.loadTableOrder(table.current_session);
+            }
+        },
+        
+        getTableClass(table) {
+            const baseClass = 'p-6 rounded-xl border-2 transition-all duration-200 transform hover:scale-105';
+            const statusClass = table.status_color.replace('bg-', 'border-');
+            return `${baseClass} ${statusClass}`;
+        },
+        
+        getTableStatusColor(status) {
+            const colors = {
+                'free': 'bg-green-500',
+                'occupied': 'bg-red-500',
+                'reserved': 'bg-yellow-500',
+                'cleaning': 'bg-blue-500',
+                'maintenance': 'bg-gray-500'
+            };
+            return colors[status] || 'bg-gray-500';
+        },
+        
+        getTableStatusText(status) {
+            const texts = {
+                'free': 'Available',
+                'occupied': 'Occupied',
+                'reserved': 'Reserved',
+                'cleaning': 'Cleaning',
+                'maintenance': 'Maintenance'
+            };
+            return texts[status] || 'Unknown';
+        },
+        
+        getStatusBadgeClass(status) {
+            const classes = {
+                'free': 'bg-green-100 text-green-800',
+                'occupied': 'bg-red-100 text-red-800',
+                'reserved': 'bg-yellow-100 text-yellow-800',
+                'cleaning': 'bg-blue-100 text-blue-800',
+                'maintenance': 'bg-gray-100 text-gray-800'
+            };
+            return classes[status] || 'bg-gray-100 text-gray-800';
+        },
+        
+        quickAddItem(item) {
+            // Create a simple cart item for quick add
+            const cartKey = `quick_${item.id}_${Date.now()}`;
+            this.cartItems[cartKey] = {
+                item_id: item.id,
+                item_name: item.name,
+                quantity: 1,
+                unit_price: parseFloat(item.price),
+                variant_id: null,
+                variant_name: null,
+                add_ons: [],
+                notes: ''
+            };
+            
+            this.calculateTotals();
+            this.showNotification(`Added ${item.name} to order`, 'success');
+        },
+        
+        async loadTableOrder(session) {
+            try {
+                // Load order items into cart
+                const response = await fetch(`/orders/api/order-items/${session.order_id}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    this.cartItems = data.items || {};
+                    this.calculateTotals();
+                } else {
+                    console.error('Failed to load table order:', response.status, response.statusText);
+                    this.showNotification('Failed to load order from table', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading table order:', error);
+                this.showNotification('Error loading order from table', 'error');
+            }
+        },
+        
+        // Menu Management
+        selectCategory(category) {
+            this.selectedCategory = category;
+            this.filterMenuItems();
+        },
+        
+        filterCategories() {
+            if (!this.categorySearchQuery) {
+                this.filteredCategories = this.categories;
+            } else {
+                this.filteredCategories = this.categories.filter(cat => 
+                    cat.name.toLowerCase().includes(this.categorySearchQuery.toLowerCase())
+                );
+            }
+        },
+        
+        searchItems() {
+            if (!this.itemSearchQuery) {
+                this.filteredMenuItems = this.menuItems;
+            } else {
+                this.filteredMenuItems = this.menuItems.filter(item => 
+                    item.name.toLowerCase().includes(this.itemSearchQuery.toLowerCase())
+                );
+            }
+        },
+        
+        selectMenuItem(item) {
+            this.selectedMenuItem = item;
+            this.selectedVariant = null;
+            this.selectedAddons = [];
+            this.showItemModal = true;
+        },
+        
+        getItemButtonClass(itemId) {
+            // Basic styling for item buttons
+            return 'border border-gray-200 hover:border-blue-300 hover:bg-blue-50';
+        },
+        
+        getCategoryClass(categoryId) {
+            return this.selectedCategory && this.selectedCategory.id === categoryId
+                ? 'bg-blue-100 text-blue-800 border-blue-300'
+                : 'bg-gray-50 hover:bg-gray-100 border-gray-200';
+        },
+        
+        filterMenuItems() {
+            let items = this.menuItems;
+            
+            // Filter by selected category
+            if (this.selectedCategory) {
+                items = items.filter(item => item.category_id === this.selectedCategory.id);
+            }
+            
+            // Filter by search query
+            if (this.itemSearchQuery) {
+                items = items.filter(item =>
+                    item.name.toLowerCase().includes(this.itemSearchQuery.toLowerCase())
+                );
+            }
+            
+            this.filteredMenuItems = items;
+        },
+        
+        getVariantClass(variantId) {
+            return this.selectedVariant && this.selectedVariant.id === variantId
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300';
+        },
+        
+        selectVariant(variant) {
+            this.selectedVariant = variant;
+        },
+        
+        async addItemToCart() {
+            if (!this.selectedMenuItem) {
+                this.showNotification('No menu item selected', 'error');
+                return;
+            }
+            
+            try {
+                const cartKey = this.generateCartKey();
+                const quantity = parseInt(this.itemQuantity) || 1;
+                
+                if (quantity < 1) {
+                    this.showNotification('Quantity must be at least 1', 'error');
+                    return;
+                }
+                
+                // Calculate price
+                let unitPrice = parseFloat(this.selectedMenuItem.price);
+                if (this.selectedVariant) {
+                    unitPrice += parseFloat(this.selectedVariant.price_modifier);
+                }
+                
+                // Add addon prices
+                this.selectedAddons.forEach(addonId => {
+                    const addon = this.selectedMenuItem?.add_ons?.find(a => a.id === addonId);
+                    if (addon) {
+                        unitPrice += parseFloat(addon.price);
+                    }
+                });
+                
+                // Prepare cart item data
+                const cartItem = {
+                    item_id: this.selectedMenuItem.id,
+                    item_name: this.selectedMenuItem.name,
+                    quantity: quantity,
+                    unit_price: unitPrice,
+                    variant_id: this.selectedVariant ? this.selectedVariant.id : null,
+                    variant_name: this.selectedVariant ? this.selectedVariant.name : null,
+                    add_ons: this.selectedAddons.map(addonId => {
+                        const addon = this.selectedMenuItem?.add_ons?.find(a => a.id === addonId);
+                        return {
+                            id: addonId,
+                            name: addon ? addon.name : '',
+                            price: addon ? parseFloat(addon.price) : 0
+                        };
+                    }),
+                    notes: this.specialInstructions
+                };
+                
+                // Send to server
+                const csrfToken = document.querySelector('[name=csrf_token]');
+                const response = await fetch('{{ url_for("orders.add_to_cart") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                    },
+                    body: JSON.stringify({
+                        item_id: cartItem.item_id,
+                        quantity: cartItem.quantity,
+                        variant_id: cartItem.variant_id,
+                        add_ons: cartItem.add_ons.map(a => a.id),
+                        notes: cartItem.notes
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        // Add to local cart
+                        this.cartItems[cartKey] = cartItem;
+                        this.calculateTotals();
+                        this.showItemModal = false;
+                        this.resetItemSelection();
+                        this.showNotification(`${this.selectedMenuItem.name} added to cart`, 'success');
+                    } else {
+                        this.showNotification(data.message || 'Failed to add item to cart', 'error');
+                    }
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    this.showNotification(errorData.error || `Failed to add item: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error adding item to cart:', error);
+                this.showNotification('Error adding item to cart', 'error');
+            }
+        },
+        
+        generateCartKey() {
+            if (!this.selectedMenuItem) return `unknown_${Date.now()}`;
+            const variantId = this.selectedVariant ? this.selectedVariant.id : '0';
+            const addonIds = this.selectedAddons.sort().join('_');
+            return `${this.selectedMenuItem.id}_${variantId}_${addonIds}`;
+        },
+        
+        resetItemSelection() {
+            this.selectedMenuItem = null;
+            this.selectedVariant = null;
+            this.selectedAddons = [];
+            this.specialInstructions = '';
+            this.itemQuantity = 1;
+        },
+        
+        // Cart Management
+        async updateQuantity(key, quantity) {
+            try {
+                if (quantity < 1) {
+                    // Remove item from cart
+                    await this.removeItem(key);
+                    return;
+                }
+                
+                // Update local cart first for immediate UI feedback
+                const originalQuantity = this.cartItems[key].quantity;
+                this.cartItems[key].quantity = quantity;
+                this.calculateTotals();
+                
+                // Update on server
+                const csrfToken = document.querySelector('[name=csrf_token]');
+                const response = await fetch('{{ url_for("orders.update_cart") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                    },
+                    body: new URLSearchParams({
+                        cart_key: key,
+                        quantity: quantity
+                    })
+                });
+                
+                if (!response.ok) {
+                    // Revert on error
+                    this.cartItems[key].quantity = originalQuantity;
+                    this.calculateTotals();
+                    const errorData = await response.json().catch(() => ({}));
+                    this.showNotification(errorData.error || `Failed to update quantity: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error updating quantity:', error);
+                this.showNotification('Error updating item quantity', 'error');
+            }
+        },
+        
+        async removeItem(key) {
+            try {
+                const itemName = this.cartItems[key].item_name;
+                
+                // Remove from local cart first for immediate UI feedback
+                delete this.cartItems[key];
+                this.calculateTotals();
+                
+                // Remove from server
+                const csrfToken = document.querySelector('[name=csrf_token]');
+                const response = await fetch('{{ url_for("orders.update_cart") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                    },
+                    body: new URLSearchParams({
+                        cart_key: key,
+                        quantity: 0  // Setting quantity to 0 removes the item
+                    })
+                });
+                
+                if (!response.ok) {
+                    // We can't easily revert this without reloading from server
+                    // For now, just show an error message
+                    const errorData = await response.json().catch(() => ({}));
+                    this.showNotification(errorData.error || `Failed to remove item: ${response.status}`, 'error');
+                } else {
+                    this.showNotification(`${itemName} removed from cart`, 'success');
+                }
+            } catch (error) {
+                console.error('Error removing item:', error);
+                this.showNotification('Error removing item from cart', 'error');
+            }
+        },
+        
+        calculateTotals() {
+            this.subtotal = Object.values(this.cartItems).reduce((sum, item) =>
+                sum + (item.unit_price * item.quantity), 0);
+            
+            // Use GST settings for tax calculation
+            if (this.gstSettings.enabled) {
+                this.tax = this.subtotal * (this.gstSettings.total_rate / 100);
+            } else {
+                this.tax = 0;
+            }
+            
+            this.total = this.subtotal + this.tax - this.discountAmount;
+        },
+        
+        // Customer Management
+        async searchCustomers() {
+            if (this.customerSearchQuery.length < 2) {
+                this.customerSearchResults = [];
+                return;
+            }
+           
+            try {
+                const response = await fetch(`{{ url_for("orders.api_search_customers") }}?q=${encodeURIComponent(this.customerSearchQuery)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    this.customerSearchResults = data.customers || [];
+                } else {
+                    console.error('Failed to search customers:', response.status, response.statusText);
+                    this.customerSearchResults = [];
+                    this.showNotification('Failed to search customers', 'error');
+                }
+            } catch (error) {
+                console.error('Error searching customers:', error);
+                this.customerSearchResults = [];
+                this.showNotification('Error searching customers', 'error');
+            }
+        },
+        
+        async selectCustomer(customer) {
+            try {
+                const csrfToken = document.querySelector('[name=csrf_token]');
+                const response = await fetch('{{ url_for("orders.select_cart_customer") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                    },
+                    body: JSON.stringify({
+                        customer_id: customer.id
+                    })
+                });
+               
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        this.selectedCustomer = data.customer;
+                        this.customerSearchQuery = '';
+                        this.customerSearchResults = [];
+                        this.showNotification(`Selected customer: ${customer.full_name}`, 'success');
+                    } else {
+                        this.showNotification(data.message || 'Failed to select customer', 'error');
+                    }
+                } else {
+                    console.error('Failed to select customer:', response.status, response.statusText);
+                    this.showNotification('Failed to select customer', 'error');
+                }
+            } catch (error) {
+                console.error('Error selecting customer:', error);
+                this.showNotification('Error selecting customer', 'error');
+            }
+        },
+        
+        removeCustomer() {
+            this.selectedCustomer = null;
+        },
+        
+        // Payment Processing
+        showPaymentOptionsModal() {
+            this.showPaymentOptions = true;
+        },
+        
+        selectPaymentMethod(method) {
+            this.selectedPaymentMethod = method;
+        },
+        
+        getPaymentMethodClass(method) {
+            return this.selectedPaymentMethod === method
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300';
+        },
+        
+        canProcessPayment() {
+            return this.selectedPaymentMethod && Object.keys(this.cartItems).length > 0;
+        },
+        
+        async processPayment() {
+            if (!this.canProcessPayment()) return;
+           
+            try {
+                const csrfToken = document.querySelector('[name=csrf_token]');
+                const formData = new FormData();
+                formData.append('payment_method', this.selectedPaymentMethod);
+                formData.append('amount', this.total.toString());
+               
+                if (this.selectedCustomer) {
+                    formData.append('customer_id', this.selectedCustomer.id);
+                }
+               
+                if (this.selectedPaymentMethod === 'cash') {
+                    formData.append('cash_received', this.cashReceived.toString());
+                }
+               
+                if (this.selectedPaymentMethod === 'card') {
+                    formData.append('card_number', this.cardNumber);
+                    formData.append('card_expiry', this.cardExpiry);
+                    formData.append('card_cvv', this.cardCVV);
+                }
+               
+                const response = await fetch('{{ url_for("orders.process_cart_payment") }}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                    }
+                });
+               
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        this.showPaymentOptions = false;
+                        this.clearCart();
+                        this.showNotification(`Payment processed successfully! Order ${data.order_number}`, 'success');
+                        
+                        // Optional: Redirect to order details
+                        if (data.redirect) {
+                            setTimeout(() => {
+                                window.location.href = data.redirect;
+                            }, 2000);
+                        }
+                    } else {
+                        this.showNotification(data.message || 'Payment failed', 'error');
+                    }
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    this.showNotification(errorData.message || 'Payment processing failed', 'error');
+                }
+            } catch (error) {
+                console.error('Error processing payment:', error);
+                this.showNotification('Payment processing failed', 'error');
+            }
+        },
+        
+        // Split Bill
+        selectSplitType(type) {
+            this.splitType = type;
+        },
+        
+        getSplitTypeClass(type) {
+            return this.splitType === type
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300';
+        },
+        
+        isSplitValid() {
+            if (this.splitType === 'equal') {
+                return this.numberOfSplits >= 2;
+            } else if (this.splitType === 'custom') {
+                // Check if all custom splits have valid amounts and names
+                const customTotal = this.getCustomSplitTotal();
+                return this.customSplits.length >= 2 &&
+                       this.customSplits.every(split => split.name.trim() && parseFloat(split.amount) > 0) &&
+                       Math.abs(customTotal - this.total) < 0.01;
+            } else if (this.splitType === 'items') {
+                // Check if all item splits have names and at least one item assigned
+                return this.itemSplits.length >= 2 &&
+                       this.itemSplits.every(split => split.name.trim() && split.items.length > 0) &&
+                       Math.abs(this.getItemSplitsTotal() - this.total) < 0.01;
+            }
+            return false;
+        },
+        
+        async processSplitBill() {
+            if (!this.isSplitValid()) return;
+            
+            try {
+                const csrfToken = document.querySelector('[name=csrf_token]');
+                const formData = new FormData();
+                formData.append('split_type', this.splitType);
+                formData.append('total_amount', this.total.toString());
+                
+                if (this.selectedCustomer) {
+                    formData.append('customer_id', this.selectedCustomer.id);
+                }
+                
+                if (this.splitType === 'equal') {
+                    formData.append('number_of_splits', this.numberOfSplits.toString());
+                    
+                    // Add payment methods for each split
+                    const splitPaymentMethods = document.querySelectorAll('.equal-split-payment-method');
+                    splitPaymentMethods.forEach((select, index) => {
+                        formData.append(`split_${index}_payment_method`, select.value);
+                    });
+                } else if (this.splitType === 'custom') {
+                    // Validate custom split amounts
+                    const customTotal = this.getCustomSplitTotal();
+                    if (Math.abs(customTotal - this.total) > 0.01) {
+                        this.showNotification('Custom split amounts must equal the total bill amount', 'error');
+                        return;
+                    }
+                    
+                    // Add custom splits
+                    this.customSplits.forEach((split, index) => {
+                        formData.append(`custom_split_${index}_name`, split.name);
+                        formData.append(`custom_split_${index}_amount`, split.amount.toString());
+                        formData.append(`custom_split_${index}_payment_method`, split.payment_method);
+                    });
+                } else if (this.splitType === 'items') {
+                    // Validate item split coverage
+                    const itemsTotal = this.getItemSplitsTotal();
+                    if (Math.abs(itemsTotal - this.total) > 0.01) {
+                        this.showNotification('All items must be assigned to splits', 'error');
+                        return;
+                    }
+                    
+                    // Add item splits
+                    this.itemSplits.forEach((split, index) => {
+                        formData.append(`item_split_${index}_name`, split.name);
+                        formData.append(`item_split_${index}_payment_method`, split.payment_method);
+                        split.items.forEach(itemKey => {
+                            formData.append(`item_split_${index}_items`, itemKey);
+                        });
+                    });
+                }
+                
+                const response = await fetch('{{ url_for("orders.process_split_bill") }}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        this.showSplitOptions = false;
+                        this.clearCart();
+                        this.showNotification('Split bill processed successfully!', 'success');
+                        
+                        // Optional: Redirect to order details
+                        if (data.redirect) {
+                            setTimeout(() => {
+                                window.location.href = data.redirect;
+                            }, 2000);
+                        }
+                    } else {
+                        this.showNotification(data.message || 'Split bill failed', 'error');
+                    }
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    this.showNotification(errorData.message || 'Split bill processing failed', 'error');
+                }
+            } catch (error) {
+                console.error('Error processing split bill:', error);
+                this.showNotification('Split bill processing failed', 'error');
+            }
+        },
+        
+        // Split Bill Helper Functions
+        addCustomSplit() {
+            this.customSplits.push({
+                name: `Person ${this.customSplits.length + 1}`,
+                amount: 0,
+                payment_method: 'cash'
+            });
+        },
+        
+        removeCustomSplit(index) {
+            if (this.customSplits.length > 1) {
+                this.customSplits.splice(index, 1);
+            }
+        },
+        
+        getCustomSplitTotal() {
+            return this.customSplits.reduce((sum, split) => sum + parseFloat(split.amount || 0), 0);
+        },
+        
+        addItemSplit() {
+            this.itemSplits.push({
+                name: `Person ${this.itemSplits.length + 1}`,
+                items: [],
+                payment_method: 'cash'
+            });
+        },
+        
+        removeItemSplit(index) {
+            if (this.itemSplits.length > 1) {
+                this.itemSplits.splice(index, 1);
+            }
+        },
+        
+        getItemSplitTotal(items) {
+            let total = 0;
+            items.forEach(itemKey => {
+                if (this.cartItems[itemKey]) {
+                    total += this.cartItems[itemKey].unit_price * this.cartItems[itemKey].quantity;
+                }
+            });
+            return total;
+        },
+        
+        getItemSplitsTotal() {
+            let total = 0;
+            this.itemSplits.forEach(split => {
+                total += this.getItemSplitTotal(split.items);
+            });
+            return total;
+        },
+        
+        // Discount Management
+        getDiscountTypeClass(type) {
+            return this.discountType === type
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300';
+        },
+        
+        isDiscountValid() {
+            if (this.discountType === 'percentage') {
+                return this.discountValue > 0 && this.discountValue <= 100;
+            } else {
+                return this.discountValue > 0 && this.discountValue <= this.subtotal;
+            }
+        },
+        
+        async applyDiscount() {
+            if (!this.isDiscountValid()) {
+                this.showNotification('Invalid discount value', 'error');
+                return;
+            }
+            
+            try {
+                const csrfToken = document.querySelector('[name=csrf_token]');
+                const response = await fetch('{{ url_for("orders.apply_cart_discount") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                    },
+                    body: JSON.stringify({
+                        discount_type: this.discountType,
+                        discount_value: this.discountValue,
+                        discount_reason: this.discountReason
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        // Calculate discount amount
+                        if (this.discountType === 'percentage') {
+                            this.discountAmount = this.subtotal * (this.discountValue / 100);
+                        } else {
+                            this.discountAmount = this.discountValue;
+                        }
+                        
+                        this.calculateTotals();
+                        this.showDiscountModal = false;
+                        this.showNotification('Discount applied successfully', 'success');
+                    } else {
+                        this.showNotification(data.message || 'Failed to apply discount', 'error');
+                    }
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    this.showNotification(errorData.error || 'Failed to apply discount', 'error');
+                }
+            } catch (error) {
+                console.error('Error applying discount:', error);
+                this.showNotification('Error applying discount', 'error');
+            }
+        },
+        
+        async removeDiscount() {
+            try {
+                const csrfToken = document.querySelector('[name=csrf_token]');
+                const response = await fetch('{{ url_for("orders.remove_cart_discount") }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        this.discountAmount = 0;
+                        this.discountType = 'percentage';
+                        this.discountValue = 0;
+                        this.discountReason = '';
+                        this.calculateTotals();
+                        this.showDiscountModal = false;
+                        this.showNotification('Discount removed', 'success');
+                    } else {
+                        this.showNotification(data.message || 'Failed to remove discount', 'error');
+                    }
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    this.showNotification(errorData.message || 'Failed to remove discount', 'error');
+                }
+            } catch (error) {
+                console.error('Error removing discount:', error);
+                this.showNotification('Error removing discount', 'error');
+            }
+        },
+        
+        // Hold Order
+        async holdOrder() {
+            if (Object.keys(this.cartItems).length === 0) return;
+            
+            try {
+                const csrfToken = document.querySelector('[name=csrf_token]');
+                const response = await fetch('{{ url_for("orders.hold_order") }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        this.clearCart();
+                        this.showNotification('Order held successfully!', 'success');
+                    } else {
+                        this.showNotification(data.message || 'Failed to hold order', 'error');
+                    }
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    this.showNotification(errorData.message || 'Failed to hold order', 'error');
+                }
+            } catch (error) {
+                console.error('Error holding order:', error);
+                this.showNotification('Failed to hold order', 'error');
+            }
+        },
+        
+        clearCart() {
+            this.cartItems = {};
+            this.calculateTotals();
+        },
+        
+        // Quick Menu Functions for Table Selector
+        addToCartFromTable(item) {
+            // If no table is selected and in table mode, prompt user to select one first
+            if (!this.selectedTable && this.currentOrderMode === 'table') {
+                this.showNotification('Please select a table first', 'warning');
+                return;
+            }
+            
+            // Create a simple cart item for quick add
+            const cartKey = `quick_${item.id}_${Date.now()}`;
+            this.cartItems[cartKey] = {
+                item_id: item.id,
+                item_name: item.name,
+                quantity: 1,
+                unit_price: parseFloat(item.price),
+                variant_id: null,
+                variant_name: null,
+                add_ons: [],
+                notes: ''
+            };
+            
+            this.calculateTotals();
+            this.showNotification(`Added ${item.name} to order`, 'success');
+        },
+        
+        showNotification(message, type = 'info') {
+            // Simple notification implementation
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                type === 'success' ? 'bg-green-500 text-white' :
+                type === 'warning' ? 'bg-yellow-500 text-white' :
+                type === 'error' ? 'bg-red-500 text-white' :
+                'bg-blue-500 text-white'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        },
+        
+        // Utility Functions
+        getCurrentDateTime() {
+            return new Date().toLocaleString();
+        },
+        
+        formatDuration(minutes) {
+            if (minutes < 60) {
+                return `${minutes}m`;
+            } else {
+                const hours = Math.floor(minutes / 60);
+                const mins = minutes % 60;
+                return `${hours}h ${mins}m`;
+            }
+        },
+        
+        // Computed Properties
+        get filteredCategories() {
+            return this.selectedCategory
+                ? this.categories.filter(cat => cat.id === this.selectedCategory.id)
+                : this.categories;
+        },
+        
+        get filteredMenuItems() {
+            let items = this.menuItems;
+            
+            // Filter by selected category
+            if (this.selectedCategory) {
+                items = items.filter(item => item.category_id === this.selectedCategory.id);
+            }
+            
+            // Filter by search query
+            if (this.itemSearchQuery) {
+                items = items.filter(item =>
+                    item.name.toLowerCase().includes(this.itemSearchQuery.toLowerCase())
+                );
+            }
+            
+            return items;
+        },
+        
+        get filteredQuickMenuItems() {
+            let items = this.menuItems;
+            
+            // Filter by category
+            if (this.selectedQuickCategory) {
+                items = items.filter(item => item.category_id == this.selectedQuickCategory);
+            }
+            
+            // Filter by search query
+            if (this.quickMenuSearch) {
+                items = items.filter(item =>
+                    item.name.toLowerCase().includes(this.quickMenuSearch.toLowerCase()) ||
+                    item.description.toLowerCase().includes(this.quickMenuSearch.toLowerCase())
+                );
+            }
+            
+            return items;
+        },
+        
+        get cashChange() {
+            return this.cashReceived - this.total;
+        },
+        
+        // Split Bill Helper Functions
+        addCustomSplit() {
+            this.customSplits.push({
+                name: `Person ${this.customSplits.length + 1}`,
+                amount: 0,
+                payment_method: 'cash'
+            });
+        },
+        
+        removeCustomSplit(index) {
+            if (this.customSplits.length > 1) {
+                this.customSplits.splice(index, 1);
+            }
+        },
+        
+        getCustomSplitTotal() {
+            return this.customSplits.reduce((sum, split) => sum + parseFloat(split.amount || 0), 0);
+        },
+        
+        addItemSplit() {
+            this.itemSplits.push({
+                name: `Person ${this.itemSplits.length + 1}`,
+                items: [],
+                payment_method: 'cash'
+            });
+        },
+        
+        removeItemSplit(index) {
+            if (this.itemSplits.length > 1) {
+                this.itemSplits.splice(index, 1);
+            }
+        },
+        
+        getItemSplitTotal(items) {
+            return items.reduce((sum, itemKey) => {
+                const item = this.cartItems[itemKey];
+                return sum + (item ? (item.unit_price * item.quantity) : 0);
+            }, 0);
+        },
+        
+        getItemSplitsTotal() {
+            return this.itemSplits.reduce((sum, split) => {
+                return sum + this.getItemSplitTotal(split.items);
+            }, 0);
+        }
+    }
+}
+</script>
+{% endblock %}

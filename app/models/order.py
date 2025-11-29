@@ -44,6 +44,10 @@ class Order(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     table_id = db.Column(db.Integer, db.ForeignKey('tables.id'), nullable=True)
+    waiter_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    seat_number = db.Column(db.String(10), nullable=True)  # For multi-seat table management
+    parent_order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=True)  # For split checks
+    course_number = db.Column(db.Integer, default=1)  # For multi-course dining
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=True)
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
@@ -74,11 +78,19 @@ class Order(db.Model):
     # Relationships
     restaurant = db.relationship('Restaurant', back_populates='orders')
     table = db.relationship('Table', back_populates='orders')
-    user = db.relationship('User', back_populates='orders')
+    waiter = db.relationship('User', foreign_keys=[waiter_id], backref='waiter_orders')
+    parent_order = db.relationship('Order', remote_side=[id], backref='child_orders')
+    user = db.relationship('User', foreign_keys=[user_id], back_populates='orders')
     customer = db.relationship('Customer', back_populates='orders')
     loyalty_transactions = db.relationship('LoyaltyTransaction', back_populates='order')
     items = db.relationship('OrderItem', backref='order', lazy='select', cascade='all, delete-orphan')
     payments = db.relationship('Payment', backref='order', lazy='select', cascade='all, delete-orphan')
+    
+    # Enhanced Customer Engagement Relationships
+    reward_redemptions = db.relationship('RewardRedemption', back_populates='order', lazy='dynamic')
+    # campaign_messages = db.relationship('CampaignMessage', back_populates='order', lazy='dynamic')  # Commented out until proper foreign key is added
+    feedback = db.relationship('CustomerFeedback', back_populates='order', lazy='dynamic')
+    communications = db.relationship('CustomerCommunication', back_populates='order', lazy='dynamic')
     
     def __init__(self, **kwargs):
         super(Order, self).__init__(**kwargs)
@@ -182,6 +194,12 @@ class Order(db.Model):
         
         if new_status in [OrderStatus.SERVED, OrderStatus.CANCELLED, OrderStatus.VOID]:
             self.completed_at = datetime.utcnow()
+        
+        # Update table status based on order status
+        self._update_table_status(old_status, new_status)
+        
+        # Notify assigned waiters of order changes
+        self._notify_waiter_status_change(old_status, new_status)
     
     def can_be_cancelled(self):
         """Check if order can be cancelled"""
@@ -244,6 +262,275 @@ class Order(db.Model):
         
         return int(base_time * complexity_multiplier * workload_multiplier)
     
+    def _update_table_status(self, old_status, new_status):
+        """Update table status based on order status changes"""
+        if not self.table_id:
+            return
+        
+        from app.models.table import Table
+        table = Table.query.get(self.table_id)
+        if not table:
+            return
+        
+        # Get all orders for this table to determine overall status
+        table_orders = Order.query.filter_by(table_id=self.table_id).all()
+        
+        # Count orders by status
+        pending_count = sum(1 for o in table_orders if o.status == OrderStatus.PENDING)
+        confirmed_count = sum(1 for o in table_orders if o.status == OrderStatus.CONFIRMED)
+        preparing_count = sum(1 for o in table_orders if o.status == OrderStatus.PREPARING)
+        ready_count = sum(1 for o in table_orders if o.status == OrderStatus.READY)
+        served_count = sum(1 for o in table_orders if o.status == OrderStatus.SERVED)
+        
+        # Determine table status based on order statuses
+        if served_count == len(table_orders) and len(table_orders) > 0:
+            # All orders served
+            table.status = 'finished'
+        elif ready_count > 0:
+            # Some orders ready
+            table.status = 'serving'
+        elif preparing_count > 0:
+            # Orders being prepared
+            table.status = 'ordered'
+        elif confirmed_count > 0:
+            # Orders confirmed
+            table.status = 'ordered'
+        elif pending_count > 0:
+            # Orders pending
+            table.status = 'occupied'
+        
+        # If no active orders, free the table
+        active_orders = sum(1 for o in table_orders if o.status in [
+            OrderStatus.PENDING, OrderStatus.CONFIRMED,
+            OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.SERVED
+        ])
+        
+        if active_orders == 0:
+            table.status = 'available'
+        
+        db.session.commit()
+    
+    def _notify_waiter_status_change(self, old_status, new_status):
+        """Notify assigned waiters of order status changes"""
+        if not self.waiter_id:
+            return
+        
+        # Import here to avoid circular imports
+        from app.notifications.service import NotificationService
+        from flask import current_app
+        
+        try:
+            notification_service = NotificationService()
+            
+            # Create status change message
+            status_messages = {
+                OrderStatus.PENDING: "Order pending",
+                OrderStatus.CONFIRMED: "Order confirmed - preparing",
+                OrderStatus.PREPARING: "Order being prepared",
+                OrderStatus.READY: "Order ready for serving",
+                OrderStatus.SERVED: "Order served",
+                OrderStatus.CANCELLED: "Order cancelled",
+                OrderStatus.VOID: "Order voided"
+            }
+            
+            message = status_messages.get(new_status, f"Order status changed to {new_status.value}")
+            
+            # Send notification to waiter
+            notification_service.send_notification(
+                user_id=self.waiter_id,
+                title=f"Order {self.order_number} Status Update",
+                message=message,
+                notification_type='order_status',
+                data={
+                    'order_id': self.id,
+                    'order_number': self.order_number,
+                    'table_id': self.table_id,
+                    'table_number': self.table.number if self.table else None,
+                    'old_status': old_status.value if old_status else None,
+                    'new_status': new_status.value
+                }
+            )
+            
+            # If order is ready, also notify kitchen staff
+            if new_status == OrderStatus.READY:
+                from app.models.user import User
+                kitchen_staff = User.query.filter_by(role='kitchen').all()
+                for staff in kitchen_staff:
+                    notification_service.send_notification(
+                        user_id=staff.id,
+                        title=f"Order Ready",
+                        message=f"Order {self.order_number} is ready for serving",
+                        notification_type='order_ready',
+                        data={
+                            'order_id': self.id,
+                            'order_number': self.order_number,
+                            'table_id': self.table_id,
+                            'table_number': self.table.number if self.table else None
+                        }
+                    )
+            
+            # Emit real-time update via WebSocket if available
+            if hasattr(current_app, 'socketio'):
+                current_app.socketio.emit('order_status_update', {
+                    'order_id': self.id,
+                    'order_number': self.order_number,
+                    'table_id': self.table_id,
+                    'table_number': self.table.number if self.table else None,
+                    'old_status': old_status.value if old_status else None,
+                    'new_status': new_status.value,
+                    'timestamp': datetime.utcnow().isoformat()
+                }, room=f'table_{self.table_id}' if self.table_id else None)
+                
+        except Exception as e:
+            # Log error but don't fail the status update
+            current_app.logger.error(f"Failed to send order status notification: {str(e)}")
+    
+    def get_table_orders(self):
+        """Get all orders for the same table (including this one)"""
+        if not self.table_id:
+            return []
+        return Order.query.filter_by(table_id=self.table_id).order_by(Order.created_at).all()
+    
+    def get_sibling_orders(self):
+        """Get sibling orders (orders with same parent_order_id)"""
+        if not self.parent_order_id:
+            return []
+        return Order.query.filter_by(parent_order_id=self.parent_order_id).filter(Order.id != self.id).all()
+    
+    def get_child_orders(self):
+        """Get child orders (split checks)"""
+        return Order.query.filter_by(parent_order_id=self.id).all()
+    
+    def can_be_split(self):
+        """Check if order can be split into multiple checks"""
+        return (self.status in [OrderStatus.PENDING, OrderStatus.CONFIRMED] and
+                not self.parent_order_id and
+                len(self.items) > 0)
+    
+    def can_be_merged(self):
+        """Check if order can be merged with another order"""
+        return (self.status in [OrderStatus.PENDING, OrderStatus.CONFIRMED] and
+                not self.parent_order_id and
+                not self.child_orders)
+    
+    def can_be_transferred(self):
+        """Check if order can be transferred to another table"""
+        return self.status in [OrderStatus.PENDING, OrderStatus.CONFIRMED]
+    
+    def transfer_to_table(self, new_table_id, transferred_by_user_id=None):
+        """Transfer order to a different table"""
+        if not self.can_be_transferred():
+            return False, "Order cannot be transferred in current status"
+        
+        old_table_id = self.table_id
+        self.table_id = new_table_id
+        
+        # Update table statuses
+        if old_table_id:
+            old_table = Table.query.get(old_table_id)
+            if old_table and not old_table.get_current_order():
+                old_table.free()
+        
+        new_table = Table.query.get(new_table_id)
+        if new_table:
+            new_table.occupy()
+        
+        db.session.commit()
+        return True, f"Order transferred to table {new_table.number}"
+    
+    def split_by_seat(self, seat_assignments):
+        """Split order by seat assignments
+        seat_assignments: dict with seat_number as key and list of item_ids as value
+        """
+        if not self.can_be_split():
+            return False, "Order cannot be split"
+        
+        try:
+            child_orders = []
+            
+            for seat_number, item_ids in seat_assignments.items():
+                if not item_ids:
+                    continue
+                
+                # Create child order for this seat
+                child_order = Order(
+                    table_id=self.table_id,
+                    waiter_id=self.waiter_id,
+                    seat_number=seat_number,
+                    parent_order_id=self.id,
+                    course_number=self.course_number,
+                    user_id=self.user_id,
+                    customer_id=self.customer_id,
+                    restaurant_id=self.restaurant_id,
+                    order_type=self.order_type,
+                    status=self.status,
+                    notes=f"Split from order {self.order_number} - Seat {seat_number}"
+                )
+                
+                # Move items to child order
+                for item_id in item_ids:
+                    item = OrderItem.query.filter_by(order_id=self.id, id=item_id).first()
+                    if item:
+                        child_order.items.append(item)
+                
+                child_order.calculate_totals()
+                db.session.add(child_order)
+                child_orders.append(child_order)
+            
+            # Remove moved items from parent order
+            for seat_number, item_ids in seat_assignments.items():
+                for item_id in item_ids:
+                    item = OrderItem.query.filter_by(id=item_id).first()
+                    if item and item.order_id == self.id:
+                        db.session.delete(item)
+            
+            # Recalculate parent order totals
+            self.calculate_totals()
+            db.session.commit()
+            
+            return True, f"Order split into {len(child_orders)} checks"
+            
+        except Exception as e:
+            db.session.rollback()
+            return False, f"Error splitting order: {str(e)}"
+    
+    def merge_with_order(self, other_order_id, merged_by_user_id=None):
+        """Merge this order with another order"""
+        if not self.can_be_merged():
+            return False, "Order cannot be merged in current status"
+        
+        other_order = Order.query.get(other_order_id)
+        if not other_order:
+            return False, "Other order not found"
+        
+        if not other_order.can_be_merged():
+            return False, "Other order cannot be merged"
+        
+        try:
+            # Move all items from other order to this order
+            for item in other_order.items:
+                item.order_id = self.id
+                self.items.append(item)
+            
+            # Transfer payments from other order
+            for payment in other_order.payments:
+                payment.order_id = self.id
+                self.payments.append(payment)
+            
+            # Update other order status to merged
+            other_order.status = OrderStatus.VOID
+            other_order.notes = f"Merged into order {self.order_number}"
+            
+            # Recalculate totals
+            self.calculate_totals()
+            db.session.commit()
+            
+            return True, f"Order {other_order.order_number} merged into {self.order_number}"
+            
+        except Exception as e:
+            db.session.rollback()
+            return False, f"Error merging orders: {str(e)}"
+    
     def to_dict(self, include_items=True, include_payments=True):
         """Convert order to dictionary for API responses"""
         result = {
@@ -251,6 +538,12 @@ class Order(db.Model):
             'order_number': self.order_number,
             'table_id': self.table_id,
             'table_number': self.table.number if self.table else None,
+            'waiter_id': self.waiter_id,
+            'waiter_name': self.waiter.name if self.waiter else None,
+            'seat_number': self.seat_number,
+            'parent_order_id': self.parent_order_id,
+            'parent_order_number': self.parent_order.order_number if self.parent_order else None,
+            'course_number': self.course_number,
             'user_id': self.user_id,
             'user_name': self.user.name if self.user else None,
             'customer_id': self.customer_id,

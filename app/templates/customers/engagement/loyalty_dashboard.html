@@ -1,0 +1,456 @@
+{% extends "base.html" %}
+
+{% block title %}Loyalty Program Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Loyalty Program Dashboard</h1>
+                <div>
+                    <button class="btn btn-primary" onclick="openCreateProgramModal()">
+                        <i class="fas fa-plus"></i> Create Program
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Program Overview -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">Active Members</h4>
+                            <h2 class="mb-0" id="active-members-count">0</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">Points Issued</h4>
+                            <h2 class="mb-0" id="points-issued-count">0</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-coins fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">Rewards Redeemed</h4>
+                            <h2 class="mb-0" id="rewards-redeemed-count">0</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-gift fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">Engagement Rate</h4>
+                            <h2 class="mb-0" id="engagement-rate">0%</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-chart-line fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Program Details -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Loyalty Program</h5>
+                </div>
+                <div class="card-body">
+                    <div id="program-details">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">Loading program details...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Tier Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="tier-chart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Top Customers</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="leaderboard-table">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Customer</th>
+                                    <th>Points</th>
+                                    <th>Tier</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">
+                                        <i class="fas fa-spinner fa-spin"></i> Loading...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Program Modal -->
+<div class="modal fade" id="createProgramModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Loyalty Program</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="create-program-form">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Program Name</label>
+                                <input type="text" class="form-control" name="name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Points per Currency Unit</label>
+                                <input type="number" class="form-control" name="points_per_currency" value="1" step="0.1" min="0" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Welcome Bonus Points</label>
+                                <input type="number" class="form-control" name="welcome_bonus_points" value="0" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Referral Bonus Points</label>
+                                <input type="number" class="form-control" name="referral_bonus_points" value="0" min="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="badges_enabled" checked>
+                                <label class="form-check-label">Enable Badges</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="achievements_enabled" checked>
+                                <label class="form-check-label">Enable Achievements</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="leaderboard_enabled">
+                                <label class="form-check-label">Enable Leaderboard</label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createProgram()">Create Program</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Load loyalty dashboard data
+document.addEventListener('DOMContentLoaded', function() {
+    loadLoyaltyDashboard();
+});
+
+function loadLoyaltyDashboard() {
+    fetch('/api/customers/engagement/dashboard/overview', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        updateDashboardStats(data);
+        loadLeaderboard();
+        loadProgramDetails();
+    })
+    .catch(error => {
+        console.error('Error loading dashboard:', error);
+        showAlert('Error loading dashboard data', 'danger');
+    });
+}
+
+function updateDashboardStats(data) {
+    document.getElementById('active-members-count').textContent = data.loyalty_members || 0;
+    document.getElementById('points-issued-count').textContent = formatNumber(data.total_points_issued || 0);
+    document.getElementById('rewards-redeemed-count').textContent = data.total_rewards_redeemed || 0;
+    document.getElementById('engagement-rate').textContent = (data.engagement_rate || 0) + '%';
+}
+
+function loadLeaderboard() {
+    fetch('/api/customers/engagement/loyalty/leaderboard', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderLeaderboard(data.leaderboard || []);
+        renderTierChart(data.tier_distribution || {});
+    })
+    .catch(error => {
+        console.error('Error loading leaderboard:', error);
+    });
+}
+
+function renderLeaderboard(leaderboard) {
+    const tbody = document.querySelector('#leaderboard-table tbody');
+    tbody.innerHTML = '';
+    
+    if (leaderboard.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No customers found</td></tr>';
+        return;
+    }
+    
+    leaderboard.forEach(customer => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${customer.rank}</td>
+            <td>${customer.customer_name}</td>
+            <td>${formatNumber(customer.loyalty_points)}</td>
+            <td><span class="badge" style="background-color: ${customer.tier_color}">${customer.tier}</span></td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewCustomerDetails(${customer.customer_id})">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function renderTierChart(tierData) {
+    const ctx = document.getElementById('tier-chart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(tierData),
+            datasets: [{
+                data: Object.values(tierData),
+                backgroundColor: [
+                    '#CD7F32',
+                    '#36A2EB',
+                    '#4BC0C0',
+                    '#9966FF'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function loadProgramDetails() {
+    fetch('/api/customers/engagement/loyalty/programs', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderProgramDetails(data.programs || []);
+    })
+    .catch(error => {
+        console.error('Error loading program details:', error);
+    });
+}
+
+function renderProgramDetails(programs) {
+    const container = document.getElementById('program-details');
+    
+    if (programs.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-inbox fa-3x"></i>
+                <h5 class="mt-3">No Loyalty Program</h5>
+                <p>Create your first loyalty program to start rewarding customers</p>
+                <button class="btn btn-primary mt-3" onclick="openCreateProgramModal()">
+                    <i class="fas fa-plus"></i> Create Program
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    const program = programs[0];
+    container.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Program Information</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Name:</strong></td><td>${program.name}</td></tr>
+                    <tr><td><strong>Points per $1:</strong></td><td>${program.points_per_currency}</td></tr>
+                    <tr><td><strong>Welcome Bonus:</strong></td><td>${program.welcome_bonus_points} points</td></tr>
+                    <tr><td><strong>Referral Bonus:</strong></td><td>${program.referral_bonus_points} points</td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>Features</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    ${program.badges_enabled ? '<span class="badge bg-success">Badges</span>' : ''}
+                    ${program.achievements_enabled ? '<span class="badge bg-info">Achievements</span>' : ''}
+                    ${program.leaderboard_enabled ? '<span class="badge bg-warning">Leaderboard</span>' : ''}
+                </div>
+            </div>
+        </div>
+        <div class="mt-3">
+            <h6>Tiers</h6>
+            <div class="row">
+                ${renderTierCards(program.tiers || [])}
+            </div>
+        </div>
+    `;
+}
+
+function renderTierCards(tiers) {
+    return tiers.map(tier => `
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title" style="color: ${tier.color}">${tier.name}</h5>
+                    <p class="card-text">${tier.min_points} points minimum</p>
+                    <small class="text-muted">${tier.points_multiplier}x points multiplier</small>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function openCreateProgramModal() {
+    const modal = new bootstrap.Modal(document.getElementById('createProgramModal'));
+    modal.show();
+}
+
+function createProgram() {
+    const form = document.getElementById('create-program-form');
+    const formData = new FormData(form);
+    
+    const programData = {
+        name: formData.get('name'),
+        description: formData.get('description'),
+        points_per_currency: parseFloat(formData.get('points_per_currency')),
+        welcome_bonus_points: parseInt(formData.get('welcome_bonus_points')),
+        referral_bonus_points: parseInt(formData.get('referral_bonus_points')),
+        badges_enabled: formData.get('badges_enabled') === 'on',
+        achievements_enabled: formData.get('achievements_enabled') === 'on',
+        leaderboard_enabled: formData.get('leaderboard_enabled') === 'on'
+    };
+    
+    fetch('/api/customers/engagement/loyalty/programs', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        },
+        body: JSON.stringify(programData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Loyalty program created successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('createProgramModal')).hide();
+            loadProgramDetails();
+        } else {
+            showAlert(data.error || 'Error creating program', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating program:', error);
+        showAlert('Error creating program', 'danger');
+    });
+}
+
+function viewCustomerDetails(customerId) {
+    window.location.href = `/customers/${customerId}`;
+}
+
+function formatNumber(num) {
+    return new Intl.NumberFormat().format(num);
+}
+
+function showAlert(message, type) {
+    // Implementation depends on your alert system
+    console.log(`${type}: ${message}`);
+}
+</script>
+{% endblock %}

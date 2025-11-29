@@ -19,7 +19,7 @@ class Category(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    items = db.relationship('MenuItem', backref='category', lazy=True, order_by='MenuItem.display_order')
+    items = db.relationship('MenuItem', backref='category', lazy='dynamic', order_by='MenuItem.display_order')
     
     def to_dict(self):
         """Convert category to dictionary for API responses"""
@@ -29,7 +29,7 @@ class Category(db.Model):
             'description': self.description,
             'display_order': self.display_order,
             'is_active': self.is_active,
-            'item_count': len([item for item in self.items.all() if item.is_available]),
+            'item_count': self.items.filter_by(is_available=True).count(),
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
     
@@ -57,9 +57,12 @@ class MenuItem(db.Model):
     # Relationships
     restaurant = db.relationship('Restaurant', back_populates='menu_items')
     hsn_code = db.relationship('HSNCode', back_populates='menu_items')
-    variants = db.relationship('ItemVariant', backref='menu_item', lazy=True, cascade='all, delete-orphan')
-    add_ons = db.relationship('AddOn', secondary=item_add_ons, backref='menu_items')
+    variants = db.relationship('ItemVariant', backref='menu_item', lazy='dynamic', cascade='all, delete-orphan')
+    add_ons = db.relationship('AddOn', secondary=item_add_ons, lazy='dynamic', backref='menu_items')
     order_items = db.relationship('OrderItem', back_populates='menu_item')
+    
+    # Enhanced Customer Engagement Relationships
+    recommendations = db.relationship('PersonalizedRecommendation', back_populates='item', lazy='dynamic')
     
     def get_effective_price(self, variant_id=None):
         """Get price including variant modifier"""
@@ -72,7 +75,7 @@ class MenuItem(db.Model):
     
     def get_available_add_ons(self):
         """Get only available add-ons"""
-        return [addon for addon in self.add_ons.all() if addon.is_active]
+        return self.add_ons.filter_by(is_active=True).all()
     
     def to_dict(self, include_variants=True, include_add_ons=True):
         """Convert menu item to dictionary for API responses"""
@@ -139,7 +142,7 @@ class AddOnCategory(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
-    add_ons = db.relationship('AddOn', backref='category', lazy=True)
+    add_ons = db.relationship('AddOn', backref='category', lazy='dynamic')
     
     def to_dict(self):
         """Convert add-on category to dictionary for API responses"""
@@ -149,7 +152,7 @@ class AddOnCategory(db.Model):
             'description': self.description,
             'display_order': self.display_order,
             'is_active': self.is_active,
-            'addon_count': len([addon for addon in self.add_ons.all() if addon.is_active])
+            'addon_count': self.add_ons.filter_by(is_active=True).count()
         }
     
     def __repr__(self):

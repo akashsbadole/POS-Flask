@@ -1,0 +1,667 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Customer Analytics</h1>
+                <div class="btn-group">
+                    <button class="btn btn-outline-primary active" onclick="showSegmentation('behavioral')">
+                        Behavioral
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="showSegmentation('value')">
+                        Value-Based
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="showSegmentation('rfm')">
+                        RFM Analysis
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="showSegmentation('engagement')">
+                        Engagement
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">Total Customers</h4>
+                            <h2 class="mb-0" id="total-customers">0</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">Avg CLV</h4>
+                            <h2 class="mb-0" id="avg-clv">$0</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-dollar-sign fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">Churn Risk</h4>
+                            <h2 class="mb-0" id="churn-risk">0%</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title">NPS Score</h4>
+                            <h2 class="mb-0" id="nps-score">0</h2>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-star fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Segmentation Analysis -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Customer Segments</h5>
+                </div>
+                <div class="card-body">
+                    <div id="segments-container">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">Loading segmentation data...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Segment Insights</h5>
+                </div>
+                <div class="card-body">
+                    <div id="segment-insights">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-info-circle fa-2x"></i>
+                            <p class="mt-2">Select a segmentation type to view insights</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visit Patterns -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Visit Patterns</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="visit-patterns-chart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Peak Hours</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="peak-hours-chart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spending Behavior -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Spending Behavior Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <canvas id="spending-distribution-chart" width="400" height="300"></canvas>
+                        </div>
+                        <div class="col-md-6">
+                            <canvas id="spending-trend-chart" width="400" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- High-Risk Customers -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">High Churn Risk Customers</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="high-risk-customers">
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Risk Score</th>
+                                    <th>Risk Level</th>
+                                    <th>Last Order</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">
+                                        <i class="fas fa-spinner fa-spin"></i> Loading...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Details Modal -->
+<div class="modal fade" id="customerDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Customer Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="customer-details-content">
+                    <div class="text-center">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p class="mt-2">Loading customer details...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let currentSegmentationType = 'behavioral';
+let segmentationChart = null;
+let visitPatternsChart = null;
+let peakHoursChart = null;
+let spendingDistributionChart = null;
+let spendingTrendChart = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadAnalyticsDashboard();
+});
+
+function loadAnalyticsDashboard() {
+    fetch('/api/customers/engagement/dashboard/overview', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        updateKeyMetrics(data);
+        loadSegmentationData(currentSegmentationType);
+        loadVisitPatterns();
+        loadSpendingBehavior();
+        loadHighRiskCustomers();
+    })
+    .catch(error => {
+        console.error('Error loading dashboard:', error);
+        showAlert('Error loading dashboard data', 'danger');
+    });
+}
+
+function updateKeyMetrics(data) {
+    document.getElementById('total-customers').textContent = formatNumber(data.total_customers || 0);
+    document.getElementById('avg-clv').textContent = '$' + formatNumber(data.avg_clv || 0);
+    document.getElementById('churn-risk').textContent = (data.churn_risk || 0) + '%';
+    document.getElementById('nps-score').textContent = data.nps_score || 0;
+}
+
+function showSegmentation(type) {
+    // Update button states
+    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    currentSegmentationType = type;
+    loadSegmentationData(type);
+}
+
+function loadSegmentationData(type) {
+    fetch(`/api/customers/engagement/analytics/segments?type=${type}`, {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderSegments(data.segments || []);
+        renderSegmentInsights(data.segment_analysis || {});
+    })
+    .catch(error => {
+        console.error('Error loading segmentation data:', error);
+    });
+}
+
+function renderSegments(segments) {
+    const container = document.getElementById('segments-container');
+    
+    if (segments.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted">No segments found</div>';
+        return;
+    }
+    
+    // Create segment cards
+    const segmentsHtml = segments.map(segment => `
+        <div class="col-md-6 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">${segment.name}</h6>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 class="text-primary">${segment.count}</h4>
+                            <small>Customers</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-success">${segment.percentage.toFixed(1)}%</h4>
+                            <small>of Total</small>
+                        </div>
+                    </div>
+                    ${segment.characteristics ? `
+                        <hr>
+                        <div class="row">
+                            <div class="col-6">
+                                <small>Avg Order Value: <strong>$${segment.characteristics.average_order_value || 0}</strong></small>
+                            </div>
+                            <div class="col-6">
+                                <small>Avg Orders: <strong>${segment.characteristics.average_orders || 0}</strong></small>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = `<div class="row">${segmentsHtml}</div>`;
+}
+
+function renderSegmentInsights(insights) {
+    const container = document.getElementById('segment-insights');
+    
+    if (!insights.largest_segment) {
+        container.innerHTML = '<div class="text-center text-muted">No insights available</div>';
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="mb-3">
+            <h6>Largest Segment</h6>
+            <p><strong>${insights.largest_segment.name}:</strong> ${insights.largest_segment.count} customers (${insights.largest_segment.percentage.toFixed(1)}%)</p>
+        </div>
+        <div class="mb-3">
+            <h6>Recommendations</h6>
+            <ul class="list-unstyled">
+                ${(insights.segment_recommendations || []).map(rec => `<li><i class="fas fa-check text-success"></i> ${rec}</li>`).join('')}
+            </ul>
+        </div>
+    `;
+}
+
+function loadVisitPatterns() {
+    fetch('/api/customers/engagement/analytics/visit-patterns?days=30', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderVisitPatterns(data);
+        renderPeakHours(data);
+    })
+    .catch(error => {
+        console.error('Error loading visit patterns:', error);
+    });
+}
+
+function renderVisitPatterns(data) {
+    const ctx = document.getElementById('visit-patterns-chart').getContext('2d');
+    
+    if (visitPatternsChart) {
+        visitPatternsChart.destroy();
+    }
+    
+    const dayNames = Object.keys(data.daily_patterns || {});
+    const visitCounts = dayNames.map(day => (data.daily_patterns[day] || {}).total_visits || 0);
+    
+    visitPatternsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: dayNames,
+            datasets: [{
+                label: 'Visits',
+                data: visitCounts,
+                backgroundColor: '#007bff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function renderPeakHours(data) {
+    const ctx = document.getElementById('peak-hours-chart').getContext('2d');
+    
+    if (peakHoursChart) {
+        peakHoursChart.destroy();
+    }
+    
+    const peakHours = data.peak_hours || [];
+    const hours = peakHours.map(h => h.hour + ':00');
+    const visits = peakHours.map(h => h.visits);
+    
+    peakHoursChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: hours,
+            datasets: [{
+                label: 'Visits',
+                data: visits,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function loadSpendingBehavior() {
+    fetch('/api/customers/engagement/analytics/spending-behavior?days=30', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderSpendingDistribution(data);
+        renderSpendingTrend(data);
+    })
+    .catch(error => {
+        console.error('Error loading spending behavior:', error);
+    });
+}
+
+function renderSpendingDistribution(data) {
+    const ctx = document.getElementById('spending-distribution-chart').getContext('2d');
+    
+    if (spendingDistributionChart) {
+        spendingDistributionChart.destroy();
+    }
+    
+    const segments = Object.keys(data.spending_segments || {});
+    const counts = segments.map(seg => (data.spending_segments[seg] || []).length);
+    
+    spendingDistributionChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: segments,
+            datasets: [{
+                data: counts,
+                backgroundColor: [
+                    '#007bff',
+                    '#28a745',
+                    '#ffc107',
+                    '#dc3545',
+                    '#6f42c1'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+function renderSpendingTrend(data) {
+    const ctx = document.getElementById('spending-trend-chart').getContext('2d');
+    
+    if (spendingTrendChart) {
+        spendingTrendChart.destroy();
+    }
+    
+    // Generate sample trend data (would come from API)
+    const labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+    const avgSpent = [450, 520, 480, 550];
+    const totalOrders = [120, 135, 125, 140];
+    
+    spendingTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Avg. Order Value',
+                data: avgSpent,
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                yAxisID: 'y'
+            }, {
+                label: 'Total Orders',
+                data: totalOrders,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left'
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+function loadHighRiskCustomers() {
+    fetch('/api/customers/engagement/analytics/churn-risk', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderHighRiskCustomers(data.high_risk_customers || []);
+    })
+    .catch(error => {
+        console.error('Error loading high risk customers:', error);
+    });
+}
+
+function renderHighRiskCustomers(customers) {
+    const tbody = document.querySelector('#high-risk-customers tbody');
+    tbody.innerHTML = '';
+    
+    if (customers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No high-risk customers found</td></tr>';
+        return;
+    }
+    
+    customers.forEach(customer => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${customer.customer_name}</td>
+            <td>
+                <div class="progress" style="height: 20px;">
+                    <div class="progress-bar bg-danger" style="width: ${(customer.churn_risk_score * 100).toFixed(1)}%">
+                        ${(customer.churn_risk_score * 100).toFixed(1)}%
+                    </div>
+                </div>
+            </td>
+            <td>
+                <span class="badge bg-${getRiskLevelColor(customer.risk_level)}">${customer.risk_level}</span>
+            </td>
+            <td>${customer.last_order_date || 'Never'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewCustomerDetails(${customer.customer_id})">
+                    <i class="fas fa-eye"></i> View
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="sendRetentionCampaign(${customer.customer_id})">
+                    <i class="fas fa-envelope"></i> Contact
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function getRiskLevelColor(level) {
+    const colors = {
+        'low': 'success',
+        'medium': 'warning',
+        'high': 'danger',
+        'critical': 'dark'
+    };
+    return colors[level] || 'secondary';
+}
+
+function viewCustomerDetails(customerId) {
+    fetch(`/api/customers/engagement/analytics/journey/${customerId}`, {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderCustomerDetails(data);
+        const modal = new bootstrap.Modal(document.getElementById('customerDetailsModal'));
+        modal.show();
+    })
+    .catch(error => {
+        console.error('Error loading customer details:', error);
+    });
+}
+
+function renderCustomerDetails(data) {
+    const container = document.getElementById('customer-details-content');
+    
+    container.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Customer Information</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Name:</strong></td><td>${data.customer_name}</td></tr>
+                    <tr><td><strong>Customer ID:</strong></td><td>${data.customer_id}</td></tr>
+                    <tr><td><strong>Lifetime Value:</strong></td><td>$${data.metrics?.total_duration_days || 0}</td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>Journey Stages</h6>
+                <div class="progress-steps">
+                    ${(data.journey_stages || []).map((stage, index) => `
+                        <div class="step ${index === 0 ? 'active' : ''}">
+                            <div class="step-title">${stage.stage}</div>
+                            <small>${stage.duration_days} days</small>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function sendRetentionCampaign(customerId) {
+    // Implementation depends on your communication system
+    showAlert('Retention campaign sent to customer', 'success');
+}
+
+function formatNumber(num) {
+    return new Intl.NumberFormat().format(num);
+}
+
+function showAlert(message, type) {
+    // Implementation depends on your alert system
+    console.log(`${type}: ${message}`);
+}
+</script>
+{% endblock %}

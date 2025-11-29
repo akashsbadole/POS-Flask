@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}Create Order for Table {{ table.number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-utensils me-2"></i>
+                        Table {{ table.number }} - New Order
+                    </h5>
+                    <div>
+                        <span class="badge bg-primary">{{ table.capacity }} Guests</span>
+                        {% if table.current_waiter %}
+                        <span class="badge bg-info">{{ table.current_waiter.name }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="tableOrderForm">
+                        {{ form.csrf_token }}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="seat_number" class="form-label">Seat Number</label>
+                                <input type="text" class="form-control" id="seat_number" name="seat_number" 
+                                       placeholder="e.g., A1, B2, etc." maxlength="10">
+                                <div class="form-text">Optional: For multi-seat table management</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="course_number" class="form-label">Course Number</label>
+                                <select class="form-select" id="course_number" name="course_number">
+                                    <option value="1">1st Course</option>
+                                    <option value="2">2nd Course</option>
+                                    <option value="3">3rd Course</option>
+                                    <option value="4">4th Course</option>
+                                    <option value="5">5th Course</option>
+                                </select>
+                                <div class="form-text">For multi-course dining</div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label for="customer_id" class="form-label">Customer (Optional)</label>
+                                <select class="form-select" id="customer_id" name="customer_id">
+                                    <option value="">Walk-in Customer</option>
+                                    {% if customers %}
+                                        {% for customer in customers %}
+                                        <option value="{{ customer.id }}">{{ customer.get_full_name() }} ({{ customer.customer_code }})</option>
+                                        {% endfor %}
+                                    {% endif %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label class="form-label">Order Notes</label>
+                                <textarea class="form-control" name="notes" rows="3" 
+                                          placeholder="Special instructions or dietary requirements..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Cart Items Display -->
+                        <div class="mb-3">
+                            <h6>Order Items</h6>
+                            <div id="cartItems" class="border rounded p-3 bg-light">
+                                <div class="text-center text-muted py-4">
+                                    <i class="fas fa-shopping-cart fa-2x mb-2"></i>
+                                    <p>No items in cart. Add items from the menu.</p>
+                                    <a href="{{ url_for('menu.dashboard') }}" class="btn btn-primary">
+                                        <i class="fas fa-plus me-1"></i>Add Items
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Order Summary -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Order Summary</h6>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Subtotal:</span>
+                                            <span id="subtotal">$0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Tax:</span>
+                                            <span id="tax">$0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Service Charge:</span>
+                                            <span id="service_charge">$0.00</span>
+                                        </div>
+                                        <hr>
+                                        <div class="d-flex justify-content-between fw-bold">
+                                            <span>Total:</span>
+                                            <span id="total">$0.00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Quick Actions</h6>
+                                        <div class="d-grid gap-2">
+                                            <button type="button" class="btn btn-outline-primary" onclick="loadQuickItems()">
+                                                <i class="fas fa-star me-1"></i>Quick Items
+                                            </button>
+                                            <button type="button" class="btn btn-outline-info" onclick="loadFavorites()">
+                                                <i class="fas fa-heart me-1"></i>Favorites
+                                            </button>
+                                            <button type="button" class="btn btn-outline-warning" onclick="showHoldOrder()">
+                                                <i class="fas fa-pause me-1"></i>Hold Order
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{{ url_for('tables.floor_plan') }}" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left me-1"></i>Back to Floor Plan
+                                    </a>
+                                    <button type="submit" class="btn btn-primary" id="createOrderBtn">
+                                        <i class="fas fa-check me-1"></i>Create Order
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Table Info Card -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Table Information</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Table:</strong></td>
+                            <td>{{ table.number }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Capacity:</strong></td>
+                            <td>{{ table.capacity }} guests</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Status:</strong></td>
+                            <td><span class="badge {{ table.get_status_color() }}">{{ table.get_status_text() }}</span></td>
+                        </tr>
+                        {% if table.floor_section %}
+                        <tr>
+                            <td><strong>Section:</strong></td>
+                            <td>{{ table.floor_section }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if table.current_waiter %}
+                        <tr>
+                            <td><strong>Assigned Waiter:</strong></td>
+                            <td>{{ table.current_waiter.name }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- Recent Orders for Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Recent Orders</h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_orders %}
+                        {% for order in recent_orders[:5] %}
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                            <div>
+                                <strong>{{ order.order_number }}</strong><br>
+                                <small class="text-muted">{{ order.created_at.strftime('%H:%M') }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-success">${{ "%.2f"|format(order.total) }}</span><br>
+                                <small class="text-muted">{{ order.status.value }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center">No recent orders for this table</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Items Modal -->
+<div class="modal fade" id="quickItemsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Quick Order Items</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="quickItemsList" class="row">
+                    <!-- Quick items will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Load cart from session
+let cart = {{ cart|tojson }};
+
+// Update cart display
+function updateCartDisplay() {
+    const cartItems = document.getElementById('cartItems');
+    
+    if (Object.keys(cart).length === 0) {
+        cartItems.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-shopping-cart fa-2x mb-2"></i>
+                <p>No items in cart. Add items from the menu.</p>
+                <a href="{{ url_for('menu.dashboard') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Add Items
+                </a>
+            </div>
+        `;
+        updateOrderSummary();
+        return;
+    }
+    
+    let itemsHtml = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th><th>Actions</th></tr></thead><tbody>';
+    
+    let subtotal = 0;
+    for (const [key, item] of Object.entries(cart)) {
+        const itemTotal = item.unit_price * item.quantity;
+        subtotal += itemTotal;
+        
+        itemsHtml += `
+            <tr>
+                <td>
+                    <strong>${item.item_name}</strong>
+                    ${item.variant_name ? `<br><small class="text-muted">${item.variant_name}</small>` : ''}
+                    ${item.notes ? `<br><small class="text-info">${item.notes}</small>` : ''}
+                    ${item.add_ons && item.add_ons.length > 0 ? 
+                        `<br><small class="text-muted">+ ${item.add_ons.map(a => a.name).join(', ')}</small>` : ''}
+                </td>
+                <td>${item.quantity}</td>
+                <td>$${item.unit_price.toFixed(2)}</td>
+                <td>$${itemTotal.toFixed(2)}</td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFromCart('${key}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }
+    
+    itemsHtml += '</tbody></table></div>';
+    cartItems.innerHTML = itemsHtml;
+    
+    updateOrderSummary(subtotal);
+}
+
+function updateOrderSummary(subtotal = null) {
+    if (subtotal === null) {
+        subtotal = Object.values(cart).reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
+    }
+    
+    const tax = subtotal * 0.0875; // 8.75% tax
+    const serviceCharge = 0; // Could be configurable
+    const total = subtotal + tax + serviceCharge;
+    
+    document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+    document.getElementById('tax').textContent = `$${tax.toFixed(2)}`;
+    document.getElementById('service_charge').textContent = `$${serviceCharge.toFixed(2)}`;
+    document.getElementById('total').textContent = `$${total.toFixed(2)}`;
+}
+
+function removeFromCart(cartKey) {
+    delete cart[cartKey];
+    updateCartDisplay();
+    // Update session cart via AJAX
+    fetch('/orders/cart/update', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `cart_key=${cartKey}&quantity=0`
+    }).then(response => response.json());
+}
+
+function loadQuickItems() {
+    const modal = new bootstrap.Modal(document.getElementById('quickItemsModal'));
+    fetch('/orders/api/quick-items')
+        .then(response => response.json())
+        .then(data => {
+            const itemsHtml = data.items.map(item => `
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100" onclick="addToQuickCart(${item.id})">
+                        <div class="card-body text-center">
+                            <h6>${item.name}</h6>
+                            <p class="text-muted">$${item.price.toFixed(2)}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('quickItemsList').innerHTML = itemsHtml;
+            modal.show();
+        });
+}
+
+function addToQuickCart(itemId) {
+    // Add item to cart via AJAX
+    fetch('/orders/cart/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `item_id=${itemId}&quantity=1`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload page to show updated cart
+            location.reload();
+        }
+    });
+}
+
+// Initialize cart display
+document.addEventListener('DOMContentLoaded', function() {
+    updateCartDisplay();
+});
+</script>
+{% endblock %}

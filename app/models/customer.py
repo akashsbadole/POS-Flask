@@ -85,6 +85,18 @@ class Customer(db.Model):
                                     secondaryjoin='CreditAccount.id == CreditTransaction.credit_account_id',
                                     viewonly=True, lazy='dynamic')
     
+    # Enhanced Customer Engagement Relationships
+    badges = relationship('CustomerBadge', back_populates='customer', lazy='dynamic')
+    reward_redemptions = relationship('RewardRedemption', back_populates='customer', lazy='dynamic')
+    campaign_messages = relationship('CampaignMessage', back_populates='customer', lazy='dynamic')
+    feedback = relationship('CustomerFeedback', back_populates='customer', lazy='dynamic')
+    preferences = relationship('CustomerPreference', back_populates='customer', lazy='dynamic')
+    recommendations = relationship('PersonalizedRecommendation', back_populates='customer', lazy='dynamic')
+    communications = relationship('CustomerCommunication', back_populates='customer', lazy='dynamic')
+    behaviors = relationship('CustomerBehavior', back_populates='customer', lazy='dynamic')
+    journeys = relationship('CustomerJourney', back_populates='customer', lazy='dynamic')
+    integrations = relationship('CustomerIntegration', back_populates='customer', lazy='dynamic')
+    
     def get_full_name(self) -> str:
         """Get customer's full name"""
         return f"{self.first_name} {self.last_name}".strip()

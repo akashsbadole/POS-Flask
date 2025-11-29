@@ -1,0 +1,293 @@
+{% extends "waste_to_profit/base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Waste-to-Profit Dashboard</h1>
+        <div class="flex space-x-2">
+            <button class="btn-primary" onclick="refreshDashboard()">Refresh</button>
+            <a href="{{ url_for('waste_to_profit.add_expiry_tracking') }}" class="btn-success">Add Expiry Tracking</a>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-red-600">{{ expiring_count }}</div>
+                    <div class="metric-label">Items Expiring Soon</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-yellow-600">{{ active_specials }}</div>
+                    <div class="metric-label">Active Chef's Specials</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-green-600">${{ "%.2f"|format(monthly_savings) }}</div>
+                    <div class="metric-label">Monthly Savings</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-blue-600">85%</div>
+                    <div class="metric-label">Waste Reduction</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Quick Actions</h3>
+            </div>
+            <div class="card-body space-y-3">
+                <a href="{{ url_for('waste_to_profit.expiry_tracking') }}" class="btn-primary w-full text-center">View Expiring Items</a>
+                <a href="{{ url_for('waste_to_profit.chef_special_suggestions') }}" class="btn-success w-full text-center">Create Chef's Special</a>
+                <a href="{{ url_for('waste_to_profit.waste_analytics') }}" class="btn-secondary w-full text-center">View Analytics</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Recent Alerts</h3>
+            </div>
+            <div class="card-body">
+                <div id="recent-alerts" class="space-y-2">
+                    <!-- Alerts will be loaded here -->
+                    <div class="text-sm text-gray-500">Loading alerts...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Top Opportunities</h3>
+            </div>
+            <div class="card-body">
+                <div id="top-opportunities" class="space-y-2">
+                    <!-- Opportunities will be loaded here -->
+                    <div class="text-sm text-gray-500">Loading opportunities...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div class="chart-container">
+            <h3 class="text-lg font-semibold mb-4">Waste Trend (Last 30 Days)</h3>
+            <canvas id="waste-trend-chart" width="400" height="200"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h3 class="text-lg font-semibold mb-4">Cost Savings Trend</h3>
+            <canvas id="savings-trend-chart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Recent Activity Table -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Recent Activity</h3>
+            <a href="{{ url_for('waste_to_profit.waste_analytics') }}" class="btn-primary btn-sm">View All</a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="waste-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Impact</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recent-activity">
+                        <!-- Activity will be loaded here -->
+                        <tr>
+                            <td colspan="5" class="text-center text-gray-500">Loading activity...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    loadRecentAlerts();
+    loadTopOpportunities();
+    loadRecentActivity();
+    initializeCharts();
+});
+
+function refreshDashboard() {
+    location.reload();
+}
+
+function loadRecentAlerts() {
+    fetch('/waste-to-profit/api/expiring-items?days_ahead=7')
+        .then(response => response.json())
+        .then(data => {
+            const alertsContainer = document.getElementById('recent-alerts');
+            if (data.success && data.expiring_items.length > 0) {
+                alertsContainer.innerHTML = data.expiring_items.slice(0, 3).map(item => `
+                    <div class="alert-card">
+                        <div class="flex items-center">
+                            <span class="waste-indicator status-${item.status}"></span>
+                            <div class="flex-1">
+                                <div class="text-sm font-medium">${item.ingredient_name}</div>
+                                <div class="text-xs text-gray-500">Expires: ${item.expiry_date}</div>
+                            </div>
+                            <span class="badge badge-${item.risk_level === 'high' ? 'danger' : item.risk_level === 'medium' ? 'warning' : 'success'}">${item.risk_level}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                alertsContainer.innerHTML = '<div class="text-sm text-gray-500">No critical alerts</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading alerts:', error);
+            document.getElementById('recent-alerts').innerHTML = '<div class="text-sm text-red-500">Error loading alerts</div>';
+        });
+}
+
+function loadTopOpportunities() {
+    fetch('/waste-to-profit/api/chef-special-suggestions?limit=3')
+        .then(response => response.json())
+        .then(data => {
+            const opportunitiesContainer = document.getElementById('top-opportunities');
+            if (data.success && data.suggestions.length > 0) {
+                opportunitiesContainer.innerHTML = data.suggestions.map(suggestion => `
+                    <div class="success-card">
+                        <div class="text-sm font-medium">${suggestion.name}</div>
+                        <div class="text-xs text-gray-600">Potential savings: $${suggestion.potential_savings.toFixed(2)}</div>
+                    </div>
+                `).join('');
+            } else {
+                opportunitiesContainer.innerHTML = '<div class="text-sm text-gray-500">No opportunities available</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading opportunities:', error);
+            document.getElementById('top-opportunities').innerHTML = '<div class="text-sm text-red-500">Error loading opportunities</div>';
+        });
+}
+
+function loadRecentActivity() {
+    // This would be implemented with a proper API endpoint
+    const activityData = [
+        { date: '2023-11-28', type: 'Expiry Alert', description: 'Tomatoes expiring in 2 days', impact: '$15.00', status: 'warning' },
+        { date: '2023-11-27', type: "Chef's Special", description: 'Created "Veggie Delight" special', impact: '$45.00', status: 'success' },
+        { date: '2023-11-26', type: 'Waste Record', description: 'Recorded waste for expired dairy', impact: '$8.50', status: 'danger' }
+    ];
+
+    const activityContainer = document.getElementById('recent-activity');
+    activityContainer.innerHTML = activityData.map(activity => `
+        <tr>
+            <td class="text-sm">${activity.date}</td>
+            <td class="text-sm">${activity.type}</td>
+            <td class="text-sm">${activity.description}</td>
+            <td class="text-sm">${activity.impact}</td>
+            <td>
+                <span class="badge badge-${activity.status === 'success' ? 'success' : activity.status === 'warning' ? 'warning' : 'danger'}">
+                    ${activity.status}
+                </span>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function initializeCharts() {
+    // Waste Trend Chart
+    const wasteCtx = document.getElementById('waste-trend-chart').getContext('2d');
+    new Chart(wasteCtx, {
+        type: 'line',
+        data: {
+            labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+            datasets: [{
+                label: 'Waste (kg)',
+                data: [12, 19, 8, 15],
+                borderColor: 'rgb(239, 68, 68)',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Savings Trend Chart
+    const savingsCtx = document.getElementById('savings-trend-chart').getContext('2d');
+    new Chart(savingsCtx, {
+        type: 'line',
+        data: {
+            labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+            datasets: [{
+                label: 'Savings ($)',
+                data: [45, 52, 38, 65],
+                borderColor: 'rgb(16, 185, 129)',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Held Orders{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Held Orders</h1>
+                <a href="{{ url_for('orders.view_cart', tpos=1) }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>New Order
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            {% if held_orders %}
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Saved Orders</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>Created</th>
+                                        <th>Items</th>
+                                        <th>Total</th>
+                                        <th>Type</th>
+                                        <th>Customer</th>
+                                        <th>Table</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for held_order_id, held_order in held_orders.items() %}
+                                    <tr>
+                                        <td>{{ held_order_id }}</td>
+                                        <td>{{ held_order.created_at | datetime }}</td>
+                                        <td>{{ held_order.cart | length }} items</td>
+                                        <td>
+                                            ₹{{ "%.2f"|format(held_order.cart.values() | sum(attribute='unit_price') * held_order.cart.values() | sum(attribute='quantity')) }}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ 'primary' if held_order.order_type == 'table' else 'secondary' }}">
+                                                {{ held_order.order_type | title }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if held_order.customer_id %}
+                                                {% set customer = get_customer_by_id(held_order.customer_id) %}
+                                                {% if customer %}
+                                                    {{ customer.get_full_name() }}
+                                                {% else %}
+                                                    <span class="text-muted">Customer not found</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">No customer</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if held_order.table_id %}
+                                                {% set table = get_table_by_id(held_order.table_id) %}
+                                                {% if table %}
+                                                    Table {{ table.number }}
+                                                {% else %}
+                                                    <span class="text-muted">Table not found</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">No table</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-success" 
+                                                        onclick="resumeOrder('{{ held_order_id }}')">
+                                                    <i class="fas fa-play"></i> Resume
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-sm btn-danger" 
+                                                        onclick="deleteHeldOrder('{{ held_order_id }}')">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-pause-circle fa-3x text-muted mb-3"></i>
+                        <h5>No Held Orders</h5>
+                        <p class="text-muted">You don't have any saved orders. Create a new order to get started.</p>
+                        <a href="{{ url_for('orders.view_cart', tpos=1) }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Create New Order
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function resumeOrder(heldOrderId) {
+    if (confirm('Are you sure you want to resume this order?')) {
+        fetch(`/orders/resume-order/${heldOrderId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = '/orders/cart?tpos=1';
+            } else {
+                alert(data.message || 'Failed to resume order');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while resuming the order');
+        });
+    }
+}
+
+function deleteHeldOrder(heldOrderId) {
+    if (confirm('Are you sure you want to delete this held order? This action cannot be undone.')) {
+        // Remove from session via API
+        fetch(`/orders/delete-held-order/${heldOrderId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || 'Failed to delete held order');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the held order');
+        });
+    }
+}
+</script>
+{% endblock %}

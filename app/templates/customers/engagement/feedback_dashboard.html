@@ -1,0 +1,992 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Feedback Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header with Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">Customer Feedback Management</h1>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="openFeedbackCollectionModal()">
+                        <i class="fas fa-plus"></i> Collect Feedback
+                    </button>
+                    <button class="btn btn-success" onclick="exportFeedbackData()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <button class="btn btn-info" onclick="refreshFeedbackData()">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-comments fa-2x mb-2"></i>
+                    <h4 class="card-title">Total Feedback</h4>
+                    <h2 class="mb-0" id="total-feedback">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-smile fa-2x mb-2"></i>
+                    <h4 class="card-title">Positive</h4>
+                    <h2 class="mb-0" id="positive-feedback">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-meh fa-2x mb-2"></i>
+                    <h4 class="card-title">Neutral</h4>
+                    <h2 class="mb-0" id="neutral-feedback">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-frown fa-2x mb-2"></i>
+                    <h4 class="card-title">Negative</h4>
+                    <h2 class="mb-0" id="negative-feedback">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-star fa-2x mb-2"></i>
+                    <h4 class="card-title">Avg Rating</h4>
+                    <h2 class="mb-0" id="avg-rating">0.0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x mb-2"></i>
+                    <h4 class="card-title">Response Rate</h4>
+                    <h2 class="mb-0" id="response-rate">0%</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Filters and Search -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Filter Feedback</h5>
+                </div>
+                <div class="card-body">
+                    <form id="feedback-filters" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Date Range</label>
+                            <input type="date" class="form-control" name="start_date" id="start-date">
+                            <small class="text-muted">From</small>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <input type="date" class="form-control" name="end_date" id="end-date">
+                            <small class="text-muted">To</small>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Sentiment</label>
+                            <select class="form-control" name="sentiment" id="sentiment-filter">
+                                <option value="">All</option>
+                                <option value="positive">Positive</option>
+                                <option value="neutral">Neutral</option>
+                                <option value="negative">Negative</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Rating</label>
+                            <select class="form-control" name="rating" id="rating-filter">
+                                <option value="">All</option>
+                                <option value="5">5 Stars</option>
+                                <option value="4">4 Stars</option>
+                                <option value="3">3 Stars</option>
+                                <option value="2">2 Stars</option>
+                                <option value="1">1 Star</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Status</label>
+                            <select class="form-control" name="status" id="status-filter">
+                                <option value="">All</option>
+                                <option value="pending">Pending</option>
+                                <option value="acknowledged">Acknowledged</option>
+                                <option value="resolved">Resolved</option>
+                                <option value="escalated">Escalated</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Search</label>
+                            <input type="text" class="form-control" name="search" id="search-input" placeholder="Search feedback...">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="button" class="btn btn-primary w-100" onclick="applyFilters()">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="button" class="btn btn-secondary w-100" onclick="resetFilters()">
+                                <i class="fas fa-undo"></i> Reset
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Recent Feedback</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="changeView('list')">
+                            <i class="fas fa-list"></i>
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="changeView('grid')">
+                            <i class="fas fa-th"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="feedback-list">
+                        <div class="text-center py-5">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">Loading feedback...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <nav aria-label="Feedback pagination" class="mt-4">
+                        <ul class="pagination justify-content-center" id="feedback-pagination">
+                            <!-- Pagination will be populated by JavaScript -->
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sentiment Analysis Chart -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Sentiment Trends</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="sentiment-chart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Rating Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="rating-chart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Feedback Collection Modal -->
+<div class="modal fade" id="feedbackCollectionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Collect Customer Feedback</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="feedback-collection-form">
+                    <div class="mb-3">
+                        <label class="form-label">Collection Method</label>
+                        <select class="form-control" name="collection_method">
+                            <option value="email">Email Survey</option>
+                            <option value="sms">SMS Survey</option>
+                            <option value="in_app">In-App Survey</option>
+                            <option value="qr_code">QR Code Survey</option>
+                            <option value="tablet">Tablet Survey</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Target Audience</label>
+                        <select class="form-control" name="target_audience">
+                            <option value="all_customers">All Customers</option>
+                            <option value="recent_visitors">Recent Visitors (Last 7 days)</option>
+                            <option value="loyalty_members">Loyalty Members</option>
+                            <option value="new_customers">New Customers (First Visit)</option>
+                            <option value="high_value">High Value Customers</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Survey Questions</label>
+                        <div id="survey-questions">
+                            <div class="mb-2">
+                                <input type="text" class="form-control" name="questions[]" placeholder="Enter survey question...">
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addSurveyQuestion()">
+                            <i class="fas fa-plus"></i> Add Question
+                        </button>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Schedule</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="schedule" id="immediate" value="immediate" checked>
+                            <label class="form-check-label" for="immediate">Send Immediately</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="schedule" id="scheduled" value="scheduled">
+                            <label class="form-check-label" for="scheduled">Schedule for Later</label>
+                        </div>
+                        <input type="datetime-local" class="form-control mt-2" name="scheduled_time" id="scheduled-time" disabled>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="launchFeedbackCollection()">
+                    Launch Collection
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Feedback Response Modal -->
+<div class="modal fade" id="feedbackResponseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Respond to Feedback</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="feedback-details">
+                    <!-- Feedback details will be populated by JavaScript -->
+                </div>
+                <hr>
+                <form id="feedback-response-form">
+                    <div class="mb-3">
+                        <label class="form-label">Response Type</label>
+                        <select class="form-control" name="response_type">
+                            <option value="acknowledgment">Acknowledgment</option>
+                            <option value="apology">Apology</option>
+                            <option value="explanation">Explanation</option>
+                            <option value="resolution">Resolution</option>
+                            <option value="follow_up">Follow-up</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Response Message</label>
+                        <textarea class="form-control" name="response_message" rows="4" placeholder="Type your response..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Action Taken</label>
+                        <textarea class="form-control" name="action_taken" rows="2" placeholder="Describe actions taken..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Update Status</label>
+                        <select class="form-control" name="status">
+                            <option value="acknowledged">Acknowledged</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="escalated">Escalated</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitFeedbackResponse()">
+                    Send Response
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let sentimentChart = null;
+let ratingChart = null;
+let currentFeedbackId = null;
+let currentView = 'list';
+let currentPage = 1;
+let totalPages = 1;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadFeedbackDashboard();
+    initializeCharts();
+    
+    // Set default date range (last 30 days)
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+    
+    document.getElementById('start-date').value = thirtyDaysAgo.toISOString().split('T')[0];
+    document.getElementById('end-date').value = today.toISOString().split('T')[0];
+    
+    // Handle schedule radio button
+    document.getElementById('scheduled').addEventListener('change', function() {
+        document.getElementById('scheduled-time').disabled = !this.checked;
+    });
+    
+    document.getElementById('immediate').addEventListener('change', function() {
+        document.getElementById('scheduled-time').disabled = !this.checked;
+    });
+});
+
+function loadFeedbackDashboard() {
+    loadFeedbackStatistics();
+    loadFeedbackList();
+    loadSentimentTrends();
+    loadRatingDistribution();
+}
+
+function loadFeedbackStatistics() {
+    fetch('/api/customers/engagement/feedback/statistics', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        updateFeedbackStatistics(data);
+    })
+    .catch(error => {
+        console.error('Error loading feedback statistics:', error);
+    });
+}
+
+function updateFeedbackStatistics(data) {
+    document.getElementById('total-feedback').textContent = formatNumber(data.total_feedback || 0);
+    document.getElementById('positive-feedback').textContent = formatNumber(data.positive_feedback || 0);
+    document.getElementById('neutral-feedback').textContent = formatNumber(data.neutral_feedback || 0);
+    document.getElementById('negative-feedback').textContent = formatNumber(data.negative_feedback || 0);
+    document.getElementById('avg-rating').textContent = (data.average_rating || 0).toFixed(1);
+    document.getElementById('response-rate').textContent = (data.response_rate || 0) + '%';
+}
+
+function loadFeedbackList(page = 1) {
+    const filters = getFilterValues();
+    
+    fetch('/api/customers/engagement/feedback?' + new URLSearchParams({
+        page: page,
+        per_page: 20,
+        ...filters
+    }), {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderFeedbackList(data.feedback || []);
+        updatePagination(data.pagination || {});
+    })
+    .catch(error => {
+        console.error('Error loading feedback list:', error);
+        document.getElementById('feedback-list').innerHTML = '<div class="text-center text-muted">Error loading feedback</div>';
+    });
+}
+
+function renderFeedbackList(feedback) {
+    const container = document.getElementById('feedback-list');
+    
+    if (feedback.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-5">No feedback found</div>';
+        return;
+    }
+    
+    if (currentView === 'list') {
+        renderListView(feedback);
+    } else {
+        renderGridView(feedback);
+    }
+}
+
+function renderListView(feedback) {
+    const container = document.getElementById('feedback-list');
+    
+    const html = feedback.map(item => {
+        const sentimentClass = getSentimentClass(item.sentiment);
+        const statusClass = getStatusClass(item.status);
+        const stars = renderStars(item.rating);
+        
+        return `
+            <div class="feedback-item border-bottom mb-3 pb-3">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="d-flex align-items-start">
+                            <div class="me-3">
+                                <div class="feedback-avatar bg-light rounded-circle p-2">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between">
+                                    <h6 class="mb-1">${item.customer_name || 'Anonymous'}</h6>
+                                    <small class="text-muted">${new Date(item.created_at).toLocaleString()}</small>
+                                </div>
+                                <div class="mb-2">
+                                    ${stars}
+                                    <span class="badge bg-${sentimentClass} ms-2">${item.sentiment}</span>
+                                    <span class="badge bg-${statusClass} ms-1">${item.status}</span>
+                                </div>
+                                <p class="mb-2">${item.feedback_text}</p>
+                                ${item.order_id ? `<small class="text-muted">Order #${item.order_id}</small>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewFeedbackDetails(${item.id})">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" onclick="respondToFeedback(${item.id})">
+                                <i class="fas fa-reply"></i> Respond
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="escalateFeedback(${item.id})">
+                                <i class="fas fa-exclamation-triangle"></i> Escalate
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = html;
+}
+
+function renderGridView(feedback) {
+    const container = document.getElementById('feedback-list');
+    
+    const html = feedback.map(item => {
+        const sentimentClass = getSentimentClass(item.sentiment);
+        const statusClass = getStatusClass(item.status);
+        const stars = renderStars(item.rating);
+        
+        return `
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <h6 class="card-title mb-0">${item.customer_name || 'Anonymous'}</h6>
+                            <span class="badge bg-${sentimentClass}">${item.sentiment}</span>
+                        </div>
+                        <div class="mb-2">
+                            ${stars}
+                            <span class="badge bg-${statusClass} ms-2">${item.status}</span>
+                        </div>
+                        <p class="card-text text-truncate" title="${item.feedback_text}">${item.feedback_text}</p>
+                        <small class="text-muted">${new Date(item.created_at).toLocaleDateString()}</small>
+                    </div>
+                    <div class="card-footer">
+                        <div class="btn-group w-100">
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewFeedbackDetails(${item.id})">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-success" onclick="respondToFeedback(${item.id})">
+                                <i class="fas fa-reply"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="escalateFeedback(${item.id})">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = `<div class="row">${html}</div>`;
+}
+
+function renderStars(rating) {
+    if (!rating) return '';
+    
+    let stars = '';
+    for (let i = 1; i <= 5; i++) {
+        if (i <= rating) {
+            stars += '<i class="fas fa-star text-warning"></i>';
+        } else {
+            stars += '<i class="far fa-star text-warning"></i>';
+        }
+    }
+    return stars;
+}
+
+function getSentimentClass(sentiment) {
+    const classes = {
+        'positive': 'success',
+        'neutral': 'warning',
+        'negative': 'danger'
+    };
+    return classes[sentiment] || 'secondary';
+}
+
+function getStatusClass(status) {
+    const classes = {
+        'pending': 'warning',
+        'acknowledged': 'info',
+        'resolved': 'success',
+        'escalated': 'danger'
+    };
+    return classes[status] || 'secondary';
+}
+
+function updatePagination(pagination) {
+    currentPage = pagination.current_page || 1;
+    totalPages = pagination.total_pages || 1;
+    
+    const paginationContainer = document.getElementById('feedback-pagination');
+    
+    if (totalPages <= 1) {
+        paginationContainer.innerHTML = '';
+        return;
+    }
+    
+    let paginationHtml = '';
+    
+    // Previous button
+    paginationHtml += `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="loadFeedbackList(${currentPage - 1})">Previous</a>
+        </li>
+    `;
+    
+    // Page numbers
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+            paginationHtml += `
+                <li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="loadFeedbackList(${i})">${i}</a>
+                </li>
+            `;
+        } else if (i === currentPage - 3 || i === currentPage + 3) {
+            paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+    }
+    
+    // Next button
+    paginationHtml += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="loadFeedbackList(${currentPage + 1})">Next</a>
+        </li>
+    `;
+    
+    paginationContainer.innerHTML = paginationHtml;
+}
+
+function initializeCharts() {
+    renderSentimentChart();
+    renderRatingChart();
+}
+
+function renderSentimentChart() {
+    const ctx = document.getElementById('sentiment-chart').getContext('2d');
+    
+    if (sentimentChart) {
+        sentimentChart.destroy();
+    }
+    
+    // Sample data - would come from API
+    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const positive = [45, 52, 48, 58, 62, 55];
+    const neutral = [20, 18, 22, 19, 17, 21];
+    const negative = [10, 8, 12, 9, 7, 11];
+    
+    sentimentChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Positive',
+                data: positive,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                fill: true
+            }, {
+                label: 'Neutral',
+                data: neutral,
+                borderColor: '#ffc107',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                fill: true
+            }, {
+                label: 'Negative',
+                data: negative,
+                borderColor: '#dc3545',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function renderRatingChart() {
+    const ctx = document.getElementById('rating-chart').getContext('2d');
+    
+    if (ratingChart) {
+        ratingChart.destroy();
+    }
+    
+    // Sample data - would come from API
+    const labels = ['5 Stars', '4 Stars', '3 Stars', '2 Stars', '1 Star'];
+    const data = [120, 85, 45, 20, 10];
+    
+    ratingChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: [
+                    '#28a745',
+                    '#6c757d',
+                    '#ffc107',
+                    '#fd7e14',
+                    '#dc3545'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+function loadSentimentTrends() {
+    // This would load actual sentiment trend data from API
+    // For now, using sample data in renderSentimentChart
+}
+
+function loadRatingDistribution() {
+    // This would load actual rating distribution data from API
+    // For now, using sample data in renderRatingChart
+}
+
+function getFilterValues() {
+    const filters = {};
+    
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    const sentiment = document.getElementById('sentiment-filter').value;
+    const rating = document.getElementById('rating-filter').value;
+    const status = document.getElementById('status-filter').value;
+    const search = document.getElementById('search-input').value;
+    
+    if (startDate) filters.start_date = startDate;
+    if (endDate) filters.end_date = endDate;
+    if (sentiment) filters.sentiment = sentiment;
+    if (rating) filters.rating = rating;
+    if (status) filters.status = status;
+    if (search) filters.search = search;
+    
+    return filters;
+}
+
+function applyFilters() {
+    currentPage = 1;
+    loadFeedbackList();
+}
+
+function resetFilters() {
+    document.getElementById('feedback-filters').reset();
+    
+    // Reset to default date range
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+    
+    document.getElementById('start-date').value = thirtyDaysAgo.toISOString().split('T')[0];
+    document.getElementById('end-date').value = today.toISOString().split('T')[0];
+    
+    currentPage = 1;
+    loadFeedbackList();
+}
+
+function changeView(view) {
+    currentView = view;
+    loadFeedbackList(currentPage);
+}
+
+function openFeedbackCollectionModal() {
+    const modal = new bootstrap.Modal(document.getElementById('feedbackCollectionModal'));
+    modal.show();
+}
+
+function addSurveyQuestion() {
+    const container = document.getElementById('survey-questions');
+    const questionDiv = document.createElement('div');
+    questionDiv.className = 'mb-2';
+    questionDiv.innerHTML = `
+        <div class="d-flex">
+            <input type="text" class="form-control" name="questions[]" placeholder="Enter survey question...">
+            <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="this.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(questionDiv);
+}
+
+function launchFeedbackCollection() {
+    const form = document.getElementById('feedback-collection-form');
+    const formData = new FormData(form);
+    
+    const collectionData = {
+        collection_method: formData.get('collection_method'),
+        target_audience: formData.get('target_audience'),
+        questions: formData.getAll('questions[]').filter(q => q.trim() !== ''),
+        schedule: formData.get('schedule'),
+        scheduled_time: formData.get('scheduled_time')
+    };
+    
+    fetch('/api/customers/engagement/feedback/collect', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        },
+        body: JSON.stringify(collectionData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Feedback collection launched successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('feedbackCollectionModal')).hide();
+            form.reset();
+        } else {
+            showAlert(data.error || 'Error launching feedback collection', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error launching feedback collection:', error);
+        showAlert('Error launching feedback collection', 'danger');
+    });
+}
+
+function viewFeedbackDetails(feedbackId) {
+    fetch('/api/customers/engagement/feedback/' + feedbackId, {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayFeedbackDetails(data.feedback);
+        } else {
+            showAlert('Error loading feedback details', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading feedback details:', error);
+        showAlert('Error loading feedback details', 'danger');
+    });
+}
+
+function displayFeedbackDetails(feedback) {
+    const detailsContainer = document.getElementById('feedback-details');
+    
+    detailsContainer.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <strong>Customer:</strong> ${feedback.customer_name || 'Anonymous'}<br>
+                <strong>Date:</strong> ${new Date(feedback.created_at).toLocaleString()}<br>
+                <strong>Rating:</strong> ${renderStars(feedback.rating)}<br>
+                <strong>Sentiment:</strong> <span class="badge bg-${getSentimentClass(feedback.sentiment)}">${feedback.sentiment}</span>
+            </div>
+            <div class="col-md-6">
+                <strong>Status:</strong> <span class="badge bg-${getStatusClass(feedback.status)}">${feedback.status}</span><br>
+                <strong>Order:</strong> ${feedback.order_id || 'N/A'}<br>
+                <strong>Feedback Type:</strong> ${feedback.feedback_type || 'General'}<br>
+                <strong>Source:</strong> ${feedback.source || 'Manual'}
+            </div>
+        </div>
+        <hr>
+        <div class="mt-3">
+            <strong>Feedback:</strong>
+            <p class="mt-2">${feedback.feedback_text}</p>
+        </div>
+        ${feedback.response_text ? `
+            <div class="mt-3">
+                <strong>Previous Response:</strong>
+                <p class="mt-2">${feedback.response_text}</p>
+            </div>
+        ` : ''}
+    `;
+    
+    currentFeedbackId = feedback.id;
+    
+    const modal = new bootstrap.Modal(document.getElementById('feedbackResponseModal'));
+    modal.show();
+}
+
+function respondToFeedback(feedbackId) {
+    viewFeedbackDetails(feedbackId);
+}
+
+function submitFeedbackResponse() {
+    const form = document.getElementById('feedback-response-form');
+    const formData = new FormData(form);
+    
+    const responseData = {
+        feedback_id: currentFeedbackId,
+        response_type: formData.get('response_type'),
+        response_message: formData.get('response_message'),
+        action_taken: formData.get('action_taken'),
+        status: formData.get('status')
+    };
+    
+    fetch('/api/customers/engagement/feedback/respond', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        },
+        body: JSON.stringify(responseData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Response sent successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('feedbackResponseModal')).hide();
+            loadFeedbackList();
+            loadFeedbackStatistics();
+        } else {
+            showAlert(data.error || 'Error sending response', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error sending response:', error);
+        showAlert('Error sending response', 'danger');
+    });
+}
+
+function escalateFeedback(feedbackId) {
+    if (confirm('Are you sure you want to escalate this feedback?')) {
+        fetch('/api/customers/engagement/feedback/' + feedbackId + '/escalate', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('Feedback escalated successfully!', 'success');
+                loadFeedbackList();
+                loadFeedbackStatistics();
+            } else {
+                showAlert(data.error || 'Error escalating feedback', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error escalating feedback:', error);
+            showAlert('Error escalating feedback', 'danger');
+        });
+    }
+}
+
+function exportFeedbackData() {
+    const filters = getFilterValues();
+    
+    fetch('/api/customers/engagement/feedback/export?' + new URLSearchParams(filters), {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.blob();
+        } else {
+            throw new Error('Export failed');
+        }
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `feedback_export_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showAlert('Feedback data exported successfully!', 'success');
+    })
+    .catch(error => {
+        console.error('Error exporting feedback data:', error);
+        showAlert('Error exporting feedback data', 'danger');
+    });
+}
+
+function refreshFeedbackData() {
+    loadFeedbackDashboard();
+    showAlert('Feedback data refreshed!', 'info');
+}
+
+function formatNumber(num) {
+    return new Intl.NumberFormat().format(num);
+}
+
+function showAlert(message, type) {
+    // Implementation depends on your alert system
+    console.log(`${type}: ${message}`);
+}
+</script>
+
+<style>
+.feedback-avatar {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.feedback-item:hover {
+    background-color: #f8f9fa;
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}

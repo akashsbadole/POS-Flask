@@ -1,0 +1,348 @@
+{% extends "waste_to_profit/base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Staff Training & Engagement</h1>
+        <div class="flex space-x-2">
+            <a href="{{ url_for('waste_to_profit.create_training_module') }}" class="btn-success">Create Training</a>
+            <a href="{{ url_for('waste_to_profit.challenges') }}" class="btn-primary">Challenges</a>
+            <a href="{{ url_for('waste_to_profit.training_analytics') }}" class="btn-secondary">Analytics</a>
+        </div>
+    </div>
+
+    <!-- Training Overview Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-blue-600">{{ modules|length }}</div>
+                    <div class="metric-label">Training Modules</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-green-600" id="completed-count">0</div>
+                    <div class="metric-label">Completed</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-yellow-600" id="in-progress-count">0</div>
+                    <div class="metric-label">In Progress</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-purple-600" id="engagement-score">0%</div>
+                    <div class="metric-label">Engagement Score</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="card mb-6">
+        <div class="card-header">
+            <h3 class="card-title">Filters</h3>
+        </div>
+        <div class="card-body">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="form-group">
+                    <label class="form-label">Search</label>
+                    <input type="text" id="search-input" class="form-input" placeholder="Search modules..." onkeyup="filterTable()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Type</label>
+                    <select id="type-filter" class="form-select" onchange="filterTable()">
+                        <option value="">All Types</option>
+                        <option value="waste_reduction">Waste Reduction</option>
+                        <option value="sustainability">Sustainability</option>
+                        <option value="food_safety">Food Safety</option>
+                        <option value="inventory_management">Inventory Management</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Difficulty</label>
+                    <select id="difficulty-filter" class="form-select" onchange="filterTable()">
+                        <option value="">All Levels</option>
+                        <option value="beginner">Beginner</option>
+                        <option value="intermediate">Intermediate</option>
+                        <option value="advanced">Advanced</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select id="status-filter" class="form-select" onchange="filterTable()">
+                        <option value="">All Status</option>
+                        <option value="not_started">Not Started</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Training Modules Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6" id="training-modules-grid">
+        {% for module in modules %}
+        <div class="card training-module" data-type="{{ module.training_type }}" data-difficulty="{{ module.difficulty_level }}" data-status="{{ module.user_status or 'not_started' }}">
+            <div class="card-header">
+                <div class="flex justify-between items-start">
+                    <h3 class="card-title">{{ module.title }}</h3>
+                    {% if module.is_mandatory %}
+                    <span class="badge badge-danger">Mandatory</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <p class="text-sm text-gray-600 mb-4">{{ module.description[:100] }}{% if module.description|length > 100 %}...{% endif %}</p>
+                
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-2">
+                        <span class="badge badge-{{ 'success' if module.difficulty_level == 'beginner' else 'warning' if module.difficulty_level == 'intermediate' else 'danger' }}">
+                            {{ module.difficulty_level.title() }}
+                        </span>
+                        <span class="badge badge-info">{{ module.duration_minutes }} min</span>
+                    </div>
+                </div>
+
+                {% if module.user_status %}
+                <div class="mb-4">
+                    <div class="flex justify-between mb-1">
+                        <span class="text-sm font-medium">Progress</span>
+                        <span class="text-sm text-gray-600">{{ module.user_progress or 0 }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill bg-blue-600" style="width: {{ module.user_progress or 0 }}%"></div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="flex space-x-2">
+                    {% if not module.user_status or module.user_status == 'not_started' %}
+                    <button class="btn-primary btn-sm flex-1" onclick="startTraining({{ module.id }})">Start Training</button>
+                    {% elif module.user_status == 'in_progress' %}
+                    <button class="btn-success btn-sm flex-1" onclick="continueTraining({{ module.id }})">Continue</button>
+                    {% else %}
+                    <button class="btn-secondary btn-sm flex-1" onclick="reviewTraining({{ module.id }})">Review</button>
+                    {% endif %}
+                    <button class="btn-secondary btn-sm" onclick="viewDetails({{ module.id }})">Details</button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Active Challenges -->
+    <div class="card mb-6">
+        <div class="card-header">
+            <h3 class="card-title">Active Challenges</h3>
+            <a href="{{ url_for('waste_to_profit.challenges') }}" class="btn-primary btn-sm">View All</a>
+        </div>
+        <div class="card-body">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="border rounded-lg p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-medium">Waste Reduction Challenge</h4>
+                        <span class="badge badge-success">Active</span>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-3">Reduce food waste by 20% this month</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-500">15 participants</span>
+                        <span class="text-sm font-medium">5 days left</span>
+                    </div>
+                </div>
+                
+                <div class="border rounded-lg p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-medium">Sustainability Hero</h4>
+                        <span class="badge badge-warning">Ending Soon</span>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-3">Complete all sustainability training modules</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-500">8 participants</span>
+                        <span class="text-sm font-medium">2 days left</span>
+                    </div>
+                </div>
+                
+                <div class="border rounded-lg p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-medium">Zero Waste Week</h4>
+                        <span class="badge badge-info">Upcoming</span>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-3">Achieve zero waste for 7 consecutive days</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-500">0 participants</span>
+                        <span class="text-sm font-medium">Starts in 3 days</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Training Leaderboard</h3>
+            <a href="{{ url_for('waste_to_profit.challenge_leaderboard') }}" class="btn-primary btn-sm">Full Leaderboard</a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="waste-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Employee</th>
+                            <th>Modules Completed</th>
+                            <th>Average Score</th>
+                            <th>Points</th>
+                            <th>Badges</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="font-medium">1</td>
+                            <td class="font-medium">John Smith</td>
+                            <td>12</td>
+                            <td>95%</td>
+                            <td class="font-medium">1,250</td>
+                            <td>
+                                <div class="flex space-x-1">
+                                    <span class="text-yellow-500" title="Gold Star">⭐</span>
+                                    <span class="text-gray-400" title="Silver Star">⭐</span>
+                                    <span class="text-orange-600" title="Bronze Star">⭐</span>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="font-medium">2</td>
+                            <td class="font-medium">Sarah Johnson</td>
+                            <td>10</td>
+                            <td>92%</td>
+                            <td class="font-medium">1,100</td>
+                            <td>
+                                <div class="flex space-x-1">
+                                    <span class="text-gray-400" title="Silver Star">⭐</span>
+                                    <span class="text-orange-600" title="Bronze Star">⭐</span>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="font-medium">3</td>
+                            <td class="font-medium">Mike Davis</td>
+                            <td>9</td>
+                            <td>88%</td>
+                            <td class="font-medium">950</td>
+                            <td>
+                                <div class="flex space-x-1">
+                                    <span class="text-orange-600" title="Bronze Star">⭐</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    updateTrainingStats();
+});
+
+function updateTrainingStats() {
+    const modules = document.querySelectorAll('.training-module');
+    let completedCount = 0, inProgressCount = 0, totalEngagement = 0;
+
+    modules.forEach(module => {
+        const status = module.dataset.status;
+        if (status === 'completed') completedCount++;
+        else if (status === 'in_progress') inProgressCount++;
+        
+        // Calculate engagement based on progress
+        const progressBar = module.querySelector('.progress-fill');
+        if (progressBar) {
+            totalEngagement += parseInt(progressBar.style.width) || 0;
+        }
+    });
+
+    const avgEngagement = modules.length > 0 ? Math.round(totalEngagement / modules.length) : 0;
+
+    document.getElementById('completed-count').textContent = completedCount;
+    document.getElementById('in-progress-count').textContent = inProgressCount;
+    document.getElementById('engagement-score').textContent = avgEngagement + '%';
+}
+
+function filterTable() {
+    const searchInput = document.getElementById('search-input').value.toLowerCase();
+    const typeFilter = document.getElementById('type-filter').value;
+    const difficultyFilter = document.getElementById('difficulty-filter').value;
+    const statusFilter = document.getElementById('status-filter').value;
+    
+    const modules = document.querySelectorAll('.training-module');
+    
+    modules.forEach(module => {
+        const text = module.textContent.toLowerCase();
+        const type = module.dataset.type;
+        const difficulty = module.dataset.difficulty;
+        const status = module.dataset.status;
+        
+        const matchesSearch = text.includes(searchInput);
+        const matchesType = !typeFilter || type === typeFilter;
+        const matchesDifficulty = !difficultyFilter || difficulty === difficultyFilter;
+        const matchesStatus = !statusFilter || status === statusFilter;
+        
+        module.style.display = matchesSearch && matchesType && matchesDifficulty && matchesStatus ? '' : 'none';
+    });
+}
+
+function startTraining(moduleId) {
+    window.location.href = `/waste-to-profit/training/${moduleId}/start`;
+}
+
+function continueTraining(moduleId) {
+    window.location.href = `/waste-to-profit/training/${moduleId}/continue`;
+}
+
+function reviewTraining(moduleId) {
+    window.location.href = `/waste-to-profit/training/${moduleId}/review`;
+}
+
+function viewDetails(moduleId) {
+    window.location.href = `/waste-to-profit/training/${moduleId}`;
+}
+</script>
+{% endblock %}

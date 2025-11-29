@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app.inventory import bp
 from app.models.inventory import Ingredient, StockAdjustment, MenuItemIngredient
 from app.models.menu import MenuItem
-from app.notifications.service import notification_service
+# from app.notifications.service import notification_service  # Temporarily disabled to fix app context issues
 from app import db
 from datetime import datetime
 
@@ -151,13 +151,14 @@ def adjust_stock(ingredient_id):
         # Check if this adjustment created a low stock situation
         if ingredient.is_low_stock():
             try:
-                notification_service.send_low_stock_alert(
-                    ingredient,
-                    float(ingredient.current_stock),
-                    float(ingredient.minimum_stock)
-                )
+                # notification_service.send_low_stock_alert(  # Temporarily disabled
+                #     ingredient,
+                #     float(ingredient.current_stock),
+                #     float(ingredient.minimum_stock)
+                # )
+                print(f"Low stock alert for {ingredient.name}: {ingredient.current_stock} (min: {ingredient.minimum_stock})")
             except Exception as e:
-                # Log error but don't fail the adjustment
+                # Log error but don't fail adjustment
                 print(f"Error sending low stock alert: {e}")
         
         flash(f'Stock adjusted for "{ingredient.name}": {quantity:+.3f} {ingredient.unit}', 'success')

@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Model Management - Restaurant POS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        [x-cloak] { display: none !important; }
+        .model-card {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .model-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .model-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+        .model-card.upselling::before { background: linear-gradient(90deg, #10b981 0%, #059669 100%); }
+        .model-card.pricing::before { background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%); }
+        .model-card.analytics::before { background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%); }
+        .model-card.customer::before { background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%); }
+        .model-card.inventory::before { background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); }
+        
+        .status-badge {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        .status-active { background-color: #10b981; }
+        .status-inactive { background-color: #6b7280; }
+        .status-training { background-color: #f59e0b; animation: pulse 2s infinite; }
+        .status-error { background-color: #ef4444; }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .progress-bar {
+            transition: width 0.3s ease;
+        }
+        
+        .loading-skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50" x-data="modelManagement()">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-cogs text-2xl text-indigo-600 mr-3"></i>
+                    <h1 class="text-xl font-semibold text-gray-900">AI Model Management</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button @click="showTrainingModal = true" 
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                        <i class="fas fa-plus mr-2"></i>Train New Model
+                    </button>
+                    <button @click="refreshModels()" 
+                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                        <i class="fas fa-sync-alt mr-2" :class="{'fa-spin': loading}"></i>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Filter Bar -->
+    <div class="bg-white border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center space-x-4">
+                <div class="flex-1">
+                    <div class="relative">
+                        <input type="text" x-model="searchTerm" @input="filterModels()"
+                               placeholder="Search models..." 
+                               class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    </div>
+                </div>
+                <select x-model="typeFilter" @change="filterModels()"
+                        class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">All Types</option>
+                    <option value="upselling">Upselling</option>
+                    <option value="dynamic_pricing">Dynamic Pricing</option>
+                    <option value="predictive_analytics">Predictive Analytics</option>
+                    <option value="customer_intelligence">Customer Intelligence</option>
+                    <option value="inventory_intelligence">Inventory Intelligence</option>
+                </select>
+                <select x-model="statusFilter" @change="filterModels()"
+                        class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="training">Training</option>
+                    <option value="error">Error</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Models Grid -->
+        <div x-show="!loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <template x-for="model in filteredModels" :key="model.id">
+                <div class="model-card bg-white border rounded-lg p-6 shadow-sm"
+                     :class="model.type">
+                    <div class="status-badge" :class="getStatusClass(model.status)"></div>
+                    
+                    <div class="mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2" x-text="model.name"></h3>
+                        <p class="text-sm text-gray-600" x-text="model.description"></p>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-500">Type:</span>
+                            <span class="font-medium capitalize" x-text="model.type.replace('_', ' ')"></span>
+                        </div>
+                        
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-500">Algorithm:</span>
+                            <span class="font-medium" x-text="model.algorithm"></span>
+                        </div>
+                        
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-500">Version:</span>
+                            <span class="font-medium" x-text="model.version"></span>
+                        </div>
+                        
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-500">Status:</span>
+                            <span class="font-medium capitalize" x-text="model.status"></span>
+                        </div>
+                        
+                        <!-- Performance Metrics -->
+                        <div x-show="model.performance_metrics" class="pt-3 border-t border-gray-200">
+                            <h4 class="text-sm font-medium text-gray-900 mb-2">Performance</h4>
+                            <div class="space-y-2">
+                                <template x-for="(value, metric) in model.performance_metrics" :key="metric">
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-gray-600 capitalize" x-text="metric.replace('_', ' ')"></span>
+                                        <span class="font-medium" x-text="typeof value === 'number' ? value.toFixed(3) : value"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        
+                        <!-- Training Progress -->
+                        <div x-show="model.status === 'training'" class="pt-3 border-t border-gray-200">
+                            <h4 class="text-sm font-medium text-gray-900 mb-2">Training Progress</h4>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="progress-bar bg-indigo-600 h-2 rounded-full"
+                                     :style="`width: ${model.training_progress || 0}%`"></div>
+                            </div>
+                            <div class="flex justify-between text-xs mt-1">
+                                <span class="text-gray-600">Progress</span>
+                                <span x-text="(model.training_progress || 0) + '%'"></span>
+                            </div>
+                        </div>
+                        
+                        <!-- Last Updated -->
+                        <div class="flex items-center justify-between text-sm pt-3 border-t border-gray-200">
+                            <span class="text-gray-500">Last Updated:</span>
+                            <span class="font-medium" x-text="formatDate(model.last_updated)"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 pt-4 border-t border-gray-200 flex justify-between">
+                        <div class="space-x-2">
+                            <button @click="viewModelDetails(model)"
+                                    class="text-indigo-600 hover:text-indigo-800 text-sm">
+                                <i class="fas fa-chart-line mr-1"></i>Analytics
+                            </button>
+                            <button @click="viewModelHistory(model)"
+                                    class="text-gray-600 hover:text-gray-800 text-sm">
+                                <i class="fas fa-history mr-1"></i>History
+                            </button>
+                        </div>
+                        <div class="space-x-2">
+                            <button @click="evaluateModel(model)"
+                                    :disabled="model.status === 'training'"
+                                    class="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm disabled:opacity-50">
+                                <i class="fas fa-vial"></i>
+                            </button>
+                            <button @click="retrainModel(model)"
+                                    :disabled="model.status === 'training'"
+                                    class="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm disabled:opacity-50">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                            <button @click="toggleModel(model)"
+                                    class="px-3 py-1 rounded text-sm"
+                                    :class="model.is_active ? 'bg-red-100 text-red-700 hover:bg-red-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'">
+                                <i :class="model.is_active ? 'fas fa-pause' : 'fas fa-play'"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Loading State -->
+        <div x-show="loading" class="space-y-6">
+            <template x-for="i in 6" :key="i">
+                <div class="loading-skeleton h-64 rounded-lg"></div>
+            </template>
+        </div>
+
+        <!-- Empty State -->
+        <div x-show="filteredModels.length === 0 && !loading" 
+             class="text-center py-12">
+            <i class="fas fa-robot text-6xl text-gray-300 mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No models found</h3>
+            <p class="text-gray-500">Try adjusting your search or filter criteria, or train a new model.</p>
+        </div>
+    </div>
+
+    <!-- Model Details Modal -->
+    <div x-show="showDetailsModal" x-cloak
+         class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+         @click.self="showDetailsModal = false">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-4/5 lg:w-3/4 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900" x-text="selectedModel?.name"></h3>
+                    <button @click="showDetailsModal = false" 
+                            class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div x-show="selectedModel" class="space-y-6">
+                    <!-- Model Info -->
+                    <div class="grid grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-medium text-gray-900 mb-3">Model Information</h4>
+                            <div class="space-y-2">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Type:</span>
+                                    <span class="font-medium capitalize" x-text="selectedModel.type"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Algorithm:</span>
+                                    <span class="font-medium" x-text="selectedModel.algorithm"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Version:</span>
+                                    <span class="font-medium" x-text="selectedModel.version"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Status:</span>
+                                    <span class="font-medium capitalize" x-text="selectedModel.status"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-medium text-gray-900 mb-3">Training Information</h4>
+                            <div class="space-y-2">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Last Trained:</span>
+                                    <span class="font-medium" x-text="formatDate(selectedModel.last_trained_at)"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Training Time:</span>
+                                    <span class="font-medium" x-text="selectedModel.training_duration || 'N/A'"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Dataset Size:</span>
+                                    <span class="font-medium" x-text="selectedModel.dataset_size || 'N/A'"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Training Cost:</span>
+                                    <span class="font-medium" x-text="selectedModel.training_cost || 'N/A'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Performance Chart -->
+                    <div>
+                        <h4 class="font-medium text-gray-900 mb-3">Performance Over Time</h4>
+                        <div class="h-64">
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Performance Metrics -->
+                    <div>
+                        <h4 class="font-medium text-gray-900 mb-3">Detailed Metrics</h4>
+                        <div class="metric-grid">
+                            <template x-for="(value, metric) in selectedModel.performance_metrics" :key="metric">
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <div class="text-sm text-gray-600 capitalize mb-1" x-text="metric.replace('_', ' ')"></div>
+                                    <div class="text-xl font-semibold text-gray-900" x-text="typeof value === 'number' ? value.toFixed(3) : value"></div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button @click="showDetailsModal = false"
+                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">
+                        Close
+                    </button>
+                    <button @click="downloadModel(selectedModel)"
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">
+                        <i class="fas fa-download mr-2"></i>Download Model
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Training Modal -->
+    <div x-show="showTrainingModal" x-cloak
+         class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+         @click.self="showTrainingModal = false">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Train New Model</h3>
+                    <button @click="showTrainingModal = false" 
+                            class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <form @submit.prevent="startTraining()">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Model Type</label>
+                            <select x-model="trainingConfig.type" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="">Select Model Type</option>
+                                <option value="upselling">Upselling</option>
+                                <option value="dynamic_pricing">Dynamic Pricing</option>
+                                <option value="predictive_analytics">Predictive Analytics</option>
+                                <option value="customer_intelligence">Customer Intelligence</option>
+                                <option value="inventory_intelligence">Inventory Intelligence</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Algorithm</label>
+                            <select x-model="trainingConfig.algorithm" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="">Select Algorithm</option>
+                                <option value="random_forest">Random Forest</option>
+                                <option value="gradient_boosting">Gradient Boosting</option>
+                                <option value="neural_network">Neural Network</option>
+                                <option value="arima">ARIMA</option>
+                                <option value="collaborative_filtering">Collaborative Filtering</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Training Parameters</label>
+                            <div class="space-y-2">
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Max Iterations</label>
+                                    <input type="number" x-model="trainingConfig.max_iterations" 
+                                           value="100" min="10" max="1000"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Learning Rate</label>
+                                    <input type="number" x-model="trainingConfig.learning_rate" 
+                                           value="0.01" min="0.001" max="1" step="0.001"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Validation Split</label>
+                                    <input type="number" x-model="trainingConfig.validation_split" 
+                                           value="0.2" min="0.1" max="0.5" step="0.05"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                            <textarea x-model="trainingConfig.description" rows="3"
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
+                                      placeholder="Describe the purpose of this model..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 flex justify-end space-x-3">
+                        <button @click="showTrainingModal = false"
+                                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" :disabled="training"
+                                class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50">
+                            <i class="fas fa-play mr-2" :class="{'fa-spin fa-spinner': training}"></i>
+                            Start Training
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function modelManagement() {
+            return {
+                loading: false,
+                showDetailsModal: false,
+                showTrainingModal: false,
+                searchTerm: '',
+                typeFilter: '',
+                statusFilter: '',
+                models: [],
+                filteredModels: [],
+                selectedModel: null,
+                training: false,
+                trainingConfig: {
+                    type: '',
+                    algorithm: '',
+                    max_iterations: 100,
+                    learning_rate: 0.01,
+                    validation_split: 0.2,
+                    description: ''
+                },
+                performanceChart: null,
+                
+                init() {
+                    this.loadModels();
+                    this.startRealTimeUpdates();
+                },
+                
+                async loadModels() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/ai/models');
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.models = data.models;
+                            this.filteredModels = [...this.models];
+                        }
+                    } catch (error) {
+                        console.error('Error loading models:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                filterModels() {
+                    let filtered = [...this.models];
+                    
+                    // Search filter
+                    if (this.searchTerm) {
+                        const search = this.searchTerm.toLowerCase();
+                        filtered = filtered.filter(model => 
+                            model.name.toLowerCase().includes(search) ||
+                            model.description.toLowerCase().includes(search) ||
+                            model.algorithm.toLowerCase().includes(search)
+                        );
+                    }
+                    
+                    // Type filter
+                    if (this.typeFilter) {
+                        filtered = filtered.filter(model => model.type === this.typeFilter);
+                    }
+                    
+                    // Status filter
+                    if (this.statusFilter) {
+                        filtered = filtered.filter(model => model.status === this.statusFilter);
+                    }
+                    
+                    this.filteredModels = filtered;
+                },
+                
+                async refreshModels() {
+                    await this.loadModels();
+                },
+                
+                async toggleModel(model) {
+                    try {
+                        const response = await fetch(`/ai/models/${model.id}/toggle`, {
+                            method: 'POST'
+                        });
+                        
+                        if (response.ok) {
+                            model.is_active = !model.is_active;
+                            model.status = model.is_active ? 'active' : 'inactive';
+                            this.showNotification(
+                                model.is_active ? 'Model activated' : 'Model deactivated',
+                                'success'
+                            );
+                        }
+                    } catch (error) {
+                        console.error('Error toggling model:', error);
+                    }
+                },
+                
+                async evaluateModel(model) {
+                    try {
+                        this.showNotification('Starting model evaluation...', 'info');
+                        
+                        const response = await fetch(`/ai/models/${model.id}/evaluate`, {
+                            method: 'POST'
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            model.performance_metrics = data.evaluation_results;
+                            model.last_evaluated_at = new Date().toISOString();
+                            this.showNotification('Model evaluation completed', 'success');
+                        }
+                    } catch (error) {
+                        console.error('Error evaluating model:', error);
+                        this.showNotification('Error evaluating model', 'error');
+                    }
+                },
+                
+                async retrainModel(model) {
+                    if (!confirm(`Retrain model ${model.name}? This may take several minutes.`)) {
+                        return;
+                    }
+                    
+                    try {
+                        this.showNotification('Starting model retraining...', 'info');
+                        
+                        const response = await fetch(`/ai/models/${model.id}/train`, {
+                            method: 'POST'
+                        });
+                        
+                        if (response.ok) {
+                            model.status = 'training';
+                            model.training_progress = 0;
+                            this.showNotification('Model retraining started', 'success');
+                        }
+                    } catch (error) {
+                        console.error('Error retraining model:', error);
+                        this.showNotification('Error retraining model', 'error');
+                    }
+                },
+                
+                async startTraining() {
+                    this.training = true;
+                    try {
+                        const response = await fetch('/ai/models/train', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(this.trainingConfig)
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            this.showTrainingModal = false;
+                            this.showNotification('Model training started', 'success');
+                            
+                            // Add new model to list with training status
+                            const newModel = {
+                                id: data.training_job_id,
+                                name: this.trainingConfig.description || 'New Model',
+                                type: this.trainingConfig.type,
+                                algorithm: this.trainingConfig.algorithm,
+                                version: '1.0.0',
+                                status: 'training',
+                                training_progress: 0,
+                                created_at: new Date().toISOString()
+                            };
+                            
+                            this.models.unshift(newModel);
+                            this.filteredModels = [...this.models];
+                            
+                            // Reset form
+                            this.trainingConfig = {
+                                type: '',
+                                algorithm: '',
+                                max_iterations: 100,
+                                learning_rate: 0.01,
+                                validation_split: 0.2,
+                                description: ''
+                            };
+                        }
+                    } catch (error) {
+                        console.error('Error starting training:', error);
+                        this.showNotification('Error starting training', 'error');
+                    } finally {
+                        this.training = false;
+                    }
+                },
+                
+                viewModelDetails(model) {
+                    this.selectedModel = model;
+                    this.showDetailsModal = true;
+                    
+                    this.$nextTick(() => {
+                        this.drawPerformanceChart(model);
+                    });
+                },
+                
+                viewModelHistory(model) {
+                    // Navigate to model history page or open modal
+                    console.log('View model history:', model);
+                },
+                
+                async downloadModel(model) {
+                    try {
+                        const response = await fetch(`/ai/models/${model.id}/download`);
+                        
+                        if (response.ok) {
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `${model.name}_${model.version}.pkl`;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                            
+                            this.showNotification('Model downloaded successfully', 'success');
+                        }
+                    } catch (error) {
+                        console.error('Error downloading model:', error);
+                        this.showNotification('Error downloading model', 'error');
+                    }
+                },
+                
+                drawPerformanceChart(model) {
+                    const canvas = document.getElementById('performanceChart');
+                    if (!canvas) return;
+                    
+                    if (this.performanceChart) {
+                        this.performanceChart.destroy();
+                    }
+                    
+                    // Generate sample performance data over time
+                    const labels = [];
+                    const data = [];
+                    const days = 30;
+                    
+                    for (let i = days - 1; i >= 0; i--) {
+                        const date = new Date();
+                        date.setDate(date.getDate() - i);
+                        labels.push(date.toLocaleDateString());
+                        
+                        // Generate sample performance metric (accuracy)
+                        const baseAccuracy = model.performance_metrics?.accuracy || 0.8;
+                        const variation = (Math.random() - 0.5) * 0.1;
+                        data.push(Math.max(0, Math.min(1, baseAccuracy + variation)));
+                    }
+                    
+                    this.performanceChart = new Chart(canvas, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Performance',
+                                data: data,
+                                borderColor: 'rgb(99, 102, 241)',
+                                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 1,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return (value * 100).toFixed(0) + '%';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                },
+                
+                getStatusClass(status) {
+                    const classes = {
+                        'active': 'status-active',
+                        'inactive': 'status-inactive',
+                        'training': 'status-training',
+                        'error': 'status-error'
+                    };
+                    return classes[status] || 'status-inactive';
+                },
+                
+                formatDate(dateString) {
+                    if (!dateString) return 'N/A';
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                },
+                
+                showNotification(message, type = 'info') {
+                    // Simple notification implementation
+                    const notification = document.createElement('div');
+                    notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                        type === 'success' ? 'bg-green-500 text-white' :
+                        type === 'error' ? 'bg-red-500 text-white' :
+                        'bg-blue-500 text-white'
+                    }`;
+                    notification.textContent = message;
+                    
+                    document.body.appendChild(notification);
+                    
+                    setTimeout(() => {
+                        notification.remove();
+                    }, 3000);
+                },
+                
+                startRealTimeUpdates() {
+                    // Update training progress every 5 seconds
+                    setInterval(() => {
+                        this.models.forEach(model => {
+                            if (model.status === 'training' && model.training_progress !== undefined) {
+                                // Simulate progress
+                                model.training_progress = Math.min(100, model.training_progress + Math.random() * 5);
+                                
+                                if (model.training_progress >= 100) {
+                                    model.status = 'active';
+                                    model.is_active = true;
+                                    delete model.training_progress;
+                                }
+                            }
+                        });
+                    }, 5000);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

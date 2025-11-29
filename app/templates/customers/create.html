@@ -11,6 +11,7 @@
 
     <div class="bg-white rounded-lg shadow-md">
         <form method="POST" class="p-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <!-- Personal Information -->
             <div class="mb-8">
                 <h2 class="text-xl font-semibold text-gray-900 mb-4 pb-2 border-b">Personal Information</h2>
@@ -241,8 +242,9 @@
                         Cancel
                     </a>
                 {% endif %}
-                <button type="submit" 
-                        class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                <button type="submit"
+                        class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                        onclick="return validateForm();">
                     Create Customer
                 </button>
             </div>
@@ -274,19 +276,57 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     const returnToCart = urlParams.get('return_to_cart');
     
+    // Add hidden input immediately if return_to_cart parameter is present
     if (returnToCart === 'true') {
-        // Update form action to return to cart after submission
         const form = document.querySelector('form');
         if (form) {
-            form.addEventListener('submit', function(e) {
-                // Add a hidden input to track return destination
-                const hiddenInput = document.createElement('input');
-                hiddenInput.type = 'hidden';
-                hiddenInput.name = 'return_to_cart';
-                hiddenInput.value = 'true';
-                form.appendChild(hiddenInput);
-            });
+            // Add a hidden input to track return destination
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = 'return_to_cart';
+            hiddenInput.value = 'true';
+            form.appendChild(hiddenInput);
         }
+    }
+    
+    // Form validation
+    function validateForm() {
+        const firstName = document.getElementById('first_name').value.trim();
+        const lastName = document.getElementById('last_name').value.trim();
+        const email = document.getElementById('email').value.trim();
+        
+        if (!firstName || !lastName) {
+            alert('First Name and Last Name are required fields');
+            return false;
+        }
+        
+        if (email && !validateEmail(email)) {
+            alert('Please enter a valid email address');
+            return false;
+        }
+        
+        return true;
+    }
+    
+    // Email validation helper
+    function validateEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
+    
+    // Handle form submission
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!validateForm()) {
+                return;
+            }
+            
+            // Submit the form
+            form.submit();
+        });
     }
 });
 </script>

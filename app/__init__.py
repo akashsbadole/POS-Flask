@@ -124,6 +124,9 @@ def create_app(config_name=None):
     from app.customers import bp as customers_bp
     app.register_blueprint(customers_bp, url_prefix='/customers')
     
+    from app.customers.engagement_routes import customer_engagement_bp
+    app.register_blueprint(customer_engagement_bp)
+    
     from app.online_ordering import bp as online_ordering_bp
     app.register_blueprint(online_ordering_bp, url_prefix='/online-ordering')
     
@@ -138,6 +141,15 @@ def create_app(config_name=None):
     
     from app.settings import bp as settings_bp
     app.register_blueprint(settings_bp, url_prefix='/settings')
+    
+    from app.employee import bp as employee_bp
+    app.register_blueprint(employee_bp, url_prefix='/employee')
+    
+    from app.ai import bp as ai_bp
+    app.register_blueprint(ai_bp, url_prefix='/ai')
+    
+    from app.waste_to_profit import bp as waste_to_profit_bp
+    app.register_blueprint(waste_to_profit_bp, url_prefix='/waste-to-profit')
     
     # User loader for Flask-Login
     @login_manager.user_loader

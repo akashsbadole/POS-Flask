@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block title %}Quick Order - Table {{ table.number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>
+                        Quick Order - Table {{ table.number }}
+                    </h5>
+                    <div>
+                        <span class="badge bg-primary">{{ table.capacity }} Guests</span>
+                        <span class="badge {{ table.get_status_color() }}">{{ table.get_status_text() }}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Current Order Display -->
+                    {% if current_order %}
+                    <div class="alert alert-success mb-4">
+                        <h6><i class="fas fa-check-circle me-1"></i>Current Active Order</h6>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <strong>Order #:</strong> {{ current_order.order_number }}
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Status:</strong> {{ current_order.status.value.title() }}
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Items:</strong> {{ current_order.items|length }}
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Total:</strong> ${{ "%.2f"|format(current_order.total) }}
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <a href="{{ url_for('orders.order_details', order_id=current_order.id) }}" 
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-eye me-1"></i>View Details
+                            </a>
+                            <a href="{{ url_for('orders.add_item_to_table_order', table_id=table.id) }}" 
+                               class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-plus me-1"></i>Add Item
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Quick Item Selection -->
+                    <form method="POST" id="quickOrderForm">
+                        {{ csrf_token() }}
+                        
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label class="form-label">Select Menu Item</label>
+                                <div class="row" id="menuCategories">
+                                    {% for category in categories %}
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">{{ category.name }}</h6>
+                                            </div>
+                                            <div class="card-body p-2">
+                                                <div class="row">
+                                                    {% for item in category.menu_items[:6] %}
+                                                    <div class="col-md-6 mb-2">
+                                                        <button type="button" class="btn btn-outline-primary w-100" 
+                                                                onclick="selectQuickItem({{ item.id }}, '{{ item.name }}', {{ item.price }})"
+                                                                name="item_id" value="{{ item.id }}">
+                                                            <div class="text-start">
+                                                                <strong>{{ item.name }}</strong>
+                                                                <br><small class="text-success">${{ "%.2f"|format(item.price) }}</small>
+                                                            </div>
+                                                        </button>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                                {% if category.menu_items|length > 6 %}
+                                                <div class="text-center mt-2">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                                            onclick="showMoreItems({{ category.id }})">
+                                                        <i class="fas fa-ellipsis-h me-1"></i>More Items
+                                                    </button>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Add Form -->
+                        <div id="quickAddSection" class="border rounded p-3 bg-light" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h6 id="selectedItemName">Selected Item</h6>
+                                    <p id="selectedItemDescription" class="text-muted">Item description</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-primary text-white">
+                                        <div class="card-body text-center">
+                                            <h5 id="selectedItemPrice">$0.00</h5>
+                                            <p class="mb-0">per item</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mt-3">
+                                <div class="col-md-3">
+                                    <label for="quantity" class="form-label">Quantity</label>
+                                    <input type="number" class="form-control" id="quantity" name="quantity" 
+                                           value="1" min="1" max="99">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="seat_number" class="form-label">Seat (Optional)</label>
+                                    <input type="text" class="form-control" id="seat_number" name="seat_number" 
+                                           placeholder="A1, B2" maxlength="10">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="notes" class="form-label">Notes</label>
+                                    <textarea class="form-control" id="notes" name="notes" rows="2"
+                                              placeholder="Special instructions..."></textarea>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="d-flex justify-content-between">
+                                        <button type="button" class="btn btn-secondary" onclick="cancelQuickAdd()">
+                                            <i class="fas fa-times me-1"></i>Cancel
+                                        </button>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-plus me-1"></i>Add to Order
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <input type="hidden" id="selectedItemId" name="item_id">
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Table Info -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Table Information</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Table:</strong></td>
+                            <td>{{ table.number }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Capacity:</strong></td>
+                            <td>{{ table.capacity }} guests</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Status:</strong></td>
+                            <td><span class="badge {{ table.get_status_color() }}">{{ table.get_status_text() }}</span></td>
+                        </tr>
+                        {% if table.floor_section %}
+                        <tr>
+                            <td><strong>Section:</strong></td>
+                            <td>{{ table.floor_section }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if table.current_waiter %}
+                        <tr>
+                            <td><strong>Waiter:</strong></td>
+                            <td>{{ table.current_waiter.name }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if current_order %}
+                        <a href="{{ url_for('orders.order_details', order_id=current_order.id) }}" 
+                           class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-eye me-1"></i>View Order
+                        </a>
+                        <a href="{{ url_for('tables.settle_table_order', table_id=table.id) }}" 
+                           class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-check me-1"></i>Settle Order
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('orders.create_table_order', table_id=table.id) }}" 
+                           class="btn btn-primary btn-sm">
+                            <i class="fas fa-plus me-1"></i>New Order
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('tables.table_order_history', table_id=table.id) }}" 
+                           class="btn btn-outline-info btn-sm">
+                            <i class="fas fa-history me-1"></i>Order History
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Quick Items -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Recently Added</h6>
+                </div>
+                <div class="card-body">
+                    <div id="recentItems">
+                        <p class="text-muted text-center">No recent items</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedQuickItem = null;
+let recentItemsList = [];
+
+function selectQuickItem(itemId, itemName, price) {
+    selectedQuickItem = {
+        id: itemId,
+        name: itemName,
+        price: price
+    };
+    
+    // Update UI
+    document.getElementById('selectedItemId').value = itemId;
+    document.getElementById('selectedItemName').textContent = itemName;
+    document.getElementById('selectedItemPrice').textContent = `$${price.toFixed(2)}`;
+    document.getElementById('quickAddSection').style.display = 'block';
+    
+    // Scroll to quick add section
+    document.getElementById('quickAddSection').scrollIntoView({ behavior: 'smooth' });
+    
+    // Add to recent items
+    addToRecentItems(selectedQuickItem);
+}
+
+function cancelQuickAdd() {
+    selectedQuickItem = null;
+    document.getElementById('selectedItemId').value = '';
+    document.getElementById('quickAddSection').style.display = 'none';
+}
+
+function addToRecentItems(item) {
+    // Remove if already exists
+    recentItemsList = recentItemsList.filter(i => i.id !== item.id);
+    
+    // Add to beginning
+    recentItemsList.unshift(item);
+    
+    // Keep only last 10 items
+    if (recentItemsList.length > 10) {
+        recentItemsList = recentItemsList.slice(0, 10);
+    }
+    
+    // Update display
+    updateRecentItemsDisplay();
+}
+
+function updateRecentItemsDisplay() {
+    const recentItemsDiv = document.getElementById('recentItems');
+    
+    if (recentItemsList.length === 0) {
+        recentItemsDiv.innerHTML = '<p class="text-muted text-center">No recent items</p>';
+        return;
+    }
+    
+    const itemsHtml = recentItemsList.map(item => `
+        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+            <div>
+                <strong>${item.name}</strong>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-success">$${item.price.toFixed(2)}</span>
+                <button type="button" class="btn btn-sm btn-outline-primary ms-1" 
+                        onclick="selectQuickItem(${item.id}, '${item.name}', ${item.price})">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+    
+    recentItemsDiv.innerHTML = itemsHtml;
+}
+
+// Form submission
+document.getElementById('quickOrderForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (!selectedQuickItem) {
+        alert('Please select an item first');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('item_id', selectedQuickItem.id);
+    formData.append('quantity', document.getElementById('quantity').value);
+    formData.append('notes', document.getElementById('notes').value);
+    formData.append('seat_number', document.getElementById('seat_number').value);
+    
+    fetch('/tables/{{ table.id }}/quick-order', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.text())
+    .then(html => {
+        // Reset form
+        cancelQuickAdd();
+        document.getElementById('quantity').value = 1;
+        document.getElementById('notes').value = '';
+        document.getElementById('seat_number').value = '';
+        
+        // Show success message
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-success alert-dismissible fade show';
+        alertDiv.innerHTML = `
+            <strong>Success!</strong> ${selectedQuickItem.name} added to order.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const card = document.querySelector('.card-body');
+        card.insertBefore(alertDiv, card.firstChild);
+        
+        // Remove alert after 3 seconds
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 3000);
+    })
+    .catch(error => {
+        console.error('Error adding item:', error);
+        alert('Error adding item to order');
+    });
+});
+
+function showMoreItems(categoryId) {
+    // This would load more items for the category
+    // For now, just show a message
+    alert(`Loading more items for category ${categoryId}...`);
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateRecentItemsDisplay();
+});
+</script>
+{% endblock %}

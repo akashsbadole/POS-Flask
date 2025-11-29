@@ -1,0 +1,579 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Engagement Hub{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header with Navigation -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">Customer Engagement Hub</h1>
+                <div class="btn-group">
+                    <a href="/customers/engagement/loyalty" class="btn btn-primary">
+                        <i class="fas fa-award"></i> Loyalty
+                    </a>
+                    <a href="/customers/engagement/marketing" class="btn btn-success">
+                        <i class="fas fa-bullhorn"></i> Marketing
+                    </a>
+                    <a href="/customers/engagement/analytics" class="btn btn-info">
+                        <i class="fas fa-chart-line"></i> Analytics
+                    </a>
+                    <a href="/customers/engagement/communication" class="btn btn-warning">
+                        <i class="fas fa-envelope"></i> Communication
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Performance Indicators -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <h4 class="card-title">Total Customers</h4>
+                    <h2 class="mb-0" id="total-customers">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-award fa-2x mb-2"></i>
+                    <h4 class="card-title">Loyalty Members</h4>
+                    <h2 class="mb-0" id="loyalty-members">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-star fa-2x mb-2"></i>
+                    <h4 class="card-title">NPS Score</h4>
+                    <h2 class="mb-0" id="nps-score">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-2x mb-2"></i>
+                    <h4 class="card-title">Engagement Rate</h4>
+                    <h2 class="mb-0" id="engagement-rate">0%</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <h4 class="card-title">Churn Risk</h4>
+                    <h2 class="mb-0" id="churn-risk">0%</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-bullhorn fa-2x mb-2"></i>
+                    <h4 class="card-title">Active Campaigns</h4>
+                    <h2 class="mb-0" id="active-campaigns">0</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-plus fa-2x text-primary mb-2"></i>
+                                <h6>Create Campaign</h6>
+                                <button class="btn btn-sm btn-primary" onclick="openQuickCampaignModal()">
+                                    Launch
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-gift fa-2x text-success mb-2"></i>
+                                <h6>Loyalty Rewards</h6>
+                                <button class="btn btn-sm btn-success" onclick="manageRewards()">
+                                    Manage
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-comments fa-2x text-info mb-2"></i>
+                                <h6>Customer Feedback</h6>
+                                <button class="btn btn-sm btn-info" onclick="viewFeedback()">
+                                    Review
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-chart-pie fa-2x text-warning mb-2"></i>
+                                <h6>Analytics Report</h6>
+                                <button class="btn btn-sm btn-warning" onclick="generateReport()">
+                                    Generate
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity Feed -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    <div id="activity-feed">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">Loading recent activity...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Top Customers</h5>
+                </div>
+                <div class="card-body">
+                    <div id="top-customers">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">Loading top customers...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Charts -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Customer Growth</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="growth-chart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Revenue Trends</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="revenue-chart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Campaign Modal -->
+<div class="modal fade" id="quickCampaignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Quick Campaign</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="quick-campaign-form">
+                    <div class="mb-3">
+                        <label class="form-label">Campaign Type</label>
+                        <select class="form-control" name="campaign_type">
+                            <option value="email">Email Campaign</option>
+                            <option value="sms">SMS Campaign</option>
+                            <option value="loyalty">Loyalty Promotion</option>
+                            <option value="birthday">Birthday Wishes</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Target Audience</label>
+                        <select class="form-control" name="target_audience">
+                            <option value="all">All Customers</option>
+                            <option value="loyalty_members">Loyalty Members</option>
+                            <option value="high_value">High Value Customers</option>
+                            <option value="at_risk">At Risk Customers</option>
+                            <option value="new">New Customers</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Message</label>
+                        <textarea class="form-control" name="message" rows="4" placeholder="Enter your message here..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="launchQuickCampaign()">Launch Campaign</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let growthChart = null;
+let revenueChart = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadEngagementDashboard();
+    setInterval(loadActivityFeed, 30000); // Refresh every 30 seconds
+});
+
+function loadEngagementDashboard() {
+    fetch('/api/customers/engagement/dashboard/overview', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        updateKPICards(data);
+        loadActivityFeed();
+        loadTopCustomers();
+        loadPerformanceCharts(data);
+    })
+    .catch(error => {
+        console.error('Error loading dashboard:', error);
+        showAlert('Error loading dashboard data', 'danger');
+    });
+}
+
+function updateKPICards(data) {
+    document.getElementById('total-customers').textContent = formatNumber(data.total_customers || 0);
+    document.getElementById('loyalty-members').textContent = formatNumber(data.loyalty_members || 0);
+    document.getElementById('nps-score').textContent = data.nps_score || 0;
+    document.getElementById('engagement-rate').textContent = (data.engagement_rate || 0) + '%';
+    document.getElementById('churn-risk').textContent = (data.churn_risk || 0) + '%';
+    document.getElementById('active-campaigns').textContent = data.communication_summary?.total_sent || 0;
+}
+
+function loadActivityFeed() {
+    fetch('/api/customers/engagement/communication/history?limit=10', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderActivityFeed(data.communications || []);
+    })
+    .catch(error => {
+        console.error('Error loading activity feed:', error);
+    });
+}
+
+function renderActivityFeed(communications) {
+    const container = document.getElementById('activity-feed');
+    
+    if (communications.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted">No recent activity</div>';
+        return;
+    }
+    
+    const feedHtml = communications.map(comm => {
+        const icon = getActivityIcon(comm.channel, comm.message_type);
+        const time = new Date(comm.created_at).toLocaleString();
+        
+        return `
+            <div class="d-flex align-items-start mb-3 p-2 border rounded">
+                <div class="me-2">
+                    <div class="activity-icon bg-${getActivityColor(comm.status)}">
+                        <i class="${icon}"></i>
+                    </div>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between">
+                        <strong>${comm.subject || comm.message_type}</strong>
+                        <small class="text-muted">${time}</small>
+                    </div>
+                    <p class="mb-0">${comm.content_preview || ''}</p>
+                    ${comm.status === 'failed' ? '<small class="text-danger">Failed to send</small>' : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = feedHtml;
+}
+
+function getActivityIcon(channel, messageType) {
+    const icons = {
+        'email': 'fas fa-envelope',
+        'sms': 'fas fa-sms',
+        'push': 'fas fa-bell',
+        'loyalty_points_earned': 'fas fa-coins',
+        'loyalty_tier_upgrade': 'fas fa-award',
+        'birthday_wishes': 'fas fa-birthday-cake'
+    };
+    
+    return icons[messageType] || 'fas fa-info-circle';
+}
+
+function getActivityColor(status) {
+    const colors = {
+        'sent': 'primary',
+        'delivered': 'success',
+        'failed': 'danger',
+        'pending': 'warning'
+    };
+    
+    return colors[status] || 'secondary';
+}
+
+function loadTopCustomers() {
+    fetch('/api/customers/engagement/loyalty/leaderboard?limit=5', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderTopCustomers(data.leaderboard || []);
+    })
+    .catch(error => {
+        console.error('Error loading top customers:', error);
+    });
+}
+
+function renderTopCustomers(customers) {
+    const container = document.getElementById('top-customers');
+    
+    if (customers.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted">No customers found</div>';
+        return;
+    }
+    
+    const customersHtml = customers.map((customer, index) => `
+        <div class="d-flex align-items-center mb-2">
+            <div class="me-2">
+                <div class="rank-badge bg-warning text-white rounded-circle">
+                    ${customer.rank}
+                </div>
+            </div>
+            <div class="flex-grow-1">
+                <div class="d-flex justify-content-between">
+                    <strong>${customer.customer_name}</strong>
+                    <span class="badge bg-primary">${customer.tier}</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <small class="text-muted">${customer.loyalty_points} points</small>
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewCustomerDetails(${customer.customer_id})">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = customersHtml;
+}
+
+function loadPerformanceCharts(data) {
+    renderGrowthChart(data);
+    renderRevenueChart(data);
+}
+
+function renderGrowthChart(data) {
+    const ctx = document.getElementById('growth-chart').getContext('2d');
+    
+    if (growthChart) {
+        growthChart.destroy();
+    }
+    
+    // Generate sample growth data (would come from API)
+    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const newCustomers = [45, 52, 48, 58, 62, 55];
+    const returningCustomers = [120, 135, 142, 155, 168, 175];
+    
+    growthChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'New Customers',
+                data: newCustomers,
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                fill: true
+            }, {
+                label: 'Returning Customers',
+                data: returningCustomers,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function renderRevenueChart(data) {
+    const ctx = document.getElementById('revenue-chart').getContext('2d');
+    
+    if (revenueChart) {
+        revenueChart.destroy();
+    }
+    
+    // Generate sample revenue data (would come from API)
+    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const revenue = [12500, 14200, 13800, 15500, 16200, 14800];
+    
+    revenueChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Monthly Revenue',
+                data: revenue,
+                backgroundColor: '#28a745',
+                borderColor: '#1e7e34',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function openQuickCampaignModal() {
+    const modal = new bootstrap.Modal(document.getElementById('quickCampaignModal'));
+    modal.show();
+}
+
+function launchQuickCampaign() {
+    const form = document.getElementById('quick-campaign-form');
+    const formData = new FormData(form);
+    
+    const campaignData = {
+        name: `Quick ${formData.get('campaign_type')} Campaign`,
+        campaign_type: formData.get('campaign_type'),
+        target_audience: formData.get('target_audience'),
+        subject: `Special ${formData.get('campaign_type')} Offer`,
+        content: formData.get('message')
+    };
+    
+    fetch('/api/customers/engagement/marketing/campaigns', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        },
+        body: JSON.stringify(campaignData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Campaign launched successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('quickCampaignModal')).hide();
+            loadActivityFeed();
+        } else {
+            showAlert(data.error || 'Error launching campaign', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error launching campaign:', error);
+        showAlert('Error launching campaign', 'danger');
+    });
+}
+
+function manageRewards() {
+    window.location.href = '/customers/engagement/loyalty';
+}
+
+function viewFeedback() {
+    window.location.href = '/customers/engagement/feedback';
+}
+
+function generateReport() {
+    window.location.href = '/customers/engagement/analytics';
+}
+
+function viewCustomerDetails(customerId) {
+    window.location.href = `/customers/${customerId}`;
+}
+
+function formatNumber(num) {
+    return new Intl.NumberFormat().format(num);
+}
+
+function showAlert(message, type) {
+    // Implementation depends on your alert system
+    console.log(`${type}: ${message}`);
+}
+</script>
+
+<style>
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+}
+
+.rank-badge {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 12px;
+}
+</style>
+{% endblock %}

@@ -10,7 +10,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     name = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.Enum('super_admin', 'restaurant_owner', 'manager', 'cashier', 'kitchen', 'staff', name='user_role'), nullable=False)
+    role = db.Column(db.Enum('super_admin', 'restaurant_owner', 'manager', 'cashier', 'kitchen', 'staff', 'employee', 'driver', name='user_role'), nullable=False)
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
     pin_code = db.Column(db.String(4), nullable=True)  # For quick login
     user_active = db.Column('is_active', db.Boolean, default=True)
@@ -20,10 +20,18 @@ class User(UserMixin, db.Model):
     profile_image = db.Column(db.String(255))
     
     # Relationships
-    orders = db.relationship('Order', back_populates='user')
+    orders = db.relationship('Order', foreign_keys='Order.user_id', back_populates='user')
     created_customers = db.relationship('Customer', back_populates='creator')
     restaurant = db.relationship('Restaurant', back_populates='users')
     credit_transactions = db.relationship('CreditTransaction', back_populates='user')
+    
+    # Enhanced Customer Engagement Relationships
+    marketing_campaigns = db.relationship('MarketingCampaign', back_populates='creator', lazy='dynamic')
+    assigned_feedback = db.relationship('CustomerFeedback', back_populates='assignee', lazy='dynamic')
+    feedback_responses = db.relationship('FeedbackResponse', back_populates='responder', lazy='dynamic')
+    communication_templates = db.relationship('CommunicationTemplate', back_populates='creator', lazy='dynamic')
+    communications = db.relationship('CustomerCommunication', back_populates='creator', lazy='dynamic')
+    table_assignments = db.relationship('TableAssignment', foreign_keys='TableAssignment.waiter_id', back_populates='waiter', lazy='dynamic')
     
     def set_password(self, password):
         """Set password hash"""
@@ -74,6 +82,10 @@ class User(UserMixin, db.Model):
             return self.restaurant_id == restaurant_id
         return False
     
+    def can_manage_staff(self):
+        """Check if user can manage staff (employee management features)"""
+        return self.role in ['manager', 'restaurant_owner', 'super_admin']
+    
     def get_restaurant_scope(self):
         """Get list of restaurant IDs user can access"""
         if self.role == 'super_admin':
@@ -117,7 +129,9 @@ class User(UserMixin, db.Model):
             'manager': 'Manager',
             'cashier': 'Cashier',
             'kitchen': 'Kitchen Staff',
-            'staff': 'Staff'
+            'staff': 'Staff',
+            'employee': 'Employee',
+            'driver': 'Driver'
         }
         return role_names.get(self.role, self.role)
     
@@ -146,6 +160,15 @@ class User(UserMixin, db.Model):
             ],
             'staff': [
                 'view_orders', 'basic_operations', 'view_reports'
+            ],
+            'employee': [
+                'view_own_attendance', 'check_in_out', 'view_own_schedule',
+                'view_own_payslip', 'request_leave', 'view_own_performance'
+            ],
+            'driver': [
+                'view_own_attendance', 'check_in_out', 'view_own_schedule',
+                'view_own_payslip', 'request_leave', 'view_own_performance',
+                'manage_deliveries', 'update_delivery_status'
             ]
         }
         return permissions.get(self.role, [])

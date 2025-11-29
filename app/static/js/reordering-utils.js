@@ -184,7 +184,10 @@ class ReorderingUtils {
         });
         
         if (!response.ok) {
-            throw new Error('Failed to undo menu reorder');
+            if (response.status === 401 || response.status === 302) {
+                throw new Error('Authentication required. Please log in again.');
+            }
+            throw new Error(`Failed to undo menu reorder: ${response.status} ${response.statusText}`);
         }
         
         // Update UI
@@ -216,7 +219,10 @@ class ReorderingUtils {
         });
         
         if (!response.ok) {
-            throw new Error('Failed to redo menu reorder');
+            if (response.status === 401 || response.status === 302) {
+                throw new Error('Authentication required. Please log in again.');
+            }
+            throw new Error(`Failed to redo menu reorder: ${response.status} ${response.statusText}`);
         }
         
         // Update UI
@@ -247,7 +253,10 @@ class ReorderingUtils {
         });
         
         if (!response.ok) {
-            throw new Error('Failed to undo category reorder');
+            if (response.status === 401 || response.status === 302) {
+                throw new Error('Authentication required. Please log in again.');
+            }
+            throw new Error(`Failed to undo category reorder: ${response.status} ${response.statusText}`);
         }
         
         // Update UI
@@ -278,7 +287,10 @@ class ReorderingUtils {
         });
         
         if (!response.ok) {
-            throw new Error('Failed to redo category reorder');
+            if (response.status === 401 || response.status === 302) {
+                throw new Error('Authentication required. Please log in again.');
+            }
+            throw new Error(`Failed to redo category reorder: ${response.status} ${response.statusText}`);
         }
         
         // Update UI
@@ -393,6 +405,9 @@ class ReorderingUtils {
                         'X-CSRFToken': csrfToken.value
                     },
                     body: JSON.stringify({ items: itemsData })
+                }).catch(error => {
+                    console.error('Failed to save menu items order:', error);
+                    this.showNotification('Failed to save menu items order', 'error');
                 }),
                 fetch('/api/menu/reorder-categories', {
                     method: 'POST',
@@ -401,6 +416,9 @@ class ReorderingUtils {
                         'X-CSRFToken': csrfToken.value
                     },
                     body: JSON.stringify({ categories: categoriesData })
+                }).catch(error => {
+                    console.error('Failed to save categories order:', error);
+                    this.showNotification('Failed to save categories order', 'error');
                 })
             ]);
             
@@ -443,7 +461,11 @@ class ReorderingUtils {
                 // Reload page to show updated order
                 setTimeout(() => window.location.reload(), 500);
             } else {
-                throw new Error('Failed to reset order');
+                if (response.status === 401 || response.status === 302) {
+                    this.showNotification('Authentication required. Please log in again.', 'error');
+                } else {
+                    throw new Error(`Failed to reset order: ${response.status} ${response.statusText}`);
+                }
             }
         } catch (error) {
             console.error('Reset failed:', error);
@@ -483,7 +505,11 @@ class ReorderingUtils {
                 // Reload page to show updated order
                 setTimeout(() => window.location.reload(), 500);
             } else {
-                throw new Error('Failed to sort by price');
+                if (response.status === 401 || response.status === 302) {
+                    this.showNotification('Authentication required. Please log in again.', 'error');
+                } else {
+                    throw new Error(`Failed to sort by price: ${response.status} ${response.statusText}`);
+                }
             }
         } catch (error) {
             console.error('Sort failed:', error);

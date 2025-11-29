@@ -1,0 +1,538 @@
+{% extends "employee/base.html" %}
+
+{% block title %}Employee Profiles{% endblock %}
+
+{% block employee_content %}
+<div class="py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Page Header -->
+        <div class="mb-8 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Employee Profiles</h1>
+                <p class="mt-2 text-gray-600">Manage employee information and details</p>
+            </div>
+            <div class="flex space-x-3">
+                <select id="departmentFilter" 
+                        onchange="filterByDepartment(this.value)"
+                        class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">All Departments</option>
+                    <option value="Kitchen" {% if department_filter == 'Kitchen' %}selected{% endif %}>Kitchen</option>
+                    <option value="Service" {% if department_filter == 'Service' %}selected{% endif %}>Service</option>
+                    <option value="Management" {% if department_filter == 'Management' %}selected{% endif %}>Management</option>
+                    <option value="Administration" {% if department_filter == 'Administration' %}selected{% endif %}>Administration</option>
+                </select>
+                
+                <select id="employmentTypeFilter" 
+                        onchange="filterByEmploymentType(this.value)"
+                        class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">All Types</option>
+                    <option value="full_time" {% if employment_type_filter == 'full_time' %}selected{% endif %}>Full Time</option>
+                    <option value="part_time" {% if employment_type_filter == 'part_time' %}selected{% endif %}>Part Time</option>
+                    <option value="contract" {% if employment_type_filter == 'contract' %}selected{% endif %}>Contract</option>
+                    <option value="intern" {% if employment_type_filter == 'intern' %}selected{% endif %}>Intern</option>
+                </select>
+                
+                <select id="statusFilter" 
+                        onchange="filterByStatus(this.value)"
+                        class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">All Status</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+                
+                <button onclick="openCreateProfileModal()" 
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                    </svg>
+                    Add Employee
+                </button>
+                
+                <button onclick="exportProfiles()" 
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Export
+                </button>
+            </div>
+        </div>
+
+        <!-- Employee Cards Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="employeeGrid">
+            {% for profile in profiles %}
+            <div class="employee-card">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 h-12 w-12">
+                            <div class="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
+                                <span class="text-lg font-medium text-indigo-600">
+                                    {{ profile.user.name[0] if profile.user else '?' }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-medium text-gray-900">
+                                {{ profile.user.name if profile.user else 'Unknown' }}
+                            </h3>
+                            <p class="text-sm text-gray-500">{{ profile.designation or 'N/A' }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="status-badge {% if profile.is_active %}status-present{% else %}status-absent{% endif %}">
+                            {% if profile.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                        <div class="relative">
+                            <button onclick="toggleProfileMenu({{ profile.id }})" 
+                                    class="p-1 rounded-md hover:bg-gray-100">
+                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
+                                </svg>
+                            </button>
+                            <div id="profileMenu-{{ profile.id }}" 
+                                 class="hidden absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                                <div class="py-1">
+                                    <a href="{{ url_for('employee.view_profile', profile_id=profile.id) }}" 
+                                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        View Profile
+                                    </a>
+                                    <button onclick="editProfile({{ profile.id }})" 
+                                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        Edit Profile
+                                    </button>
+                                    <button onclick="viewAttendance({{ profile.user_id }})" 
+                                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        View Attendance
+                                    </button>
+                                    <button onclick="viewPayroll({{ profile.user_id }})" 
+                                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        View Payroll
+                                    </button>
+                                    <hr class="my-1">
+                                    <button onclick="toggleEmployeeStatus({{ profile.id }})" 
+                                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        {% if profile.is_active %}Deactivate{% else %}Activate{% endif %}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="space-y-3">
+                    <div class="flex items-center text-sm text-gray-600">
+                        <svg class="h-4 w-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                        </svg>
+                        {{ profile.department or 'N/A' }}
+                    </div>
+                    
+                    <div class="flex items-center text-sm text-gray-600">
+                        <svg class="h-4 w-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        {{ profile.employment_type.replace('_', ' ').title() }}
+                    </div>
+                    
+                    <div class="flex items-center text-sm text-gray-600">
+                        <svg class="h-4 w-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        {{ profile.date_of_joining.strftime('%b %d, %Y') if profile.date_of_joining else 'N/A' }}
+                    </div>
+                    
+                    <div class="flex items-center text-sm text-gray-600">
+                        <svg class="h-4 w-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        {{ formatCurrency(profile.basic_salary) if profile.basic_salary else 'N/A' }}
+                    </div>
+                    
+                    <div class="flex items-center text-sm text-gray-600">
+                        <svg class="h-4 w-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                        </svg>
+                        {{ profile.employee_id or 'N/A' }}
+                    </div>
+                </div>
+                
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">User Role:</span>
+                        <span class="font-medium text-gray-900">{{ profile.user.get_role_display_name() if profile.user else 'N/A' }}</span>
+                    </div>
+                    {% if profile.user %}
+                    <div class="flex justify-between text-sm mt-2">
+                        <span class="text-gray-500">Email:</span>
+                        <span class="font-medium text-gray-900">{{ profile.user.email }}</span>
+                    </div>
+                    {% endif %}
+                    {% if profile.phone %}
+                    <div class="flex justify-between text-sm mt-2">
+                        <span class="text-gray-500">Phone:</span>
+                        <span class="font-medium text-gray-900">{{ profile.phone }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="col-span-full text-center py-12 text-gray-500">
+                No employee profiles found
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Create Profile Modal -->
+<div id="createProfileModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-4/5 max-w-6xl shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Create Employee Profile</h3>
+                <button onclick="closeCreateModal()" 
+                        class="text-gray-400 hover:text-gray-600">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="createProfileForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- User Information -->
+                    <div class="space-y-4">
+                        <h4 class="text-md font-medium text-gray-900">User Information</h4>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Full Name *</label>
+                            <input type="text" name="name" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Email *</label>
+                            <input type="email" name="email" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Phone</label>
+                            <input type="tel" name="phone"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Role *</label>
+                            <select name="role" required
+                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="">Select Role</option>
+                                <option value="cashier">Cashier</option>
+                                <option value="kitchen">Kitchen Staff</option>
+                                <option value="staff">Staff</option>
+                                <option value="manager">Manager</option>
+                                <option value="restaurant_owner">Restaurant Owner</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Restaurant *</label>
+                            <select name="restaurant_id" required
+                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="">Select Restaurant</option>
+                                <!-- Restaurant options would be populated here -->
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Employment Information -->
+                    <div class="space-y-4">
+                        <h4 class="text-md font-medium text-gray-900">Employment Information</h4>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Department</label>
+                            <input type="text" name="department"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Designation</label>
+                            <input type="text" name="designation"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Employment Type *</label>
+                            <select name="employment_type" required
+                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="">Select Type</option>
+                                <option value="full_time">Full Time</option>
+                                <option value="part_time">Part Time</option>
+                                <option value="contract">Contract</option>
+                                <option value="intern">Intern</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Date of Joining *</label>
+                            <input type="date" name="date_of_joining" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Basic Salary *</label>
+                            <input type="number" name="basic_salary" required min="0" step="0.01"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bank Information -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                    <h4 class="text-md font-medium text-gray-900 md:col-span-3">Bank Information</h4>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Bank Account Number</label>
+                        <input type="text" name="bank_account_number"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Bank Name</label>
+                        <input type="text" name="bank_name"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">IFSC Code</label>
+                        <input type="text" name="ifsc_code"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                </div>
+                
+                <!-- Emergency Contact -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <h4 class="text-md font-medium text-gray-900 md:col-span-2">Emergency Contact</h4>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Contact Name</label>
+                        <input type="text" name="emergency_contact_name"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Contact Number</label>
+                        <input type="tel" name="emergency_contact_number"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                </div>
+                
+                <!-- Address -->
+                <div class="mt-6">
+                    <label class="block text-sm font-medium text-gray-700">Address</label>
+                    <textarea name="address" rows="3"
+                              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                </div>
+                
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" onclick="closeCreateModal()" 
+                            class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        Create Profile
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+function filterByDepartment(department) {
+    const url = new URL(window.location);
+    if (department) {
+        url.searchParams.set('department', department);
+    } else {
+        url.searchParams.delete('department');
+    }
+    window.location.href = url.toString();
+}
+
+function filterByEmploymentType(type) {
+    const url = new URL(window.location);
+    if (type) {
+        url.searchParams.set('employment_type', type);
+    } else {
+        url.searchParams.delete('employment_type');
+    }
+    window.location.href = url.toString();
+}
+
+function filterByStatus(status) {
+    const url = new URL(window.location);
+    if (status) {
+        url.searchParams.set('status', status);
+    } else {
+        url.searchParams.delete('status');
+    }
+    window.location.href = url.toString();
+}
+
+function openCreateProfileModal() {
+    document.getElementById('createProfileModal').classList.remove('hidden');
+    document.getElementById('createProfileForm').reset();
+}
+
+function closeCreateModal() {
+    document.getElementById('createProfileModal').classList.add('hidden');
+}
+
+function toggleProfileMenu(profileId) {
+    const menu = document.getElementById(`profileMenu-${profileId}`);
+    menu.classList.toggle('hidden');
+    
+    // Close other menus
+    document.querySelectorAll('[id^="profileMenu-"]').forEach(otherMenu => {
+        if (otherMenu !== menu) {
+            otherMenu.classList.add('hidden');
+        }
+    });
+}
+
+function editProfile(profileId) {
+    window.location.href = `/employee/profiles/${profileId}/edit`;
+}
+
+function viewAttendance(userId) {
+    window.location.href = `/employee/attendance?user_id=${userId}`;
+}
+
+function viewPayroll(userId) {
+    window.location.href = `/employee/payroll?user_id=${userId}`;
+}
+
+function toggleEmployeeStatus(profileId) {
+    if (confirm('Are you sure you want to toggle this employee\'s status?')) {
+        fetch(`/employee/api/profiles/${profileId}/toggle-status`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Employee status updated successfully', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showNotification(data.message || 'Failed to update status', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating employee status:', error);
+            showNotification('Error updating employee status', 'error');
+        });
+    }
+}
+
+function exportProfiles() {
+    const department = document.getElementById('departmentFilter').value;
+    const employmentType = document.getElementById('employmentTypeFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    
+    let url = '/employee/profiles/export?';
+    const params = new URLSearchParams();
+    
+    if (department) params.append('department', department);
+    if (employmentType) params.append('employment_type', employmentType);
+    if (status) params.append('status', status);
+    
+    url += params.toString();
+    window.open(url, '_blank');
+}
+
+// Handle create profile form submission
+document.getElementById('createProfileForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('/employee/profiles/create', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: new URLSearchParams(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeCreateModal();
+            showNotification('Employee profile created successfully', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.message || 'Failed to create profile', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating profile:', error);
+        showNotification('Error creating employee profile', 'error');
+    });
+});
+
+// Close menus when clicking outside
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('[id^="profileMenu-"]') && !event.target.closest('button')) {
+        document.querySelectorAll('[id^="profileMenu-"]').forEach(menu => {
+            menu.classList.add('hidden');
+        });
+    }
+});
+
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 p-4 rounded-md shadow-lg z-50 ${
+        type === 'success' ? 'bg-green-50 text-green-800' : 
+        type === 'error' ? 'bg-red-50 text-red-800' : 
+        'bg-blue-50 text-blue-800'
+    }`;
+    notification.innerHTML = `
+        <div class="flex">
+            <div class="ml-3">
+                <p class="text-sm font-medium">${message}</p>
+            </div>
+            <div class="ml-auto pl-3">
+                <button onclick="this.parentElement.parentElement.remove()" class="inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    type === 'success' ? 'bg-green-50 text-green-500 hover:bg-green-100' : 
+                    type === 'error' ? 'bg-red-50 text-red-500 hover:bg-red-100' : 
+                    'bg-blue-50 text-blue-500 hover:bg-blue-100'
+                }">
+                    <span class="sr-only">Dismiss</span>
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

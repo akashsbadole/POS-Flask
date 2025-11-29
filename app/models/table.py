@@ -28,6 +28,7 @@ class Table(db.Model):
     # Relationships
     restaurant = db.relationship('Restaurant', back_populates='tables')
     orders = db.relationship('Order', back_populates='table')
+    assignments = db.relationship('TableAssignment', back_populates='table', lazy='dynamic')
     restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=True)
     
     # Table merge/split relationships
@@ -244,7 +245,60 @@ class Table(db.Model):
         
         return merge_info
     
-    def to_dict(self, include_session=False):
+    def get_current_assignment(self):
+        """Get the currently active assignment for this table"""
+        from .table_assignment import TableAssignment
+        return TableAssignment.get_active_assignment_for_table(self.id)
+    
+    @property
+    def current_waiter(self):
+        """Get the currently assigned waiter for this table"""
+        current_assignment = self.get_current_assignment()
+        return current_assignment.waiter if current_assignment else None
+    
+    @property
+    def assignment_history(self):
+        """Get all assignment history for this table"""
+        from .table_assignment import TableAssignment
+        return TableAssignment.query.filter_by(table_id=self.id).order_by(TableAssignment.assigned_at.desc()).all()
+    
+    def assign_waiter(self, waiter_id, assigned_by_user_id=None, notes=None):
+        """Assign a waiter to this table"""
+        from .table_assignment import TableAssignment
+        
+        # Check if there's already an active assignment
+        existing_assignment = self.get_current_assignment()
+        if existing_assignment:
+            # Relieve the current assignment first
+            existing_assignment.relieve_assignment(
+                relieved_by_user_id=assigned_by_user_id,
+                notes=f"Auto-relieved for new assignment: {notes or 'No notes'}"
+            )
+        
+        # Create new assignment
+        new_assignment = TableAssignment(
+            table_id=self.id,
+            waiter_id=waiter_id,
+            assigned_by=assigned_by_user_id,
+            assignment_notes=notes
+        )
+        
+        db.session.add(new_assignment)
+        db.session.commit()
+        return new_assignment
+    
+    def relieve_waiter(self, relieved_by_user_id=None, notes=None):
+        """Relieve the current waiter from this table"""
+        current_assignment = self.get_current_assignment()
+        if current_assignment:
+            current_assignment.relieve_assignment(
+                relieved_by_user_id=relieved_by_user_id,
+                notes=notes
+            )
+            return True
+        return False
+    
+    def to_dict(self, include_session=False, include_assignment=False):
         """Convert table to dictionary for API responses"""
         result = {
             'id': self.id,
@@ -265,6 +319,15 @@ class Table(db.Model):
         if include_session:
             result['current_session'] = self.get_current_session()
             result['occupancy_duration'] = self.get_occupancy_duration()
+        
+        if include_assignment:
+            current_assignment = self.get_current_assignment()
+            result['current_assignment'] = current_assignment.to_dict() if current_assignment else None
+            result['current_waiter'] = {
+                'id': self.current_waiter.id,
+                'name': self.current_waiter.name,
+                'role': self.current_waiter.role
+            } if self.current_waiter else None
         
         return result
     

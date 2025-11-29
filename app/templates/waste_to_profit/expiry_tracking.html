@@ -1,0 +1,369 @@
+{% extends "waste_to_profit/base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Expiry Tracking</h1>
+        <div class="flex space-x-2">
+            <button class="btn-primary" onclick="checkExpiryAlerts()">Check Alerts</button>
+            <a href="{{ url_for('waste_to_profit.add_expiry_tracking') }}" class="btn-success">Add New Item</a>
+            <a href="{{ url_for('waste_to_profit.fifo_recommendations') }}" class="btn-secondary">FIFO Recommendations</a>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="card mb-6">
+        <div class="card-header">
+            <h3 class="card-title">Filters</h3>
+        </div>
+        <div class="card-body">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="form-group">
+                    <label class="form-label">Search</label>
+                    <input type="text" id="search-input" class="form-input" placeholder="Search ingredients..." onkeyup="filterTable()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select id="status-filter" class="form-select" onchange="filterTable()">
+                        <option value="">All Status</option>
+                        <option value="fresh">Fresh</option>
+                        <option value="expiring_soon">Expiring Soon</option>
+                        <option value="expired">Expired</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Risk Level</label>
+                    <select id="risk-filter" class="form-select" onchange="filterTable()">
+                        <option value="">All Risk Levels</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Storage Location</label>
+                    <select id="location-filter" class="form-select" onchange="filterTable()">
+                        <option value="">All Locations</option>
+                        <option value="freezer">Freezer</option>
+                        <option value="refrigerator">Refrigerator</option>
+                        <option value="dry_storage">Dry Storage</option>
+                        <option value="pantry">Pantry</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-green-600" id="fresh-count">0</div>
+                    <div class="metric-label">Fresh Items</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-yellow-600" id="expiring-count">0</div>
+                    <div class="metric-label">Expiring Soon</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-red-600" id="expired-count">0</div>
+                    <div class="metric-label">Expired Items</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-purple-600" id="total-value">$0</div>
+                    <div class="metric-label">Total Value</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expiry Items Table -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Expiry Tracking Items</h3>
+            <div class="flex space-x-2">
+                <button class="btn-primary btn-sm" onclick="exportData()">Export</button>
+                <button class="btn-secondary btn-sm" onclick="printData()">Print</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="waste-table" id="expiry-table">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)">Ingredient <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(1)">Batch/Lot <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(2)">Expiry Date <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(3)">Days Left <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(4)">Quantity <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(5)">Unit Cost <i class="fas fa-sort"></i></th>
+                            <th onclick="sortTable(6)">Total Value <i class="fas fa-sort"></i></th>
+                            <th>Status</th>
+                            <th>Risk Level</th>
+                            <th>Storage</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expiry-items-tbody">
+                        {% for item in expiring_items %}
+                        <tr data-status="{{ item.status }}" data-risk="{{ item.risk_level }}" data-location="{{ item.storage_location or 'unknown' }}">
+                            <td class="font-medium">{{ item.ingredient_name }}</td>
+                            <td>
+                                {% if item.batch_number %}
+                                <span class="text-xs bg-gray-100 px-2 py-1 rounded">{{ item.batch_number }}</span>
+                                {% endif %}
+                                {% if item.lot_number %}
+                                <span class="text-xs bg-blue-100 px-2 py-1 rounded">{{ item.lot_number }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.expiry_date }}</td>
+                            <td class="font-medium {{ 'text-red-600' if item.days_until_expiry < 0 else 'text-yellow-600' if item.days_until_expiry < 3 else 'text-green-600' }}">
+                                {% if item.days_until_expiry < 0 %}
+                                    {{ item.days_until_expiry }} (expired)
+                                {% else %}
+                                    {{ item.days_until_expiry }}
+                                {% endif %}
+                            </td>
+                            <td>{{ item.quantity }} {{ item.unit }}</td>
+                            <td>${{ "%.2f"|format(item.unit_cost) }}</td>
+                            <td>${{ "%.2f"|format(item.quantity * item.unit_cost) }}</td>
+                            <td>
+                                <span class="badge badge-{{ 'success' if item.status == 'fresh' else 'warning' if item.status == 'expiring_soon' else 'danger' }}">
+                                    {{ item.status.replace('_', ' ').title() }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-{{ item.risk_level }}">
+                                    {{ item.risk_level.title() }}
+                                </span>
+                            </td>
+                            <td>{{ item.storage_location or 'Not specified' }}</td>
+                            <td>
+                                <div class="flex space-x-1">
+                                    <button class="btn-primary btn-sm" onclick="editItem({{ item.id }})">Edit</button>
+                                    {% if item.status == 'expiring_soon' %}
+                                    <button class="btn-success btn-sm" onclick="createSpecial({{ item.id }})">Special</button>
+                                    {% endif %}
+                                    <button class="btn-danger btn-sm" onclick="recordWaste({{ item.id }})">Waste</button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alert-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-medium text-gray-900">Expiry Alerts</h3>
+                <div class="mt-2 px-7 py-3">
+                    <div id="alert-content"></div>
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button id="close-alert-modal" class="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    updateSummaryCards();
+});
+
+function updateSummaryCards() {
+    const rows = document.querySelectorAll('#expiry-items-tbody tr');
+    let freshCount = 0, expiringCount = 0, expiredCount = 0, totalValue = 0;
+
+    rows.forEach(row => {
+        const status = row.dataset.status;
+        const cells = row.querySelectorAll('td');
+        const value = parseFloat(cells[6].textContent.replace('$', ''));
+        
+        totalValue += value;
+        
+        if (status === 'fresh') freshCount++;
+        else if (status === 'expiring_soon') expiringCount++;
+        else if (status === 'expired' || status === 'critical') expiredCount++;
+    });
+
+    document.getElementById('fresh-count').textContent = freshCount;
+    document.getElementById('expiring-count').textContent = expiringCount;
+    document.getElementById('expired-count').textContent = expiredCount;
+    document.getElementById('total-value').textContent = `$${totalValue.toFixed(2)}`;
+}
+
+function filterTable() {
+    const searchInput = document.getElementById('search-input').value.toLowerCase();
+    const statusFilter = document.getElementById('status-filter').value;
+    const riskFilter = document.getElementById('risk-filter').value;
+    const locationFilter = document.getElementById('location-filter').value;
+    
+    const rows = document.querySelectorAll('#expiry-items-tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const status = row.dataset.status;
+        const risk = row.dataset.risk;
+        const location = row.dataset.location;
+        
+        const matchesSearch = text.includes(searchInput);
+        const matchesStatus = !statusFilter || status === statusFilter;
+        const matchesRisk = !riskFilter || risk === riskFilter;
+        const matchesLocation = !locationFilter || location === locationFilter;
+        
+        row.style.display = matchesSearch && matchesStatus && matchesRisk && matchesLocation ? '' : 'none';
+    });
+}
+
+function sortTable(columnIndex) {
+    const table = document.getElementById('expiry-table');
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    rows.sort((a, b) => {
+        const aValue = a.cells[columnIndex].textContent.trim();
+        const bValue = b.cells[columnIndex].textContent.trim();
+        
+        // Handle numeric sorting
+        if (columnIndex >= 3 && columnIndex <= 6) {
+            return parseFloat(aValue.replace(/[^0-9.-]/g, '')) - parseFloat(bValue.replace(/[^0-9.-]/g, ''));
+        }
+        
+        // Handle date sorting
+        if (columnIndex === 2) {
+            return new Date(aValue) - new Date(bValue);
+        }
+        
+        // Handle text sorting
+        return aValue.localeCompare(bValue);
+    });
+    
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+function checkExpiryAlerts() {
+    fetch('/waste-to-profit/expiry-tracking/alerts')
+        .then(response => response.json())
+        .then(data => {
+            const modal = document.getElementById('alert-modal');
+            const content = document.getElementById('alert-content');
+            
+            if (data.success) {
+                let html = '<div class="space-y-2">';
+                Object.entries(data.alert_counts).forEach(([level, count]) => {
+                    if (count > 0) {
+                        const colorClass = level === 'critical' ? 'text-red-600' : level === 'high' ? 'text-orange-600' : 'text-yellow-600';
+                        html += `<div class="${colorClass}">${level.charAt(0).toUpperCase() + level.slice(1)} priority: ${count} items</div>`;
+                    }
+                });
+                html += '</div>';
+                content.innerHTML = html;
+            } else {
+                content.innerHTML = '<div class="text-red-600">Error checking alerts</div>';
+            }
+            
+            modal.classList.remove('hidden');
+        })
+        .catch(error => {
+            console.error('Error checking alerts:', error);
+            const modal = document.getElementById('alert-modal');
+            const content = document.getElementById('alert-content');
+            content.innerHTML = '<div class="text-red-600">Error checking alerts</div>';
+            modal.classList.remove('hidden');
+        });
+}
+
+function editItem(itemId) {
+    window.location.href = `/waste-to-profit/expiry-tracking/edit/${itemId}`;
+}
+
+function createSpecial(itemId) {
+    window.location.href = `/waste-to-profit/chef-specials/create?ingredient_id=${itemId}`;
+}
+
+function recordWaste(itemId) {
+    if (confirm('Are you sure you want to record this item as waste?')) {
+        window.location.href = `/waste-to-profit/analytics/record-waste/${itemId}`;
+    }
+}
+
+function exportData() {
+    // Export functionality
+    const table = document.getElementById('expiry-table');
+    const rows = table.querySelectorAll('tr');
+    let csv = [];
+    
+    rows.forEach(row => {
+        const cols = row.querySelectorAll('td, th');
+        const rowData = Array.from(cols).map(col => col.textContent.trim());
+        csv.push(rowData.join(','));
+    });
+    
+    const csvContent = csv.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', 'expiry_tracking.csv');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+function printData() {
+    window.print();
+}
+
+// Modal close functionality
+document.getElementById('close-alert-modal').addEventListener('click', function() {
+    document.getElementById('alert-modal').classList.add('hidden');
+});
+</script>
+{% endblock %}

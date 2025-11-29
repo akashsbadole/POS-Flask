@@ -1,0 +1,514 @@
+{% extends "employee/base.html" %}
+
+{% block title %}Performance Tracking{% endblock %}
+
+{% block employee_content %}
+<div class="py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Page Header -->
+        <div class="mb-8 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Performance Tracking</h1>
+                <p class="mt-2 text-gray-600">Monitor and evaluate employee performance</p>
+            </div>
+            <div class="flex space-x-3">
+                <select id="periodFilter" 
+                        onchange="filterByPeriod(this.value)"
+                        class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">All Periods</option>
+                    <option value="2024-01" {% if period_filter == '2024-01' %}selected{% endif %}>January 2024</option>
+                    <option value="2024-02" {% if period_filter == '2024-02' %}selected{% endif %}>February 2024</option>
+                    <option value="2024-03" {% if period_filter == '2024-03' %}selected{% endif %}>March 2024</option>
+                    <!-- More periods would be added dynamically -->
+                </select>
+                
+                <button onclick="openEvaluateModal()" 
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                    Evaluate Performance
+                </button>
+                
+                <button onclick="exportPerformance()" 
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Export
+                </button>
+            </div>
+        </div>
+
+        <!-- Performance Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-full">
+                        <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Average Score</p>
+                        <p class="text-2xl font-bold text-gray-900" id="avgScore">0.0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-full">
+                        <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Employees Evaluated</p>
+                        <p class="text-2xl font-bold text-gray-900" id="evaluatedCount">0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-yellow-100 rounded-full">
+                        <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.784.57-1.838-.197-1.539-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Top Performers</p>
+                        <p class="text-2xl font-bold text-gray-900" id="topPerformers">0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-purple-100 rounded-full">
+                        <svg class="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Improvement Needed</p>
+                        <p class="text-2xl font-bold text-gray-900" id="improvementNeeded">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Records Table -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Performance Records</h3>
+                    <div class="flex space-x-2">
+                        <button onclick="bulkEvaluate()" 
+                                class="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+                            Bulk Evaluate
+                        </button>
+                        <button onclick="generateReports()" 
+                                class="text-sm bg-green-100 text-green-800 px-3 py-1 rounded hover:bg-green-200">
+                            Generate Reports
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Employee
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Period
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Customer Rating
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Sales Performance
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Productivity
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Overall Score
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="performanceTableBody">
+                            {% for performance in performance_records %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0 h-10 w-10">
+                                            <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                                                <span class="text-sm font-medium text-indigo-600">
+                                                    {{ performance.user.name[0] if performance.user else '?' }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="ml-4">
+                                            <div class="text-sm font-medium text-gray-900">
+                                                {{ performance.user.name if performance.user else 'Unknown' }}
+                                            </div>
+                                            <div class="text-sm text-gray-500">
+                                                {{ performance.user.role if performance.user else 'N/A' }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ performance.evaluation_period }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {% if performance.customer_ratings %}
+                                    <div class="flex items-center">
+                                        <div class="flex text-yellow-400">
+                                            {% for i in range(5) %}
+                                                {% if i < performance.customer_ratings %}
+                                                <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                                </svg>
+                                                {% else %}
+                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 20 20">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                                                </svg>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        <span class="ml-2 text-sm text-gray-600">{{ "%.1f"|format(performance.customer_ratings) }}</span>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-sm text-gray-400">--</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {% if performance.sales_performance %}
+                                        {{ formatCurrency(performance.sales_performance) }}
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                                            <div class="bg-blue-600 h-2 rounded-full" 
+                                                 style="width: {{ (performance.productivity_score or 0) * 20 }}%"></div>
+                                        </div>
+                                        <span class="text-sm text-gray-600">{{ "%.1f"|format(performance.productivity_score or 0) }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="performance-score 
+                                        {% if performance.overall_score >= 4.5 %}score-excellent
+                                        {% elif performance.overall_score >= 3.5 %}score-good
+                                        {% elif performance.overall_score >= 2.5 %}score-average
+                                        {% else %}score-poor{% endif %}">
+                                        {{ "%.1f"|format(performance.overall_score or 0) }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <button onclick="viewPerformance({{ performance.id }})" 
+                                            class="text-indigo-600 hover:text-indigo-900 mr-3">
+                                        View
+                                    </button>
+                                    <button onclick="editPerformance({{ performance.id }})" 
+                                            class="text-gray-600 hover:text-gray-900">
+                                        Edit
+                                    </button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                                    No performance records found
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Trends Chart -->
+        <div class="mt-8 bg-white shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Performance Trends</h3>
+                <div class="h-64 flex items-center justify-center text-gray-500">
+                    <!-- Chart would be implemented here using Chart.js or similar -->
+                    <div class="text-center">
+                        <svg class="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        <p>Performance trends chart will be displayed here</p>
+                        <p class="text-sm">Integration with Chart.js needed</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Evaluate Performance Modal -->
+<div id="evaluateModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-2/3 max-w-4xl shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Evaluate Employee Performance</h3>
+            <form id="evaluateForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Employee</label>
+                        <select name="user_id" id="employeeSelect" required
+                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">Select Employee</option>
+                            <!-- Employee options would be populated here -->
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Evaluation Period</label>
+                        <input type="text" name="evaluation_period" id="evaluationPeriod" required
+                               placeholder="e.g., 2024-01, Q1-2024"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Customer Ratings (1-5)</label>
+                        <input type="number" name="customer_ratings" id="customerRatings" 
+                               min="1" max="5" step="0.1" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Sales Performance</label>
+                        <input type="number" name="sales_performance" id="salesPerformance" 
+                               min="0" step="0.01"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Order Accuracy (%)</label>
+                        <input type="number" name="order_accuracy" id="orderAccuracy" 
+                               min="0" max="100" step="0.1"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Productivity Score (1-5)</label>
+                        <input type="number" name="productivity_score" id="productivityScore" 
+                               min="1" max="5" step="0.1"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Teamwork Score (1-5)</label>
+                        <input type="number" name="teamwork_score" id="teamworkScore" 
+                               min="1" max="5" step="0.1"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Punctuality Score (1-5)</label>
+                        <input type="number" name="punctuality_score" id="punctualityScore" 
+                               min="1" max="5" step="0.1"
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                </div>
+                
+                <div class="mt-6">
+                    <label class="block text-sm font-medium text-gray-700">Feedback</label>
+                    <textarea name="feedback" id="feedback" rows="4"
+                              placeholder="Provide detailed feedback about the employee's performance..."
+                              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                </div>
+                
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" onclick="closeEvaluateModal()" 
+                            class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        Save Evaluation
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterByPeriod(period) {
+    const url = new URL(window.location);
+    if (period) {
+        url.searchParams.set('period', period);
+    } else {
+        url.searchParams.delete('period');
+    }
+    window.location.href = url.toString();
+}
+
+function openEvaluateModal() {
+    document.getElementById('evaluateModal').classList.remove('hidden');
+    document.getElementById('evaluateForm').reset();
+    // Set default evaluation period to current month
+    const now = new Date();
+    const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    document.getElementById('evaluationPeriod').value = period;
+}
+
+function closeEvaluateModal() {
+    document.getElementById('evaluateModal').classList.add('hidden');
+}
+
+function viewPerformance(id) {
+    window.location.href = `/employee/performance/${id}`;
+}
+
+function editPerformance(id) {
+    window.location.href = `/employee/performance/${id}/edit`;
+}
+
+function bulkEvaluate() {
+    if (confirm('Are you sure you want to start bulk evaluation? This will open evaluation forms for all employees.')) {
+        showNotification('Bulk evaluation initiated', 'success');
+    }
+}
+
+function generateReports() {
+    if (confirm('Generate performance reports for all employees?')) {
+        showNotification('Report generation started', 'success');
+        setTimeout(() => {
+            window.location.href = '/employee/performance/reports';
+        }, 1000);
+    }
+}
+
+function exportPerformance() {
+    const period = document.getElementById('periodFilter').value;
+    let url = '/employee/performance/export';
+    if (period) {
+        url += `?period=${period}`;
+    }
+    window.open(url, '_blank');
+}
+
+// Handle evaluation form submission
+document.getElementById('evaluateForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('/employee/performance/evaluate', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: new URLSearchParams(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeEvaluateModal();
+            showNotification('Performance evaluation saved successfully', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.message || 'Failed to save evaluation', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving evaluation:', error);
+        showNotification('Error saving performance evaluation', 'error');
+    });
+});
+
+// Update statistics
+function updateStats() {
+    const rows = document.querySelectorAll('#performanceTableBody tr');
+    let totalScore = 0, evaluated = 0, topPerformers = 0, improvementNeeded = 0;
+    
+    rows.forEach(row => {
+        const cells = row.getElementsByTagName('td');
+        if (cells.length >= 6) {
+            const scoreElement = cells[5].querySelector('.performance-score');
+            if (scoreElement) {
+                const score = parseFloat(scoreElement.textContent) || 0;
+                totalScore += score;
+                evaluated++;
+                
+                if (score >= 4.0) topPerformers++;
+                if (score < 2.5) improvementNeeded++;
+            }
+        }
+    });
+    
+    const avgScore = evaluated > 0 ? totalScore / evaluated : 0;
+    
+    document.getElementById('avgScore').textContent = avgScore.toFixed(1);
+    document.getElementById('evaluatedCount').textContent = evaluated;
+    document.getElementById('topPerformers').textContent = topPerformers;
+    document.getElementById('improvementNeeded').textContent = improvementNeeded;
+}
+
+// Initialize stats on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateStats();
+});
+
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 p-4 rounded-md shadow-lg z-50 ${
+        type === 'success' ? 'bg-green-50 text-green-800' : 
+        type === 'error' ? 'bg-red-50 text-red-800' : 
+        'bg-blue-50 text-blue-800'
+    }`;
+    notification.innerHTML = `
+        <div class="flex">
+            <div class="ml-3">
+                <p class="text-sm font-medium">${message}</p>
+            </div>
+            <div class="ml-auto pl-3">
+                <button onclick="this.parentElement.parentElement.remove()" class="inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    type === 'success' ? 'bg-green-50 text-green-500 hover:bg-green-100' : 
+                    type === 'error' ? 'bg-red-50 text-red-500 hover:bg-red-100' : 
+                    'bg-blue-50 text-blue-500 hover:bg-blue-100'
+                }">
+                    <span class="sr-only">Dismiss</span>
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

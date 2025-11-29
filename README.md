@@ -433,3 +433,58 @@ npx tailwindcss -i ./app/static/css/input.css -o ./app/static/css/tailwind.css -
 npm run build-css-prod
 
 npx tailwindcss -i ./app/static/css/input.css -o ./app/static/css/tailwind.css  - this is working
+
+
+### routes
+Primary POS Interfaces
+For Cashier Role: The main POS interface is at /cashier/dashboard (though the cashier blueprint is referenced but not fully implemented yet)
+
+Currently redirects to /orders/list
+Template: app/templates/cashier/dashboard.html
+For Manager/Admin Role: The main operational hub is through several key interfaces:
+
+System Status: /system-status → app/templates/main/system_status.html
+Orders Management: /orders/list → app/templates/orders/order_list.html
+Cart & Checkout: /orders/cart → app/templates/orders/cart.html
+Order Checkout: /orders/checkout/<order_id> → app/templates/orders/checkout.html
+Table Management: /tables/floor-plan → app/templates/tables/floor_plan.html
+Navigation Structure for Managers
+From the main navigation in app/templates/base.html, managers have access to:
+
+Dashboard (/dashboard) - System overview and statistics
+Menu Management (/menu-dashboard) - Add/edit menu items and categories
+Table Management (/tables-dashboard) - Manage restaurant tables and floor plan
+Reports (/reports-dashboard) - View sales and operational reports
+Inventory (/inventory-dashboard) - Manage stock and ingredients
+Settings (/settings/dashboard) - System configuration
+System Status (/system-status) - System health monitoring
+Core POS Workflow for Restaurant Operations
+Adding Orders:
+
+Navigate to /orders/list to view all orders
+Create new orders through the cart system at /orders/cart
+Add items to cart from menu interface
+Complete order creation at /orders/create
+Billing Management:
+
+View order details at /orders/order/<id>
+Process payments at /orders/checkout/<order_id>
+Handle split bills with advanced options
+Apply discounts and manage loyalty points
+Table Management:
+
+View floor plan at /tables/floor-plan
+Assign orders to tables
+Monitor table status (available, occupied, reserved, cleaning)
+Menu Access:
+
+Access menu dashboard at /menu-dashboard
+Manage items, categories, variants, and add-ons
+Key URLs for Day-to-Day Operations
+Main Dashboard: http://localhost:5000/dashboard
+Order Management: http://localhost:5000/orders/list
+Shopping Cart: http://localhost:5000/orders/cart
+Table Floor Plan: http://localhost:5000/tables/floor-plan
+Menu Management: http://localhost:5000/menu-dashboard
+Billing/Invoices: http://localhost:5000/billing/invoices
+The system uses role-based access control, so managers automatically get redirected to appropriate interfaces based on their user role. The main POS functionality is primarily handled through the orders module with comprehensive cart management, payment processing, and table assignment capabilities.

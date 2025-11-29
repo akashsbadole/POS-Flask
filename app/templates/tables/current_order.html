@@ -1,0 +1,478 @@
+{% extends "base.html" %}
+
+{% block title %}Current Order - Table {{ table.number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-receipt me-2"></i>
+                        Current Order - Table {{ table.number }}
+                    </h5>
+                    <div>
+                        <span class="badge bg-primary">{{ order.order_number }}</span>
+                        <span class="badge bg-{{ 
+                            'success' if order.status.value == 'served' else
+                            'warning' if order.status.value in ['pending', 'confirmed', 'preparing', 'ready'] else
+                            'danger' if order.status.value == 'cancelled' else
+                            'secondary'
+                        }}">
+                            {{ order.status.value.title() }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Order Summary -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h4>{{ order.items|length }}</h4>
+                                    <p class="mb-0">Items</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body text-center">
+                                    <h4>${{ "%.2f"|format(order.subtotal) }}</h4>
+                                    <p class="mb-0">Subtotal</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <h4>${{ "%.2f"|format(order.total) }}</h4>
+                                    <p class="mb-0">Total</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-{{ 
+                                'success' if order.is_fully_paid() else 'danger' }} text-white">
+                                <div class="card-body text-center">
+                                    <h4>${{ "%.2f"|format(order.get_balance_due()) }}</h4>
+                                    <p class="mb-0">{{ 'Paid' if order.is_fully_paid() else 'Due' }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Order Items -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">Order Items</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if order.items %}
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Qty</th>
+                                            <th>Unit Price</th>
+                                            <th>Total</th>
+                                            <th>Notes</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in order.items %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ item.menu_item.name }}</strong>
+                                                {% if item.variant %}
+                                                <br><small class="text-muted">{{ item.variant.name }}</small>
+                                                {% endif %}
+                                                {% if item.add_ons %}
+                                                <br><small class="text-info">
+                                                    + {{ item.add_ons|map(attribute='name')|join(', ') }}
+                                                </small>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ item.quantity }}</td>
+                                            <td>${{ "%.2f"|format(item.unit_price) }}</td>
+                                            <td>
+                                                <strong>${{ "%.2f"|format(item.get_total_price()) }}</strong>
+                                            </td>
+                                            <td>
+                                                {% if item.notes %}
+                                                <small class="text-muted">{{ item.notes }}</small>
+                                                {% else %}
+                                                <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if order.can_be_modified() %}
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <button type="button" class="btn btn-sm btn-outline-warning" 
+                                                            onclick="editItem({{ item.id }})">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                            onclick="removeItem({{ item.id }})">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                                {% else %}
+                                                <span class="text-muted">Locked</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-2x mb-2"></i>
+                                <p>No items in this order</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-primary" onclick="showAddItemModal()">
+                                    <i class="fas fa-plus me-1"></i>Add Item
+                                </button>
+                                <button type="button" class="btn btn-outline-info" onclick="showSplitModal()">
+                                    <i class="fas fa-cut me-1"></i>Split Order
+                                </button>
+                                <button type="button" class="btn btn-outline-warning" onclick="showTransferModal()">
+                                    <i class="fas fa-exchange-alt me-1"></i>Transfer Table
+                                </button>
+                                <a href="{{ url_for('orders.order_details', order_id=order.id) }}" 
+                                   class="btn btn-outline-secondary">
+                                    <i class="fas fa-eye me-1"></i>Full Details
+                                </a>
+                                {% if order.is_fully_paid() %}
+                                <button type="button" class="btn btn-success" onclick="printReceipt()">
+                                    <i class="fas fa-print me-1"></i>Print Receipt
+                                </button>
+                                {% else %}
+                                <a href="{{ url_for('orders.checkout', order_id=order.id) }}" 
+                                   class="btn btn-success">
+                                    <i class="fas fa-credit-card me-1"></i>Process Payment
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Order Details -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Order Details</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Order #:</strong></td>
+                            <td>{{ order.order_number }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Table:</strong></td>
+                            <td>{{ table.number }}</td>
+                        </tr>
+                        {% if order.seat_number %}
+                        <tr>
+                            <td><strong>Seat:</strong></td>
+                            <td>{{ order.seat_number }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if order.course_number > 1 %}
+                        <tr>
+                            <td><strong>Course:</strong></td>
+                            <td>{{ order.course_number }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <td><strong>Status:</strong></td>
+                            <td>
+                                <span class="badge bg-{{ 
+                                    'success' if order.status.value == 'served' else
+                                    'warning' if order.status.value in ['pending', 'confirmed', 'preparing', 'ready'] else
+                                    'danger' if order.status.value == 'cancelled' else
+                                    'secondary'
+                                }}">
+                                    {{ order.status.value.title() }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Created:</strong></td>
+                            <td>{{ order.created_at.strftime('%H:%M on %d/%m/%Y') }}</td>
+                        </tr>
+                        {% if order.waiter %}
+                        <tr>
+                            <td><strong>Waiter:</strong></td>
+                            <td>{{ order.waiter.name }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if order.customer %}
+                        <tr>
+                            <td><strong>Customer:</strong></td>
+                            <td>{{ order.customer.get_full_name() }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="duplicateOrder()">
+                            <i class="fas fa-copy me-1"></i>Duplicate Order
+                        </button>
+                        <button type="button" class="btn btn-outline-info btn-sm" onclick="sendToKitchen()">
+                            <i class="fas fa-paper-plane me-1"></i>Send to Kitchen
+                        </button>
+                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="holdOrder()">
+                            <i class="fas fa-pause me-1"></i>Hold Order
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="cancelOrder()">
+                            <i class="fas fa-times me-1"></i>Cancel Order
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Order Timeline</h6>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-success"></div>
+                            <div class="timeline-content">
+                                <strong>Order Created</strong><br>
+                                <small class="text-muted">{{ order.created_at.strftime('%H:%M') }}</small>
+                            </div>
+                        </div>
+                        
+                        {% if order.timer_started_at %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-warning"></div>
+                            <div class="timeline-content">
+                                <strong>Preparation Started</strong><br>
+                                <small class="text-muted">{{ order.timer_started_at.strftime('%H:%M') }}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if order.timer_completed_at %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-info"></div>
+                            <div class="timeline-content">
+                                <strong>Ready for Service</strong><br>
+                                <small class="text-muted">{{ order.timer_completed_at.strftime('%H:%M') }}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if order.completed_at %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-{{ 
+                                'success' if order.status.value == 'served' else 'danger' }}"></div>
+                            <div class="timeline-content">
+                                <strong>{{ order.status.value.title() }}</strong><br>
+                                <small class="text-muted">{{ order.completed_at.strftime('%H:%M') }}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+.timeline-item {
+    position: relative;
+    padding-bottom: 20px;
+}
+.timeline-marker {
+    position: absolute;
+    left: -15px;
+    top: 5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+.timeline-content {
+    margin-left: 20px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 5px;
+    border-left: 3px solid #dee2e6;
+}
+</style>
+
+<script>
+function showAddItemModal() {
+    // Load the add item modal
+    fetch(`/orders/orders/table/{{ table.id }}/add-item`)
+        .then(response => response.text())
+        .then(html => {
+            // Create modal and show it
+            const modalDiv = document.createElement('div');
+            modalDiv.innerHTML = html;
+            document.body.appendChild(modalDiv);
+            
+            const modal = new bootstrap.Modal(modalDiv.querySelector('.modal'));
+            modal.show();
+            
+            // Clean up when modal is hidden
+            modalDiv.querySelector('.modal').addEventListener('hidden.bs.modal', () => {
+                document.body.removeChild(modalDiv);
+            });
+        });
+}
+
+function showSplitModal() {
+    window.location.href = `/orders/{{ order.id }}/split-by-seat`;
+}
+
+function showTransferModal() {
+    window.location.href = `/orders/{{ order.id }}/transfer-table`;
+}
+
+function editItem(itemId) {
+    // Implementation for editing item
+    alert(`Edit item ${itemId} - feature to be implemented`);
+}
+
+function removeItem(itemId) {
+    if (confirm('Are you sure you want to remove this item?')) {
+        fetch(`/orders/api/remove-item/${itemId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error removing item: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error removing item:', error);
+            alert('Error removing item');
+        });
+    }
+}
+
+function duplicateOrder() {
+    if (confirm('Create a new order with the same items?')) {
+        // Implementation for duplicating order
+        alert('Duplicate order feature - to be implemented');
+    }
+}
+
+function sendToKitchen() {
+    fetch(`/orders/print/kitchen-ticket/{{ order.id }}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Kitchen ticket sent successfully!');
+            } else {
+                alert('Error sending to kitchen: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error sending to kitchen:', error);
+            alert('Error sending to kitchen');
+        });
+}
+
+function holdOrder() {
+    if (confirm('Put this order on hold?')) {
+        fetch(`/orders/api/hold-order/{{ order.id }}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Order put on hold successfully!');
+                location.reload();
+            } else {
+                alert('Error holding order: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error holding order:', error);
+            alert('Error holding order');
+        });
+    }
+}
+
+function cancelOrder() {
+    if (confirm('Are you sure you want to cancel this order?')) {
+        fetch(`/orders/api/cancel-order/{{ order.id }}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Order cancelled successfully!');
+                location.href = '/tables/floor-plan';
+            } else {
+                alert('Error cancelling order: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error cancelling order:', error);
+            alert('Error cancelling order');
+        });
+    }
+}
+
+function printReceipt() {
+    window.open(`/orders/print/receipt/{{ order.id }}`, '_blank');
+}
+
+// Auto-refresh order status
+setInterval(() => {
+    fetch(`/orders/api/order-status/{{ order.id }}`)
+        .then(response => response.json())
+        .then(data => {
+            // Update status if changed
+            const statusBadge = document.querySelector('.card-header .badge:last-child');
+            if (statusBadge && data.status !== '{{ order.status.value }}') {
+                statusBadge.className = `badge bg-${data.status_color}`;
+                statusBadge.textContent = data.status_text;
+                
+                // Reload page if status changed significantly
+                if (['served', 'cancelled'].includes(data.status)) {
+                    setTimeout(() => location.reload(), 2000);
+                }
+            }
+        });
+}, 15000); // Refresh every 15 seconds
+</script>
+{% endblock %}

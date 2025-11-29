@@ -31,6 +31,12 @@ class Restaurant(db.Model):
     licenses = db.relationship('License', back_populates='restaurant', lazy='select')
     gst_settings = db.relationship('GSTSetting', back_populates='restaurant')
     
+    # Enhanced Customer Engagement Relationships
+    loyalty_programs = db.relationship('LoyaltyProgram', back_populates='restaurant', lazy='dynamic')
+    marketing_campaigns = db.relationship('MarketingCampaign', back_populates='restaurant', lazy='dynamic')
+    feedback = db.relationship('CustomerFeedback', back_populates='restaurant', lazy='dynamic')
+    communication_templates = db.relationship('CommunicationTemplate', back_populates='restaurant', lazy='dynamic')
+    
     def get_active_users_count(self):
         """Get count of active users"""
         # Use a direct query to avoid relationship iteration issues

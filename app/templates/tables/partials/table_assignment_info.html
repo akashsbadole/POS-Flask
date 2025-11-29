@@ -1,0 +1,46 @@
+<!-- Table Assignment Info Partial -->
+<div class="table-assignment-info">
+    {% if table.current_waiter %}
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="flex-shrink-0">
+                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                        <span class="text-white text-sm font-medium">{{ table.current_waiter.name[0] }}</span>
+                    </div>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-blue-900">{{ table.current_waiter.name }}</p>
+                    <p class="text-xs text-blue-700">{{ table.current_waiter.get_role_display_name() }}</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <p class="text-xs text-blue-600">Assigned</p>
+                <p class="text-xs text-blue-500">{{ table.get_current_assignment().assigned_at.strftime('%I:%M %p') }}</p>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="flex-shrink-0">
+                    <div class="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center">
+                        <span class="text-white text-sm">?</span>
+                    </div>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-700">No waiter assigned</p>
+                    <p class="text-xs text-gray-500">Unassigned table</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <a href="{{ url_for('tables.assign_waiter', table_id=table.id) }}" 
+                   class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
+                    Assign Waiter
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>

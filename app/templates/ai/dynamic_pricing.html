@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Pricing - Restaurant POS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        [x-cloak] { display: none !important; }
+        .price-card {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .price-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .price-increase {
+            border-left: 4px solid #ef4444;
+        }
+        .price-decrease {
+            border-left: 4px solid #10b981;
+        }
+        .price-stable {
+            border-left: 4px solid #6b7280;
+        }
+        .price-trend-up {
+            color: #ef4444;
+            animation: pulse-up 2s infinite;
+        }
+        .price-trend-down {
+            color: #10b981;
+            animation: pulse-down 2s infinite;
+        }
+        @keyframes pulse-up {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        @keyframes pulse-down {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        .pricing-factor {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .demand-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .demand-high { background-color: #ef4444; }
+        .demand-medium { background-color: #f59e0b; }
+        .demand-low { background-color: #10b981; }
+        .sparkline {
+            width: 60px;
+            height: 20px;
+        }
+        .loading-skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50" x-data="dynamicPricing()">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-chart-line text-2xl text-blue-600 mr-3"></i>
+                    <h1 class="text-xl font-semibold text-gray-900">Dynamic Pricing</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm text-gray-500">Auto-pricing:</span>
+                        <button @click="toggleAutoPricing()" 
+                                :class="autoPricingEnabled ? 'bg-green-500' : 'bg-gray-300'"
+                                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors">
+                            <span :class="autoPricingEnabled ? 'translate-x-6' : 'translate-x-1'"
+                                  class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"></span>
+                        </button>
+                    </div>
+                    <button @click="refreshPricing()" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-sync-alt mr-2" :class="{'fa-spin': loading}"></i>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Pricing Factors Overview -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div class="pricing-factor rounded-lg p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white/80 text-sm">Demand Factor</p>
+                        <p class="text-2xl font-bold" x-text="pricingFactors.demand.toFixed(2)"></p>
+                        <div class="flex items-center mt-1">
+                            <span class="demand-indicator mr-2" 
+                                  :class="getDemandClass(pricingFactors.demand)"></span>
+                            <span class="text-xs text-white/70" x-text="getDemandLabel(pricingFactors.demand)"></span>
+                        </div>
+                    </div>
+                    <i class="fas fa-users text-3xl text-white/50"></i>
+                </div>
+            </div>
+            
+            <div class="bg-orange-500 rounded-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-orange-100 text-sm">Time Factor</p>
+                        <p class="text-2xl font-bold" x-text="pricingFactors.time.toFixed(2)"></p>
+                        <p class="text-xs text-orange-70 mt-1" x-text="getTimeLabel()"></p>
+                    </div>
+                    <i class="fas fa-clock text-3xl text-orange-200"></i>
+                </div>
+            </div>
+            
+            <div class="bg-green-500 rounded-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-green-100 text-sm">Inventory Factor</p>
+                        <p class="text-2xl font-bold" x-text="pricingFactors.inventory.toFixed(2)"></p>
+                        <p class="text-xs text-green-70 mt-1" x-text="getInventoryLabel()"></p>
+                    </div>
+                    <i class="fas fa-boxes text-3xl text-green-200"></i>
+                </div>
+            </div>
+            
+            <div class="bg-purple-500 rounded-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-purple-100 text-sm">Weather Factor</p>
+                        <p class="text-2xl font-bold" x-text="pricingFactors.weather.toFixed(2)"></p>
+                        <p class="text-xs text-purple-70 mt-1" x-text="weatherCondition"></p>
+                    </div>
+                    <i class="fas fa-cloud-sun text-3xl text-purple-200"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pricing Controls -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Pricing Controls</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Max Price Increase
+                        <span class="text-gray-500 font-normal">(<span x-text="maxIncrease * 100"></span>%)</span>
+                    </label>
+                    <input type="range" x-model="maxIncrease" min="0" max="0.5" step="0.05"
+                           @input="updatePricingLimits()"
+                           class="w-full">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Max Price Decrease
+                        <span class="text-gray-500 font-normal">(<span x-text="maxDecrease * 100"></span>%)</span>
+                    </label>
+                    <input type="range" x-model="maxDecrease" min="0" max="0.5" step="0.05"
+                           @input="updatePricingLimits()"
+                           class="w-full">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Aggressiveness
+                    </label>
+                    <select x-model="aggressiveness" @change="updatePricingLimits()"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        <option value="conservative">Conservative</option>
+                        <option value="moderate">Moderate</option>
+                        <option value="aggressive">Aggressive</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menu Items with Dynamic Pricing -->
+        <div class="bg-white rounded-lg shadow-sm">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-900">Menu Items Pricing</h2>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <input type="text" x-model="searchTerm" @input="filterItems()"
+                                   placeholder="Search items..." 
+                                   class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                        </div>
+                        <select x-model="categoryFilter" @change="filterItems()"
+                                class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Categories</option>
+                            <template x-for="category in categories" :key="category.id">
+                                <option :value="category.id" x-text="category.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div x-show="loading" class="p-6">
+                <div class="space-y-4">
+                    <template x-for="i in 5" :key="i">
+                        <div class="loading-skeleton h-24 rounded-lg"></div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Menu Items Grid -->
+            <div x-show="!loading" class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <template x-for="item in filteredItems" :key="item.id">
+                        <div class="price-card bg-white border rounded-lg p-6"
+                             :class="getPriceTrendClass(item)">
+                            <div class="flex items-start justify-between mb-4">
+                                <div class="flex-1">
+                                    <h3 class="text-lg font-semibold text-gray-900" x-text="item.name"></h3>
+                                    <p class="text-sm text-gray-500" x-text="item.category"></p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-2xl font-bold text-gray-900">
+                                        $<span x-text="item.currentPrice.toFixed(2)"></span>
+                                    </div>
+                                    <div class="flex items-center text-sm"
+                                         :class="item.priceChange > 0 ? 'price-trend-up' : item.priceChange < 0 ? 'price-trend-down' : 'text-gray-500'">
+                                        <i :class="item.priceChange > 0 ? 'fas fa-arrow-up' : item.priceChange < 0 ? 'fas fa-arrow-down' : 'fas fa-minus'"
+                                           class="mr-1"></i>
+                                        <span x-text="Math.abs(item.priceChange * 100).toFixed(1) + '%'"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-3">
+                                <!-- Price History Sparkline -->
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-500">Price Trend (24h)</span>
+                                    <canvas class="sparkline" :id="'sparkline-' + item.id"></canvas>
+                                </div>
+                                
+                                <!-- Pricing Factors -->
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <div class="flex items-center">
+                                        <span class="demand-indicator mr-1" 
+                                              :class="getDemandClass(item.demandFactor)"></span>
+                                        <span class="text-gray-600">Demand: <span x-text="item.demandFactor.toFixed(2)"></span></span>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <i class="fas fa-boxes text-gray-400 mr-1"></i>
+                                        <span class="text-gray-600">Stock: <span x-text="item.inventoryLevel"></span></span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Optimization Score -->
+                                <div class="pt-3 border-t border-gray-200">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-sm text-gray-600">Optimization Score</span>
+                                        <span class="text-sm font-medium" x-text="Math.round(item.optimizationScore * 100) + '%'"></span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                             :style="`width: ${item.optimizationScore * 100}%`"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4 pt-4 border-t border-gray-200 flex justify-between">
+                                <button @click="viewItemDetails(item)"
+                                        class="text-blue-600 hover:text-blue-800 text-sm">
+                                    <i class="fas fa-chart-line mr-1"></i>Analytics
+                                </button>
+                                <div class="space-x-2">
+                                    <button @click="lockPrice(item)"
+                                            :disabled="item.locked"
+                                            class="px-3 py-1 text-sm rounded"
+                                            :class="item.locked ? 'bg-gray-100 text-gray-400' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'">
+                                        <i :class="item.locked ? 'fas fa-lock' : 'fas fa-unlock'"></i>
+                                    </button>
+                                    <button @click="resetPrice(item)"
+                                            class="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm">
+                                        <i class="fas fa-undo"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Empty State -->
+                <div x-show="filteredItems.length === 0 && !loading" 
+                     class="text-center py-12">
+                    <i class="fas fa-search text-6xl text-gray-300 mb-4"></i>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No items found</h3>
+                    <p class="text-gray-500">Try adjusting your search or filter criteria.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Item Details Modal -->
+    <div x-show="showDetailsModal" x-cloak
+         class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+         @click.self="showDetailsModal = false">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900" x-text="selectedItem?.name"></h3>
+                    <button @click="showDetailsModal = false" 
+                            class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div x-show="selectedItem" class="space-y-6">
+                    <!-- Price Chart -->
+                    <div>
+                        <h4 class="font-medium text-gray-900 mb-3">Price History (7 Days)</h4>
+                        <canvas id="priceChart" width="400" height="200"></canvas>
+                    </div>
+                    
+                    <!-- Factor Analysis -->
+                    <div class="grid grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-medium text-gray-900 mb-3">Pricing Factors</h4>
+                            <div class="space-y-2">
+                                <template x-for="(value, factor) in selectedItem?.factors" :key="factor">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600 capitalize" x-text="factor"></span>
+                                        <span class="font-medium" x-text="value.toFixed(2)"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-medium text-gray-900 mb-3">Performance Metrics</h4>
+                            <div class="space-y-2">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Sales Volume</span>
+                                    <span class="font-medium" x-text="selectedItem?.salesVolume || 0"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Revenue Impact</span>
+                                    <span class="font-medium text-green-600">+$<span x-text="selectedItem?.revenueImpact || 0"></span></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Conversion Rate</span>
+                                    <span class="font-medium" x-text="(selectedItem?.conversionRate * 100).toFixed(1) + '%'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button @click="showDetailsModal = false"
+                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">
+                        Close
+                    </button>
+                    <button @click="applyOptimalPrice(selectedItem)"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-magic mr-2"></i>Apply Optimal Price
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function dynamicPricing() {
+            return {
+                loading: false,
+                autoPricingEnabled: true,
+                showDetailsModal: false,
+                selectedItem: null,
+                searchTerm: '',
+                categoryFilter: '',
+                maxIncrease: 0.25,
+                maxDecrease: 0.15,
+                aggressiveness: 'moderate',
+                menuItems: [],
+                filteredItems: [],
+                categories: [],
+                pricingFactors: {
+                    demand: 1.0,
+                    time: 1.0,
+                    inventory: 1.0,
+                    weather: 1.0
+                },
+                weatherCondition: 'Clear',
+                priceChart: null,
+                
+                init() {
+                    this.loadMenuItems();
+                    this.loadCategories();
+                    this.loadPricingFactors();
+                    this.startRealTimeUpdates();
+                },
+                
+                async loadMenuItems() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/ai/pricing/menu-items');
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.menuItems = data.items;
+                            this.filteredItems = [...this.menuItems];
+                            
+                            // Wait for DOM to update before drawing sparklines
+                            this.$nextTick(() => {
+                                this.drawSparklines();
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error loading menu items:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async loadCategories() {
+                    try {
+                        const response = await fetch('/api/categories');
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.categories = data.categories;
+                        }
+                    } catch (error) {
+                        console.error('Error loading categories:', error);
+                    }
+                },
+                
+                async loadPricingFactors() {
+                    try {
+                        const response = await fetch('/ai/pricing/factors');
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.pricingFactors = data.factors;
+                            this.weatherCondition = data.weatherCondition;
+                        }
+                    } catch (error) {
+                        console.error('Error loading pricing factors:', error);
+                    }
+                },
+                
+                filterItems() {
+                    let filtered = [...this.menuItems];
+                    
+                    // Search filter
+                    if (this.searchTerm) {
+                        const search = this.searchTerm.toLowerCase();
+                        filtered = filtered.filter(item => 
+                            item.name.toLowerCase().includes(search) ||
+                            item.category.toLowerCase().includes(search)
+                        );
+                    }
+                    
+                    // Category filter
+                    if (this.categoryFilter) {
+                        filtered = filtered.filter(item => item.categoryId == this.categoryFilter);
+                    }
+                    
+                    this.filteredItems = filtered;
+                    
+                    // Redraw sparklines after filtering
+                    this.$nextTick(() => {
+                        this.drawSparklines();
+                    });
+                },
+                
+                async toggleAutoPricing() {
+                    this.autoPricingEnabled = !this.autoPricingEnabled;
+                    
+                    try {
+                        const response = await fetch('/ai/pricing/auto-pricing', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                enabled: this.autoPricingEnabled
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            this.showNotification(
+                                this.autoPricingEnabled ? 'Auto-pricing enabled' : 'Auto-pricing disabled',
+                                'success'
+                            );
+                        }
+                    } catch (error) {
+                        console.error('Error toggling auto-pricing:', error);
+                    }
+                },
+                
+                async refreshPricing() {
+                    await this.loadMenuItems();
+                    await this.loadPricingFactors();
+                },
+                
+                async updatePricingLimits() {
+                    try {
+                        const response = await fetch('/ai/pricing/limits', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                maxIncrease: this.maxIncrease,
+                                maxDecrease: this.maxDecrease,
+                                aggressiveness: this.aggressiveness
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            this.showNotification('Pricing limits updated', 'success');
+                        }
+                    } catch (error) {
+                        console.error('Error updating pricing limits:', error);
+                    }
+                },
+                
+                viewItemDetails(item) {
+                    this.selectedItem = item;
+                    this.showDetailsModal = true;
+                    
+                    this.$nextTick(() => {
+                        this.drawPriceChart(item);
+                    });
+                },
+                
+                async lockPrice(item) {
+                    item.locked = !item.locked;
+                    
+                    try {
+                        const response = await fetch(`/ai/pricing/items/${item.id}/lock`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                locked: item.locked
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            this.showNotification(
+                                item.locked ? 'Price locked' : 'Price unlocked',
+                                'info'
+                            );
+                        }
+                    } catch (error) {
+                        console.error('Error locking price:', error);
+                        item.locked = !item.locked; // Revert on error
+                    }
+                },
+                
+                async resetPrice(item) {
+                    if (!confirm(`Reset price for ${item.name} to original price?`)) {
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`/ai/pricing/items/${item.id}/reset`, {
+                            method: 'POST'
+                        });
+                        
+                        if (response.ok) {
+                            item.currentPrice = item.originalPrice;
+                            item.priceChange = 0;
+                            this.showNotification('Price reset to original', 'success');
+                        }
+                    } catch (error) {
+                        console.error('Error resetting price:', error);
+                    }
+                },
+                
+                async applyOptimalPrice(item) {
+                    try {
+                        const response = await fetch(`/ai/pricing/items/${item.id}/optimize`, {
+                            method: 'POST'
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            item.currentPrice = data.optimalPrice;
+                            item.priceChange = (data.optimalPrice - item.originalPrice) / item.originalPrice;
+                            this.showDetailsModal = false;
+                            this.showNotification('Optimal price applied', 'success');
+                        }
+                    } catch (error) {
+                        console.error('Error applying optimal price:', error);
+                    }
+                },
+                
+                drawSparklines() {
+                    this.filteredItems.forEach(item => {
+                        const canvas = document.getElementById(`sparkline-${item.id}`);
+                        if (!canvas) return;
+                        
+                        const ctx = canvas.getContext('2d');
+                        const data = item.priceHistory || [];
+                        
+                        if (data.length < 2) return;
+                        
+                        // Simple sparkline drawing
+                        const width = canvas.width;
+                        const height = canvas.height;
+                        const padding = 2;
+                        
+                        const maxPrice = Math.max(...data);
+                        const minPrice = Math.min(...data);
+                        const range = maxPrice - minPrice || 1;
+                        
+                        ctx.clearRect(0, 0, width, height);
+                        ctx.strokeStyle = item.priceChange > 0 ? '#ef4444' : 
+                                       item.priceChange < 0 ? '#10b981' : '#6b7280';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        
+                        data.forEach((price, index) => {
+                            const x = padding + (index / (data.length - 1)) * (width - 2 * padding);
+                            const y = padding + (1 - (price - minPrice) / range) * (height - 2 * padding);
+                            
+                            if (index === 0) {
+                                ctx.moveTo(x, y);
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+                        });
+                        
+                        ctx.stroke();
+                    });
+                },
+                
+                drawPriceChart(item) {
+                    const canvas = document.getElementById('priceChart');
+                    if (!canvas) return;
+                    
+                    const ctx = canvas.getContext('2d');
+                    const data = item.priceHistory || [];
+                    
+                    if (this.priceChart) {
+                        this.priceChart.destroy();
+                    }
+                    
+                    this.priceChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: data.map((_, index) => `Day ${index + 1}`),
+                            datasets: [{
+                                label: 'Price',
+                                data: data,
+                                borderColor: 'rgb(59, 130, 246)',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: false,
+                                    ticks: {
+                                        callback: function(value) {
+                                            return '$' + value.toFixed(2);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                },
+                
+                getPriceTrendClass(item) {
+                    if (item.priceChange > 0.05) return 'price-increase';
+                    if (item.priceChange < -0.05) return 'price-decrease';
+                    return 'price-stable';
+                },
+                
+                getDemandClass(demand) {
+                    if (demand > 1.2) return 'demand-high';
+                    if (demand > 0.8) return 'demand-medium';
+                    return 'demand-low';
+                },
+                
+                getDemandLabel(demand) {
+                    if (demand > 1.2) return 'High Demand';
+                    if (demand > 0.8) return 'Medium Demand';
+                    return 'Low Demand';
+                },
+                
+                getTimeLabel() {
+                    const hour = new Date().getHours();
+                    if (hour >= 11 && hour <= 14) return 'Lunch Peak';
+                    if (hour >= 17 && hour <= 21) return 'Dinner Peak';
+                    if (hour >= 22 || hour <= 6) return 'Late Night';
+                    return 'Regular Hours';
+                },
+                
+                getInventoryLabel() {
+                    // Simplified - would use actual inventory data
+                    return 'Good Stock';
+                },
+                
+                startRealTimeUpdates() {
+                    // Update pricing factors every 5 minutes
+                    setInterval(() => {
+                        if (this.autoPricingEnabled) {
+                            this.loadPricingFactors();
+                        }
+                    }, 5 * 60 * 1000);
+                },
+                
+                showNotification(message, type = 'info') {
+                    // Simple notification implementation
+                    const notification = document.createElement('div');
+                    notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                        type === 'success' ? 'bg-green-500 text-white' :
+                        type === 'error' ? 'bg-red-500 text-white' :
+                        'bg-blue-500 text-white'
+                    }`;
+                    notification.textContent = message;
+                    
+                    document.body.appendChild(notification);
+                    
+                    setTimeout(() => {
+                        notification.remove();
+                    }, 3000);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

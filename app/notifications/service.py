@@ -7,7 +7,7 @@ import logging
 import threading
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
-from flask import current_app, render_template
+from flask import render_template
 from flask_mail import Mail, Message
 import twilio
 from twilio.rest import Client
@@ -63,14 +63,14 @@ class NotificationService:
             except Exception as e:
                 logger.error(f"Failed to initialize AWS SNS client: {e}")
     
-    def send_email(self, 
-                   to: str, 
-                   subject: str, 
-                   template: str, 
-                   context: Dict[str, Any] = None,
-                   cc: List[str] = None,
-                   bcc: List[str] = None,
-                   attachments: List[str] = None,
+    def send_email(self,
+                   to: str,
+                   subject: str,
+                   template: str,
+                   context: Optional[Dict[str, Any]] = None,
+                   cc: Optional[List[str]] = None,
+                   bcc: Optional[List[str]] = None,
+                   attachments: Optional[List[str]] = None,
                    priority: str = 'normal',
                    send_async: bool = True) -> Optional[Notification]:
         """
@@ -131,10 +131,10 @@ class NotificationService:
             db.session.rollback()
             return None
     
-    def send_sms(self, 
-                 to: str, 
+    def send_sms(self,
+                 to: str,
                  message: str,
-                 context: Dict[str, Any] = None,
+                 context: Optional[Dict[str, Any]] = None,
                  priority: str = 'normal',
                  send_async: bool = True) -> Optional[Notification]:
         """
@@ -190,7 +190,7 @@ class NotificationService:
             db.session.rollback()
             return None
     
-    def send_order_receipt(self, order, email: str = None, phone: str = None) -> Dict[str, Optional[Notification]]:
+    def send_order_receipt(self, order, email: Optional[str] = None, phone: Optional[str] = None) -> Dict[str, Optional[Notification]]:
         """
         Send order receipt via email and/or SMS
         
@@ -202,7 +202,7 @@ class NotificationService:
         Returns:
             Dictionary with email and SMS notification results
         """
-        results = {'email': None, 'sms': None}
+        results: Dict[str, Optional[Notification]] = {'email': None, 'sms': None}
         
         # Prepare context for templates
         context = {
@@ -235,7 +235,7 @@ class NotificationService:
         
         return results
     
-    def send_order_confirmation(self, order, email: str = None, phone: str = None) -> Dict[str, Optional[Notification]]:
+    def send_order_confirmation(self, order, email: Optional[str] = None, phone: Optional[str] = None) -> Dict[str, Optional[Notification]]:
         """
         Send order confirmation via email and/or SMS
         
@@ -247,7 +247,7 @@ class NotificationService:
         Returns:
             Dictionary with email and SMS notification results
         """
-        results = {'email': None, 'sms': None}
+        results: Dict[str, Optional[Notification]] = {'email': None, 'sms': None}
         
         # Prepare context for templates
         context = {
@@ -306,13 +306,17 @@ class NotificationService:
             logger.warning("No admin emails configured for low stock alerts")
             return None
         
-        return self.send_email(
-            to=admin_emails,
-            subject=f"Low Stock Alert: {ingredient.name}",
-            template='notifications/email/low_stock_alert.html',
-            context=context,
-            priority='high'
-        )
+        # Send to each admin individually
+        notification = None
+        for admin_email in admin_emails:
+            notification = self.send_email(
+                to=admin_email,
+                subject=f"Low Stock Alert: {ingredient.name}",
+                template='notifications/email/low_stock_alert.html',
+                context=context,
+                priority='high'
+            )
+        return notification
     
     def send_license_renewal_reminder(self, license_obj, days_until_expiry: int) -> Optional[Notification]:
         """
@@ -341,17 +345,21 @@ class NotificationService:
         
         priority = 'high' if days_until_expiry <= 7 else 'normal'
         
-        return self.send_email(
-            to=admin_emails,
-            subject=f"License Renewal Reminder: {license_obj.license_type}",
-            template='notifications/email/license_renewal_reminder.html',
-            context=context,
-            priority=priority
-        )
+        # Send to each admin individually
+        notification = None
+        for admin_email in admin_emails:
+            notification = self.send_email(
+                to=admin_email,
+                subject=f"License Renewal Reminder: {license_obj.license_type}",
+                template='notifications/email/license_renewal_reminder.html',
+                context=context,
+                priority=priority
+            )
+        return notification
     
-    def _send_email_async(self, notification_id: int, template: str, context: Dict[str, Any], 
-                         cc: List[str] = None, bcc: List[str] = None, 
-                         attachments: List[str] = None):
+    def _send_email_async(self, notification_id: int, template: str, context: Dict[str, Any],
+                         cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None,
+                         attachments: Optional[List[str]] = None):
         """Send email asynchronously"""
         with self.app.app_context():
             try:
@@ -368,9 +376,10 @@ class NotificationService:
                     self._mark_notification_failed(notification, str(e))
     
     def _send_email_sync(self, notification: Notification, template: str, context: Dict[str, Any],
-                        cc: List[str] = None, bcc: List[str] = None, 
-                        attachments: List[str] = None):
+                        cc: Optional[List[str]] = None, bcc: Optional[List[str]] = None,
+                        attachments: Optional[List[str]] = None):
         """Send email synchronously"""
+        from flask import current_app
         try:
             # Render email template
             html_content = render_template(template, **context)
@@ -433,6 +442,7 @@ class NotificationService:
     
     def _send_sms_sync(self, notification: Notification, message: str, context: Dict[str, Any]):
         """Send SMS synchronously"""
+        from flask import current_app
         try:
             # Render message template if it's a template name
             if message.endswith('.html') or message.endswith('.txt'):
@@ -444,11 +454,11 @@ class NotificationService:
             error_message = None
             
             # Send via Twilio
-            if self.app.config.get('SMS_PROVIDER') == 'twilio' and self.twilio_client:
+            if self.app and self.app.config.get('SMS_PROVIDER') == 'twilio' and self.twilio_client:
                 try:
                     twilio_message = self.twilio_client.messages.create(
                         body=rendered_message,
-                        from_=self.app.config.get('SMS_FROM_NUMBER'),
+                        from_=self.app.config.get('SMS_FROM_NUMBER') if self.app else None,
                         to=notification.recipient
                     )
                     success = True
@@ -459,7 +469,7 @@ class NotificationService:
                     logger.error(error_message)
             
             # Send via AWS SNS
-            elif self.app.config.get('SMS_PROVIDER') == 'aws_sns' and self.sns_client:
+            elif self.app and self.app.config.get('SMS_PROVIDER') == 'aws_sns' and self.sns_client:
                 try:
                     self.sns_client.publish(
                         PhoneNumber=notification.recipient,
@@ -499,7 +509,7 @@ class NotificationService:
         notification.failed_at = datetime.utcnow()
         db.session.commit()
     
-    def _log_notification_delivery(self, notification: Notification, channel: str, status: str, error_message: str = None):
+    def _log_notification_delivery(self, notification: Notification, channel: str, status: str, error_message: Optional[str] = None):
         """Log notification delivery attempt"""
         log_entry = NotificationLog(
             notification_id=notification.id,
@@ -513,19 +523,21 @@ class NotificationService:
     
     def _is_email_enabled(self) -> bool:
         """Check if email notifications are enabled"""
-        return (current_app.config.get('ENABLE_EMAIL_NOTIFICATIONS', True) and 
-                current_app.config.get('MAIL_SERVER') and 
-                current_app.config.get('MAIL_USERNAME') and 
+        from flask import current_app
+        return bool(current_app.config.get('ENABLE_EMAIL_NOTIFICATIONS', True) and
+                current_app.config.get('MAIL_SERVER') and
+                current_app.config.get('MAIL_USERNAME') and
                 current_app.config.get('MAIL_PASSWORD'))
     
     def _is_sms_enabled(self) -> bool:
         """Check if SMS notifications are enabled"""
-        return (current_app.config.get('ENABLE_SMS_NOTIFICATIONS', False) and
-                ((current_app.config.get('SMS_PROVIDER') == 'twilio' and 
-                  current_app.config.get('SMS_ACCOUNT_SID') and 
+        from flask import current_app
+        return bool(current_app.config.get('ENABLE_SMS_NOTIFICATIONS', False) and
+                ((current_app.config.get('SMS_PROVIDER') == 'twilio' and
+                  current_app.config.get('SMS_ACCOUNT_SID') and
                   current_app.config.get('SMS_AUTH_TOKEN')) or
-                 (current_app.config.get('SMS_PROVIDER') == 'aws_sns' and 
-                  current_app.config.get('SMS_AWS_ACCESS_KEY') and 
+                 (current_app.config.get('SMS_PROVIDER') == 'aws_sns' and
+                  current_app.config.get('SMS_AWS_ACCESS_KEY') and
                   current_app.config.get('SMS_AWS_SECRET_KEY'))))
     
     def _should_send_email_notification(self, order, notification_type: str) -> bool:

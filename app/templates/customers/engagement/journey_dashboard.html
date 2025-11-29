@@ -1,0 +1,1338 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Journey Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header with Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">Customer Journey Analytics</h1>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="createJourneyMap()">
+                        <i class="fas fa-map"></i> Create Map
+                    </button>
+                    <button class="btn btn-success" onclick="analyzeJourney()">
+                        <i class="fas fa-chart-line"></i> Analyze
+                    </button>
+                    <button class="btn btn-info" onclick="exportJourneyData()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Journey Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-route fa-2x mb-2"></i>
+                    <h4 class="card-title">Total Journeys</h4>
+                    <h2 class="mb-0" id="total-journeys">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-2x mb-2"></i>
+                    <h4 class="card-title">Completed</h4>
+                    <h2 class="mb-0" id="completed-journeys">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x mb-2"></i>
+                    <h4 class="card-title">Avg Duration</h4>
+                    <h2 class="mb-0" id="avg-duration">0d</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <h4 class="card-title">Drop-offs</h4>
+                    <h2 class="mb-0" id="drop-offs">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-percentage fa-2x mb-2"></i>
+                    <h4 class="card-title">Conversion</h4>
+                    <h2 class="mb-0" id="conversion-rate">0%</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-star fa-2x mb-2"></i>
+                    <h4 class="card-title">Satisfaction</h4>
+                    <h2 class="mb-0" id="satisfaction-score">0</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Journey Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Filter Journeys</h5>
+                </div>
+                <div class="card-body">
+                    <form id="journey-filters" class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Journey Type</label>
+                            <select class="form-control" name="journey_type" id="journey-type-filter">
+                                <option value="">All Types</option>
+                                <option value="onboarding">Onboarding</option>
+                                <option value="loyalty">Loyalty Program</option>
+                                <option value="re_engagement">Re-engagement</option>
+                                <option value="promotion">Promotion</option>
+                                <option value="feedback">Feedback</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Status</label>
+                            <select class="form-control" name="status" id="status-filter">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="completed">Completed</option>
+                                <option value="dropped_off">Dropped Off</option>
+                                <option value="paused">Paused</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Customer Segment</label>
+                            <select class="form-control" name="segment" id="segment-filter">
+                                <option value="">All Segments</option>
+                                <option value="new">New Customers</option>
+                                <option value="loyal">Loyal Customers</option>
+                                <option value="high_value">High Value</option>
+                                <option value="at_risk">At Risk</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Date Range</label>
+                            <input type="date" class="form-control" name="start_date" id="start-date">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <input type="date" class="form-control" name="end_date" id="end-date">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="button" class="btn btn-primary w-100" onclick="applyFilters()">
+                                <i class="fas fa-search"></i> Filter
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Journey Visualization -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Customer Journey Map</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="changeJourneyView('funnel')">
+                            <i class="fas fa-filter"></i> Funnel
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="changeJourneyView('timeline')">
+                            <i class="fas fa-stream"></i> Timeline
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="changeJourneyView('heatmap')">
+                            <i class="fas fa-th"></i> Heatmap
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="journey-visualization">
+                        <canvas id="journey-funnel-chart" width="800" height="400"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Journey Stages Analysis -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Journey Stages Performance</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="stages-performance-chart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Touchpoint Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="touchpoint-chart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Journeys -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Active Customer Journeys</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="sortJourneys('progress')">
+                            <i class="fas fa-sort"></i> Progress
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="sortJourneys('duration')">
+                            <i class="fas fa-sort"></i> Duration
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="sortJourneys('customer')">
+                            <i class="fas fa-sort"></i> Customer
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="active-journeys">
+                        <div class="text-center py-5">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">Loading active journeys...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Journey Insights -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Key Insights</h5>
+                </div>
+                <div class="card-body">
+                    <div id="journey-insights">
+                        <div class="text-center py-5">
+                            <i class="fas fa-lightbulb fa-2x text-muted"></i>
+                            <p class="mt-2">Analyzing journey patterns...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Recommendations</h5>
+                </div>
+                <div class="card-body">
+                    <div id="journey-recommendations">
+                        <div class="text-center py-5">
+                            <i class="fas fa-magic fa-2x text-muted"></i>
+                            <p class="mt-2">Generating recommendations...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Journey Map Creation Modal -->
+<div class="modal fade" id="journeyMapModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Customer Journey Map</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="journey-map-form">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Journey Name</label>
+                                <input type="text" class="form-control" name="name" placeholder="Enter journey name...">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Journey Type</label>
+                                <select class="form-control" name="journey_type">
+                                    <option value="onboarding">Onboarding</option>
+                                    <option value="loyalty">Loyalty Program</option>
+                                    <option value="re_engagement">Re-engagement</option>
+                                    <option value="promotion">Promotion</option>
+                                    <option value="feedback">Feedback</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="3" placeholder="Describe the customer journey..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Target Audience</label>
+                        <select class="form-control" name="target_audience">
+                            <option value="all_customers">All Customers</option>
+                            <option value="new_customers">New Customers</option>
+                            <option value="loyalty_members">Loyalty Members</option>
+                            <option value="high_value">High Value Customers</option>
+                            <option value="at_risk">At Risk Customers</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Journey Stages</label>
+                        <div id="journey-stages">
+                            <div class="row mb-2 stage-row">
+                                <div class="col-md-4">
+                                    <input type="text" class="form-control" name="stage_name[]" placeholder="Stage name">
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-control" name="stage_type[]">
+                                        <option value="awareness">Awareness</option>
+                                        <option value="consideration">Consideration</option>
+                                        <option value="conversion">Conversion</option>
+                                        <option value="retention">Retention</option>
+                                        <option value="advocacy">Advocacy</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="number" class="form-control" name="stage_duration[]" placeholder="Duration (days)" min="1">
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-outline-danger" onclick="removeStage(this)">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addStage()">
+                            <i class="fas fa-plus"></i> Add Stage
+                        </button>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Success Metrics</label>
+                        <div id="success-metrics">
+                            <div class="row mb-2">
+                                <div class="col-md-5">
+                                    <input type="text" class="form-control" name="metric_name[]" placeholder="Metric name">
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="number" class="form-control" name="metric_target[]" placeholder="Target value" min="0">
+                                </div>
+                                <div class="col-md-4">
+                                    <select class="form-control" name="metric_type[]">
+                                        <option value="percentage">Percentage</option>
+                                        <option value="count">Count</option>
+                                        <option value="time">Time</option>
+                                        <option value="score">Score</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addMetric()">
+                            <i class="fas fa-plus"></i> Add Metric
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveJourneyMap()">
+                    <i class="fas fa-save"></i> Save Journey Map
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Journey Details Modal -->
+<div class="modal fade" id="journeyDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Customer Journey Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="journey-details-content">
+                    <!-- Journey details will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let journeyFunnelChart = null;
+let stagesPerformanceChart = null;
+let touchpointChart = null;
+let currentJourneyView = 'funnel';
+let currentJourneyId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadJourneyDashboard();
+    initializeCharts();
+    
+    // Set default date range (last 30 days)
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+    
+    document.getElementById('start-date').value = thirtyDaysAgo.toISOString().split('T')[0];
+    document.getElementById('end-date').value = today.toISOString().split('T')[0];
+});
+
+function loadJourneyDashboard() {
+    loadJourneyStatistics();
+    loadActiveJourneys();
+    loadJourneyInsights();
+    loadJourneyRecommendations();
+}
+
+function loadJourneyStatistics() {
+    fetch('/api/customers/engagement/journey/statistics', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        updateJourneyStatistics(data);
+    })
+    .catch(error => {
+        console.error('Error loading journey statistics:', error);
+    });
+}
+
+function updateJourneyStatistics(data) {
+    document.getElementById('total-journeys').textContent = formatNumber(data.total_journeys || 0);
+    document.getElementById('completed-journeys').textContent = formatNumber(data.completed_journeys || 0);
+    document.getElementById('avg-duration').textContent = (data.avg_duration || 0) + 'd';
+    document.getElementById('drop-offs').textContent = formatNumber(data.drop_offs || 0);
+    document.getElementById('conversion-rate').textContent = (data.conversion_rate || 0) + '%';
+    document.getElementById('satisfaction-score').textContent = (data.satisfaction_score || 0).toFixed(1);
+}
+
+function loadActiveJourneys() {
+    const filters = getFilterValues();
+    
+    fetch('/api/customers/engagement/journey/active?' + new URLSearchParams(filters), {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderActiveJourneys(data.journeys || []);
+    })
+    .catch(error => {
+        console.error('Error loading active journeys:', error);
+        document.getElementById('active-journeys').innerHTML = '<div class="text-center text-muted">Error loading journeys</div>';
+    });
+}
+
+function renderActiveJourneys(journeys) {
+    const container = document.getElementById('active-journeys');
+    
+    if (journeys.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-5">No active journeys found</div>';
+        return;
+    }
+    
+    const journeysHtml = journeys.map(journey => {
+        const progressPercentage = (journey.progress || 0);
+        const statusBadge = getJourneyStatusBadge(journey.status);
+        
+        return `
+            <div class="row mb-3 p-3 border rounded journey-item">
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <div class="journey-avatar bg-light rounded-circle p-2">
+                                <i class="${getJourneyTypeIcon(journey.journey_type)}"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h6 class="mb-1">${journey.name}</h6>
+                            <small class="text-muted">${journey.customer_name}</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-2">
+                        <strong>Current Stage:</strong><br>
+                        <span class="badge bg-info">${journey.current_stage || 'Unknown'}</span>
+                    </div>
+                    <small class="text-muted">Duration: ${journey.duration || 0} days</small>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-2">
+                        <strong>Progress:</strong>
+                        <div class="progress">
+                            <div class="progress-bar bg-${getProgressColor(progressPercentage)}" style="width: ${progressPercentage}%"></div>
+                        </div>
+                        <small>${progressPercentage}% complete</small>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="mb-2">
+                        ${statusBadge}
+                    </div>
+                    <small class="text-muted">Started: ${new Date(journey.start_date).toLocaleDateString()}</small>
+                </div>
+                <div class="col-md-2 text-end">
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewJourneyDetails(${journey.id})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" onclick="pauseJourney(${journey.id})">
+                            <i class="fas fa-pause"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning" onclick="advanceJourney(${journey.id})">
+                            <i class="fas fa-forward"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = journeysHtml;
+}
+
+function getJourneyTypeIcon(type) {
+    const icons = {
+        'onboarding': 'fas fa-user-plus',
+        'loyalty': 'fas fa-award',
+        're_engagement': 'fas fa-redo',
+        'promotion': 'fas fa-tag',
+        'feedback': 'fas fa-comment'
+    };
+    return icons[type] || 'fas fa-route';
+}
+
+function getJourneyStatusBadge(status) {
+    const badges = {
+        'active': '<span class="badge bg-success">Active</span>',
+        'completed': '<span class="badge bg-primary">Completed</span>',
+        'dropped_off': '<span class="badge bg-danger">Dropped Off</span>',
+        'paused': '<span class="badge bg-warning">Paused</span>'
+    };
+    return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
+}
+
+function getProgressColor(percentage) {
+    if (percentage >= 75) return 'success';
+    if (percentage >= 50) return 'info';
+    if (percentage >= 25) return 'warning';
+    return 'danger';
+}
+
+function loadJourneyInsights() {
+    fetch('/api/customers/engagement/journey/insights', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderJourneyInsights(data.insights || []);
+    })
+    .catch(error => {
+        console.error('Error loading journey insights:', error);
+        document.getElementById('journey-insights').innerHTML = '<div class="text-center text-muted">Error loading insights</div>';
+    });
+}
+
+function renderJourneyInsights(insights) {
+    const container = document.getElementById('journey-insights');
+    
+    if (insights.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted">No insights available</div>';
+        return;
+    }
+    
+    const insightsHtml = insights.map((insight, index) => `
+        <div class="d-flex align-items-start mb-3">
+            <div class="me-3">
+                <div class="insight-icon bg-primary text-white rounded-circle p-2">
+                    <i class="fas fa-lightbulb"></i>
+                </div>
+            </div>
+            <div class="flex-grow-1">
+                <h6 class="mb-1">${insight.title}</h6>
+                <p class="mb-1">${insight.description}</p>
+                <small class="text-muted">Impact: ${insight.impact || 'Medium'}</small>
+            </div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = insightsHtml;
+}
+
+function loadJourneyRecommendations() {
+    fetch('/api/customers/engagement/journey/recommendations', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderJourneyRecommendations(data.recommendations || []);
+    })
+    .catch(error => {
+        console.error('Error loading journey recommendations:', error);
+        document.getElementById('journey-recommendations').innerHTML = '<div class="text-center text-muted">Error loading recommendations</div>';
+    });
+}
+
+function renderJourneyRecommendations(recommendations) {
+    const container = document.getElementById('journey-recommendations');
+    
+    if (recommendations.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted">No recommendations available</div>';
+        return;
+    }
+    
+    const recommendationsHtml = recommendations.map((rec, index) => `
+        <div class="d-flex align-items-start mb-3">
+            <div class="me-3">
+                <div class="recommendation-icon bg-success text-white rounded-circle p-2">
+                    <i class="fas fa-magic"></i>
+                </div>
+            </div>
+            <div class="flex-grow-1">
+                <h6 class="mb-1">${rec.title}</h6>
+                <p class="mb-1">${rec.description}</p>
+                <div class="d-flex justify-content-between">
+                    <small class="text-muted">Priority: ${rec.priority || 'Medium'}</small>
+                    <button class="btn btn-sm btn-outline-primary" onclick="implementRecommendation(${index})">
+                        Implement
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = recommendationsHtml;
+}
+
+function initializeCharts() {
+    renderJourneyFunnelChart();
+    renderStagesPerformanceChart();
+    renderTouchpointChart();
+}
+
+function renderJourneyFunnelChart() {
+    const ctx = document.getElementById('journey-funnel-chart').getContext('2d');
+    
+    if (journeyFunnelChart) {
+        journeyFunnelChart.destroy();
+    }
+    
+    // Sample data - would come from API
+    const labels = ['Awareness', 'Consideration', 'Conversion', 'Retention', 'Advocacy'];
+    const data = [1000, 750, 450, 320, 180];
+    
+    journeyFunnelChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Customers',
+                data: data,
+                backgroundColor: [
+                    '#007bff',
+                    '#17a2b8',
+                    '#28a745',
+                    '#ffc107',
+                    '#fd7e14'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function renderStagesPerformanceChart() {
+    const ctx = document.getElementById('stages-performance-chart').getContext('2d');
+    
+    if (stagesPerformanceChart) {
+        stagesPerformanceChart.destroy();
+    }
+    
+    // Sample data - would come from API
+    const labels = ['Awareness', 'Consideration', 'Conversion', 'Retention', 'Advocacy'];
+    const completion = [85, 72, 45, 68, 35];
+    const duration = [2, 5, 3, 15, 10];
+    
+    stagesPerformanceChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Completion Rate (%)',
+                data: completion,
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.2)',
+                yAxisID: 'y'
+            }, {
+                label: 'Avg Duration (days)',
+                data: duration,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    beginAtZero: true,
+                    max: 100
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    beginAtZero: true,
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderTouchpointChart() {
+    const ctx = document.getElementById('touchpoint-chart').getContext('2d');
+    
+    if (touchpointChart) {
+        touchpointChart.destroy();
+    }
+    
+    // Sample data - would come from API
+    const labels = ['Email', 'SMS', 'Push', 'In-App', 'Social', 'Website'];
+    const engagement = [85, 72, 68, 45, 38, 92];
+    const conversion = [12, 8, 15, 6, 4, 18];
+    
+    touchpointChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Engagement Rate (%)',
+                data: engagement,
+                backgroundColor: '#007bff'
+            }, {
+                label: 'Conversion Rate (%)',
+                data: conversion,
+                backgroundColor: '#28a745'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+function getFilterValues() {
+    const filters = {};
+    
+    const journeyType = document.getElementById('journey-type-filter').value;
+    const status = document.getElementById('status-filter').value;
+    const segment = document.getElementById('segment-filter').value;
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    
+    if (journeyType) filters.journey_type = journeyType;
+    if (status) filters.status = status;
+    if (segment) filters.segment = segment;
+    if (startDate) filters.start_date = startDate;
+    if (endDate) filters.end_date = endDate;
+    
+    return filters;
+}
+
+function applyFilters() {
+    loadActiveJourneys();
+}
+
+function changeJourneyView(view) {
+    currentJourneyView = view;
+    
+    // Re-render the visualization based on the selected view
+    const container = document.getElementById('journey-visualization');
+    
+    if (view === 'funnel') {
+        container.innerHTML = '<canvas id="journey-funnel-chart" width="800" height="400"></canvas>';
+        renderJourneyFunnelChart();
+    } else if (view === 'timeline') {
+        container.innerHTML = '<canvas id="journey-timeline-chart" width="800" height="400"></canvas>';
+        renderJourneyTimelineChart();
+    } else if (view === 'heatmap') {
+        container.innerHTML = '<canvas id="journey-heatmap-chart" width="800" height="400"></canvas>';
+        renderJourneyHeatmapChart();
+    }
+}
+
+function renderJourneyTimelineChart() {
+    const ctx = document.getElementById('journey-timeline-chart').getContext('2d');
+    
+    // Sample timeline data - would come from API
+    const labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'];
+    const onboarding = [120, 85, 45, 20, 10, 5];
+    const loyalty = [50, 65, 80, 95, 110, 125];
+    const reEngagement = [30, 35, 40, 38, 42, 45];
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Onboarding',
+                data: onboarding,
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                fill: true
+            }, {
+                label: 'Loyalty',
+                data: loyalty,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                fill: true
+            }, {
+                label: 'Re-engagement',
+                data: reEngagement,
+                borderColor: '#ffc107',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function renderJourneyHeatmapChart() {
+    const ctx = document.getElementById('journey-heatmap-chart').getContext('2d');
+    
+    // Sample heatmap data - would come from API
+    const data = {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [{
+            label: 'Morning',
+            data: [65, 59, 80, 81, 56, 55, 40],
+            backgroundColor: 'rgba(255, 99, 132, 0.5)'
+        }, {
+            label: 'Afternoon',
+            data: [28, 48, 40, 19, 86, 27, 90],
+            backgroundColor: 'rgba(54, 162, 235, 0.5)'
+        }, {
+            label: 'Evening',
+            data: [45, 25, 35, 51, 42, 65, 75],
+            backgroundColor: 'rgba(255, 206, 86, 0.5)'
+        }]
+    };
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    stacked: true
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function sortJourneys(sortBy) {
+    // This would sort the journeys based on the selected criteria
+    console.log('Sorting journeys by:', sortBy);
+    loadActiveJourneys();
+}
+
+function createJourneyMap() {
+    const modal = new bootstrap.Modal(document.getElementById('journeyMapModal'));
+    modal.show();
+}
+
+function addStage() {
+    const container = document.getElementById('journey-stages');
+    const stageRow = document.createElement('div');
+    stageRow.className = 'row mb-2 stage-row';
+    stageRow.innerHTML = `
+        <div class="col-md-4">
+            <input type="text" class="form-control" name="stage_name[]" placeholder="Stage name">
+        </div>
+        <div class="col-md-3">
+            <select class="form-control" name="stage_type[]">
+                <option value="awareness">Awareness</option>
+                <option value="consideration">Consideration</option>
+                <option value="conversion">Conversion</option>
+                <option value="retention">Retention</option>
+                <option value="advocacy">Advocacy</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <input type="number" class="form-control" name="stage_duration[]" placeholder="Duration (days)" min="1">
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-outline-danger" onclick="removeStage(this)">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(stageRow);
+}
+
+function removeStage(button) {
+    button.closest('.stage-row').remove();
+}
+
+function addMetric() {
+    const container = document.getElementById('success-metrics');
+    const metricRow = document.createElement('div');
+    metricRow.className = 'row mb-2';
+    metricRow.innerHTML = `
+        <div class="col-md-5">
+            <input type="text" class="form-control" name="metric_name[]" placeholder="Metric name">
+        </div>
+        <div class="col-md-3">
+            <input type="number" class="form-control" name="metric_target[]" placeholder="Target value" min="0">
+        </div>
+        <div class="col-md-4">
+            <select class="form-control" name="metric_type[]">
+                <option value="percentage">Percentage</option>
+                <option value="count">Count</option>
+                <option value="time">Time</option>
+                <option value="score">Score</option>
+            </select>
+        </div>
+    `;
+    container.appendChild(metricRow);
+}
+
+function saveJourneyMap() {
+    const form = document.getElementById('journey-map-form');
+    const formData = new FormData(form);
+    
+    const journeyData = {
+        name: formData.get('name'),
+        journey_type: formData.get('journey_type'),
+        description: formData.get('description'),
+        target_audience: formData.get('target_audience'),
+        stages: [],
+        success_metrics: []
+    };
+    
+    // Collect stages
+    const stageNames = formData.getAll('stage_name[]');
+    const stageTypes = formData.getAll('stage_type[]');
+    const stageDurations = formData.getAll('stage_duration[]');
+    
+    for (let i = 0; i < stageNames.length; i++) {
+        if (stageNames[i].trim()) {
+            journeyData.stages.push({
+                name: stageNames[i],
+                type: stageTypes[i],
+                duration: parseInt(stageDurations[i]) || 1
+            });
+        }
+    }
+    
+    // Collect metrics
+    const metricNames = formData.getAll('metric_name[]');
+    const metricTargets = formData.getAll('metric_target[]');
+    const metricTypes = formData.getAll('metric_type[]');
+    
+    for (let i = 0; i < metricNames.length; i++) {
+        if (metricNames[i].trim()) {
+            journeyData.success_metrics.push({
+                name: metricNames[i],
+                target: parseFloat(metricTargets[i]) || 0,
+                type: metricTypes[i]
+            });
+        }
+    }
+    
+    fetch('/api/customers/engagement/journey/maps', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        },
+        body: JSON.stringify(journeyData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Journey map created successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('journeyMapModal')).hide();
+            form.reset();
+            loadActiveJourneys();
+        } else {
+            showAlert(data.error || 'Error creating journey map', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating journey map:', error);
+        showAlert('Error creating journey map', 'danger');
+    });
+}
+
+function analyzeJourney() {
+    fetch('/api/customers/engagement/journey/analyze', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Journey analysis completed successfully!', 'success');
+            loadJourneyInsights();
+            loadJourneyRecommendations();
+            loadJourneyStatistics();
+        } else {
+            showAlert(data.error || 'Error analyzing journey', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error analyzing journey:', error);
+        showAlert('Error analyzing journey', 'danger');
+    });
+}
+
+function exportJourneyData() {
+    const filters = getFilterValues();
+    
+    fetch('/api/customers/engagement/journey/export?' + new URLSearchParams(filters), {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.blob();
+        } else {
+            throw new Error('Export failed');
+        }
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `journey_export_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showAlert('Journey data exported successfully!', 'success');
+    })
+    .catch(error => {
+        console.error('Error exporting journey data:', error);
+        showAlert('Error exporting journey data', 'danger');
+    });
+}
+
+function viewJourneyDetails(journeyId) {
+    currentJourneyId = journeyId;
+    
+    fetch('/api/customers/engagement/journey/' + journeyId, {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayJourneyDetails(data.journey);
+        } else {
+            showAlert('Error loading journey details', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading journey details:', error);
+        showAlert('Error loading journey details', 'danger');
+    });
+}
+
+function displayJourneyDetails(journey) {
+    const container = document.getElementById('journey-details-content');
+    
+    const detailsHtml = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Journey Information</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Name:</strong></td><td>${journey.name}</td></tr>
+                    <tr><td><strong>Type:</strong></td><td>${journey.journey_type}</td></tr>
+                    <tr><td><strong>Customer:</strong></td><td>${journey.customer_name}</td></tr>
+                    <tr><td><strong>Status:</strong></td><td>${getJourneyStatusBadge(journey.status)}</td></tr>
+                    <tr><td><strong>Start Date:</strong></td><td>${new Date(journey.start_date).toLocaleDateString()}</td></tr>
+                    <tr><td><strong>Duration:</strong></td><td>${journey.duration || 0} days</td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>Progress Overview</h6>
+                <div class="mb-3">
+                    <strong>Overall Progress:</strong>
+                    <div class="progress">
+                        <div class="progress-bar bg-${getProgressColor(journey.progress)}" style="width: ${journey.progress}%"></div>
+                    </div>
+                    <small>${journey.progress}% complete</small>
+                </div>
+                <h6>Current Stage</h6>
+                <div class="alert alert-info">
+                    <strong>${journey.current_stage}</strong>
+                    <p class="mb-0">${journey.stage_description || 'No description available'}</p>
+                </div>
+            </div>
+        </div>
+        <hr>
+        <h6>Journey Stages</h6>
+        <div class="timeline">
+            ${journey.stages ? journey.stages.map((stage, index) => `
+                <div class="timeline-item ${stage.completed ? 'completed' : stage.current ? 'current' : 'pending'}">
+                    <div class="timeline-marker">
+                        <i class="fas ${stage.completed ? 'fa-check' : stage.current ? 'fa-clock' : 'fa-circle'}"></i>
+                    </div>
+                    <div class="timeline-content">
+                        <h6>${stage.name}</h6>
+                        <p class="mb-1">${stage.description || ''}</p>
+                        <small class="text-muted">
+                            ${stage.completed ? 'Completed on ' + new Date(stage.completed_at).toLocaleDateString() : 
+                              stage.current ? 'Currently in progress' : 
+                              'Scheduled for ' + new Date(stage.scheduled_date).toLocaleDateString()}
+                        </small>
+                    </div>
+                </div>
+            `).join('') : '<p>No stages available</p>'}
+        </div>
+    `;
+    
+    container.innerHTML = detailsHtml;
+    
+    const modal = new bootstrap.Modal(document.getElementById('journeyDetailsModal'));
+    modal.show();
+}
+
+function pauseJourney(journeyId) {
+    if (confirm('Are you sure you want to pause this journey?')) {
+        fetch('/api/customers/engagement/journey/' + journeyId + '/pause', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('Journey paused successfully!', 'success');
+                loadActiveJourneys();
+            } else {
+                showAlert(data.error || 'Error pausing journey', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error pausing journey:', error);
+            showAlert('Error pausing journey', 'danger');
+        });
+    }
+}
+
+function advanceJourney(journeyId) {
+    if (confirm('Are you sure you want to advance this journey to the next stage?')) {
+        fetch('/api/customers/engagement/journey/' + journeyId + '/advance', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('Journey advanced successfully!', 'success');
+                loadActiveJourneys();
+            } else {
+                showAlert(data.error || 'Error advancing journey', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error advancing journey:', error);
+            showAlert('Error advancing journey', 'danger');
+        });
+    }
+}
+
+function implementRecommendation(index) {
+    // Implementation for applying recommendations
+    console.log('Implementing recommendation:', index);
+    showAlert('Recommendation implementation started!', 'success');
+}
+
+function formatNumber(num) {
+    return new Intl.NumberFormat().format(num);
+}
+
+function showAlert(message, type) {
+    // Implementation depends on your alert system
+    console.log(`${type}: ${message}`);
+}
+</script>
+
+<style>
+.journey-avatar {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.journey-item:hover {
+    background-color: #f8f9fa;
+    transition: background-color 0.3s ease;
+}
+
+.insight-icon, .recommendation-icon {
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -30px;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: #fff;
+    border: 2px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.timeline-item.completed .timeline-marker {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+}
+
+.timeline-item.current .timeline-marker {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+
+.timeline-content {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    border-left: 3px solid #dee2e6;
+}
+
+.timeline-item.completed .timeline-content {
+    border-left-color: #28a745;
+}
+
+.timeline-item.current .timeline-content {
+    border-left-color: #007bff;
+}
+</style>
+{% endblock %}

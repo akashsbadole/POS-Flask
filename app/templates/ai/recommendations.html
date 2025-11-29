@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Recommendations - Restaurant POS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/alpinejs@3.15.2/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        [x-cloak] { display: none !important; }
+        .recommendation-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        .recommendation-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .recommendation-card.upsell {
+            border-left-color: #10b981;
+        }
+        .recommendation-card.pricing {
+            border-left-color: #3b82f6;
+        }
+        .recommendation-card.inventory {
+            border-left-color: #f59e0b;
+        }
+        .recommendation-card.customer {
+            border-left-color: #8b5cf6;
+        }
+        .confidence-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .loading-skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50" x-data="aiRecommendations()">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-brain text-2xl text-indigo-600 mr-3"></i>
+                    <h1 class="text-xl font-semibold text-gray-900">AI Recommendations</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button @click="refreshRecommendations()" 
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                        <i class="fas fa-sync-alt mr-2" :class="{'fa-spin': loading}"></i>
+                        Refresh
+                    </button>
+                    <div class="relative">
+                        <button @click="showFilters = !showFilters" 
+                                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                            <i class="fas fa-filter mr-2"></i>
+                            Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Filters Panel -->
+    <div x-show="showFilters" x-transition class="bg-white border-b shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Recommendation Type</label>
+                    <select x-model="filters.type" @change="applyFilters()"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">All Types</option>
+                        <option value="upsell">Upselling</option>
+                        <option value="pricing">Dynamic Pricing</option>
+                        <option value="inventory">Inventory</option>
+                        <option value="customer">Customer Intelligence</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Confidence Level</label>
+                    <select x-model="filters.confidence" @change="applyFilters()"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">All Levels</option>
+                        <option value="high">High (>80%)</option>
+                        <option value="medium">Medium (60-80%)</option>
+                        <option value="low">Low (<60%)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Time Period</label>
+                    <select x-model="filters.period" @change="applyFilters()"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="today">Today</option>
+                        <option value="week">This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="all">All Time</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select x-model="filters.status" @change="applyFilters()"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="accepted">Accepted</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="implemented">Implemented</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metrics Overview -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div class="metric-card rounded-lg p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white/80 text-sm">Total Recommendations</p>
+                        <p class="text-3xl font-bold" x-text="metrics.totalRecommendations"></p>
+                    </div>
+                    <i class="fas fa-lightbulb text-3xl text-white/50"></i>
+                </div>
+            </div>
+            <div class="bg-green-500 rounded-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-green-100 text-sm">Acceptance Rate</p>
+                        <p class="text-3xl font-bold" x-text="metrics.acceptanceRate + '%'"></p>
+                    </div>
+                    <i class="fas fa-check-circle text-3xl text-green-200"></i>
+                </div>
+            </div>
+            <div class="bg-blue-500 rounded-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-blue-100 text-sm">Revenue Impact</p>
+                        <p class="text-3xl font-bold">$<span x-text="metrics.revenueImpact"></span></p>
+                    </div>
+                    <i class="fas fa-chart-line text-3xl text-blue-200"></i>
+                </div>
+            </div>
+            <div class="bg-purple-500 rounded-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-purple-100 text-sm">Avg. Confidence</p>
+                        <p class="text-3xl font-bold" x-text="metrics.avgConfidence + '%'"></p>
+                    </div>
+                    <i class="fas fa-brain text-3xl text-purple-200"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommendations List -->
+        <div class="bg-white rounded-lg shadow-sm">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-900">Active Recommendations</h2>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm text-gray-500" x-text="filteredRecommendations.length + ' items'"></span>
+                        <button @click="toggleView()" 
+                                class="px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors">
+                            <i :class="viewMode === 'list' ? 'fas fa-th-large' : 'fas fa-list'"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div x-show="loading" class="p-6">
+                <div class="space-y-4">
+                    <template x-for="i in 3" :key="i">
+                        <div class="loading-skeleton h-32 rounded-lg"></div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Recommendations Grid/List -->
+            <div x-show="!loading" class="p-6">
+                <!-- List View -->
+                <div x-show="viewMode === 'list'" class="space-y-4">
+                    <template x-for="recommendation in filteredRecommendations" :key="recommendation.id">
+                        <div class="recommendation-card bg-white border rounded-lg p-6 hover:shadow-lg"
+                             :class="recommendation.type">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center mb-2">
+                                        <div class="confidence-badge text-white text-xs px-2 py-1 rounded-full mr-3">
+                                            <span x-text="Math.round(recommendation.confidence * 100) + '%'"></span>
+                                        </div>
+                                        <h3 class="text-lg font-semibold text-gray-900" x-text="recommendation.title"></h3>
+                                        <span class="ml-3 px-2 py-1 text-xs rounded-full"
+                                              :class="getTypeBadgeClass(recommendation.type)"
+                                              x-text="recommendation.type"></span>
+                                    </div>
+                                    <p class="text-gray-600 mb-4" x-text="recommendation.description"></p>
+                                    
+                                    <div class="flex items-center space-x-6 text-sm text-gray-500">
+                                        <div class="flex items-center">
+                                            <i class="fas fa-clock mr-1"></i>
+                                            <span x-text="formatDate(recommendation.createdAt)"></span>
+                                        </div>
+                                        <div class="flex items-center">
+                                            <i class="fas fa-chart-line mr-1"></i>
+                                            <span>Impact: <span x-text="recommendation.impact"></span></span>
+                                        </div>
+                                        <div class="flex items-center">
+                                            <i class="fas fa-dollar-sign mr-1"></i>
+                                            <span>Value: $<span x-text="recommendation.value"></span></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center space-x-2 ml-4">
+                                    <button @click="viewDetails(recommendation)"
+                                            class="px-3 py-2 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button @click="acceptRecommendation(recommendation)"
+                                            class="px-3 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button @click="rejectRecommendation(recommendation)"
+                                            class="px-3 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Grid View -->
+                <div x-show="viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <template x-for="recommendation in filteredRecommendations" :key="recommendation.id">
+                        <div class="recommendation-card bg-white border rounded-lg p-6 hover:shadow-lg"
+                             :class="recommendation.type">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="confidence-badge text-white text-xs px-2 py-1 rounded-full">
+                                    <span x-text="Math.round(recommendation.confidence * 100) + '%'"></span>
+                                </div>
+                                <span class="px-2 py-1 text-xs rounded-full"
+                                      :class="getTypeBadgeClass(recommendation.type)"
+                                      x-text="recommendation.type"></span>
+                            </div>
+                            
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2" x-text="recommendation.title"></h3>
+                            <p class="text-gray-600 text-sm mb-4" x-text="recommendation.description"></p>
+                            
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-500">Impact:</span>
+                                    <span class="font-medium" x-text="recommendation.impact"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-500">Value:</span>
+                                    <span class="font-medium">$<span x-text="recommendation.value"></span></span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4 pt-4 border-t border-gray-200 flex justify-between">
+                                <button @click="viewDetails(recommendation)"
+                                        class="text-indigo-600 hover:text-indigo-800 text-sm">
+                                    <i class="fas fa-eye mr-1"></i>View
+                                </button>
+                                <div class="space-x-2">
+                                    <button @click="acceptRecommendation(recommendation)"
+                                            class="text-green-600 hover:text-green-800">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button @click="rejectRecommendation(recommendation)"
+                                            class="text-red-600 hover:text-red-800">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Empty State -->
+                <div x-show="filteredRecommendations.length === 0 && !loading" 
+                     class="text-center py-12">
+                    <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No recommendations found</h3>
+                    <p class="text-gray-500">Try adjusting your filters or check back later for new recommendations.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendation Details Modal -->
+    <div x-show="showDetailsModal" x-cloak
+         class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+         @click.self="showDetailsModal = false">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900" x-text="selectedRecommendation?.title"></h3>
+                    <button @click="showDetailsModal = false" 
+                            class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div x-show="selectedRecommendation" class="space-y-4">
+                    <div>
+                        <h4 class="font-medium text-gray-900 mb-2">Description</h4>
+                        <p class="text-gray-600" x-text="selectedRecommendation?.description"></p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-medium text-gray-900 mb-2">Confidence</h4>
+                            <div class="flex items-center">
+                                <div class="w-full bg-gray-200 rounded-full h-2 mr-2">
+                                    <div class="bg-indigo-600 h-2 rounded-full" 
+                                         :style="`width: ${selectedRecommendation?.confidence * 100}%`"></div>
+                                </div>
+                                <span x-text="Math.round(selectedRecommendation?.confidence * 100) + '%'"></span>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-medium text-gray-900 mb-2">Expected Impact</h4>
+                            <p class="text-lg font-semibold text-green-600" x-text="selectedRecommendation?.impact"></p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-medium text-gray-900 mb-2">Implementation Details</h4>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <ul class="space-y-2">
+                                <template x-for="(step, index) in selectedRecommendation?.implementationSteps" :key="index">
+                                    <li class="flex items-start">
+                                        <span class="flex-shrink-0 w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm mr-2"
+                                              x-text="index + 1"></span>
+                                        <span x-text="step"></span>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-medium text-gray-900 mb-2">Risk Assessment</h4>
+                        <div class="flex items-center space-x-4">
+                            <span class="px-3 py-1 rounded-full text-sm"
+                                  :class="getRiskBadgeClass(selectedRecommendation?.riskLevel)"
+                                  x-text="selectedRecommendation?.riskLevel"></span>
+                            <span class="text-gray-600" x-text="selectedRecommendation?.riskDescription"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button @click="showDetailsModal = false"
+                            class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">
+                        Close
+                    </button>
+                    <button @click="acceptRecommendation(selectedRecommendation)"
+                            class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                        <i class="fas fa-check mr-2"></i>Accept
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function aiRecommendations() {
+            return {
+                loading: false,
+                showFilters: false,
+                showDetailsModal: false,
+                viewMode: 'list', // 'list' or 'grid'
+                selectedRecommendation: null,
+                recommendations: [],
+                filteredRecommendations: [],
+                filters: {
+                    type: '',
+                    confidence: '',
+                    period: 'week',
+                    status: ''
+                },
+                metrics: {
+                    totalRecommendations: 0,
+                    acceptanceRate: 0,
+                    revenueImpact: 0,
+                    avgConfidence: 0
+                },
+                
+                init() {
+                    this.loadRecommendations();
+                    this.loadMetrics();
+                },
+                
+                async loadRecommendations() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/ai/recommendations');
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.recommendations = data.recommendations;
+                            this.applyFilters();
+                        }
+                    } catch (error) {
+                        console.error('Error loading recommendations:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async loadMetrics() {
+                    try {
+                        const response = await fetch('/ai/metrics');
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.metrics = data.metrics;
+                        }
+                    } catch (error) {
+                        console.error('Error loading metrics:', error);
+                    }
+                },
+                
+                applyFilters() {
+                    let filtered = [...this.recommendations];
+                    
+                    // Type filter
+                    if (this.filters.type) {
+                        filtered = filtered.filter(r => r.type === this.filters.type);
+                    }
+                    
+                    // Confidence filter
+                    if (this.filters.confidence) {
+                        const threshold = this.filters.confidence === 'high' ? 0.8 : 
+                                       this.filters.confidence === 'medium' ? 0.6 : 0.6;
+                        const operator = this.filters.confidence === 'low' ? '<' : '>=';
+                        
+                        filtered = filtered.filter(r => 
+                            this.filters.confidence === 'low' ? r.confidence < threshold : r.confidence >= threshold
+                        );
+                    }
+                    
+                    // Period filter
+                    if (this.filters.period && this.filters.period !== 'all') {
+                        const now = new Date();
+                        let cutoffDate;
+                        
+                        switch (this.filters.period) {
+                            case 'today':
+                                cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                                break;
+                            case 'week':
+                                cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                                break;
+                            case 'month':
+                                cutoffDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                                break;
+                        }
+                        
+                        if (cutoffDate) {
+                            filtered = filtered.filter(r => new Date(r.createdAt) >= cutoffDate);
+                        }
+                    }
+                    
+                    // Status filter
+                    if (this.filters.status) {
+                        filtered = filtered.filter(r => r.status === this.filters.status);
+                    }
+                    
+                    this.filteredRecommendations = filtered;
+                },
+                
+                refreshRecommendations() {
+                    this.loadRecommendations();
+                    this.loadMetrics();
+                },
+                
+                toggleView() {
+                    this.viewMode = this.viewMode === 'list' ? 'grid' : 'list';
+                },
+                
+                viewDetails(recommendation) {
+                    this.selectedRecommendation = recommendation;
+                    this.showDetailsModal = true;
+                },
+                
+                async acceptRecommendation(recommendation) {
+                    try {
+                        const response = await fetch(`/ai/recommendations/${recommendation.id}/accept`, {
+                            method: 'POST'
+                        });
+                        
+                        if (response.ok) {
+                            recommendation.status = 'accepted';
+                            this.showDetailsModal = false;
+                            this.loadMetrics();
+                            
+                            // Show success notification
+                            this.showNotification('Recommendation accepted successfully!', 'success');
+                        }
+                    } catch (error) {
+                        console.error('Error accepting recommendation:', error);
+                        this.showNotification('Error accepting recommendation', 'error');
+                    }
+                },
+                
+                async rejectRecommendation(recommendation) {
+                    try {
+                        const response = await fetch(`/ai/recommendations/${recommendation.id}/reject`, {
+                            method: 'POST'
+                        });
+                        
+                        if (response.ok) {
+                            recommendation.status = 'rejected';
+                            this.showDetailsModal = false;
+                            this.loadMetrics();
+                            
+                            // Show success notification
+                            this.showNotification('Recommendation rejected', 'info');
+                        }
+                    } catch (error) {
+                        console.error('Error rejecting recommendation:', error);
+                        this.showNotification('Error rejecting recommendation', 'error');
+                    }
+                },
+                
+                getTypeBadgeClass(type) {
+                    const classes = {
+                        'upsell': 'bg-green-100 text-green-800',
+                        'pricing': 'bg-blue-100 text-blue-800',
+                        'inventory': 'bg-yellow-100 text-yellow-800',
+                        'customer': 'bg-purple-100 text-purple-800'
+                    };
+                    return classes[type] || 'bg-gray-100 text-gray-800';
+                },
+                
+                getRiskBadgeClass(riskLevel) {
+                    const classes = {
+                        'low': 'bg-green-100 text-green-800',
+                        'medium': 'bg-yellow-100 text-yellow-800',
+                        'high': 'bg-red-100 text-red-800'
+                    };
+                    return classes[riskLevel] || 'bg-gray-100 text-gray-800';
+                },
+                
+                formatDate(dateString) {
+                    const date = new Date(dateString);
+                    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                },
+                
+                showNotification(message, type = 'info') {
+                    // Simple notification implementation
+                    const notification = document.createElement('div');
+                    notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                        type === 'success' ? 'bg-green-500 text-white' :
+                        type === 'error' ? 'bg-red-500 text-white' :
+                        'bg-blue-500 text-white'
+                    }`;
+                    notification.textContent = message;
+                    
+                    document.body.appendChild(notification);
+                    
+                    setTimeout(() => {
+                        notification.remove();
+                    }, 3000);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

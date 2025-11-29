@@ -1,7 +1,9 @@
 from flask import render_template, redirect, url_for, flash, request, current_app, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy import desc, func
+from flask_wtf.csrf import CSRFError
 from app.main import bp
+from app import csrf
 from app.models.user import User
 from app.models.order import Order, OrderStatus
 from app.models.table import Table, TableStatus
@@ -604,43 +606,53 @@ def api_reports_stats():
     return jsonify(stats)
 
 @bp.route('/api/settings/load')
+@csrf.exempt
 @login_required
 def api_settings_load():
     """API endpoint to load settings"""
+    # Check user permissions first
     if not current_user.can_access_manager_features():
-        return jsonify({'error': 'Access denied'}), 403
+        if request.headers.get('Accept') == 'application/json':
+            return jsonify({'error': 'Access denied'}), 403
+        else:
+            # For web requests, redirect to login with proper flash message
+            flash('You do not have permission to access settings.', 'error')
+            return redirect(url_for('auth.login', next=request.url))
     
-    # TODO: Implement actual settings storage
-    settings = {
-        'restaurant_name': 'My Restaurant',
-        'language': 'en',
-        'timezone': 'Asia/Kolkata',
-        'currency': 'INR',
-        'gst_number': '',
-        'tax_rate': 18,
-        'service_charge': 5,
-        'cash_enabled': True,
-        'card_enabled': True,
-        'upi_enabled': True,
-        'low_stock_alerts': True,
-        'order_notifications': True,
-        'email_notifications': True,
-        'two_factor_auth': False,
-        'session_timeout': 30,
-        'strong_passwords': True,
-        'auto_backup': True,
-        'default_printer': '',
-        'debug_mode': False
-    }
-    
-    return jsonify({'settings': settings})
+    try:
+        from app.services.settings_service import SettingsService
+        
+        # Initialize default settings if they don't exist
+        SettingsService.initialize_default_settings()
+        
+        # Get all settings from database
+        all_settings = SettingsService.get_all_settings()
+        
+        # Flatten the nested structure to match frontend expectations
+        flat_settings = {}
+        for category, settings in all_settings.items():
+            for key, value in settings.items():
+                flat_settings[key] = value
+        
+        return jsonify({'settings': flat_settings})
+    except Exception as e:
+        current_app.logger.error(f"Error loading settings: {str(e)}")
+        return jsonify({'error': 'Failed to load settings'}), 500
 
 @bp.route('/api/settings/save', methods=['POST'])
+@csrf.exempt
 @login_required
 def api_settings_save():
     """API endpoint to save settings"""
+    # Check user permissions first
     if not current_user.can_access_manager_features():
-        return jsonify({'error': 'Access denied'}), 403
+        # Check if request is AJAX/JSON request
+        if request.headers.get('Accept') == 'application/json' or request.headers.get('Content-Type') == 'application/json':
+            return jsonify({'error': 'Access denied'}), 403
+        else:
+            # For web requests, redirect to login with proper flash message
+            flash('You do not have permission to access settings.', 'error')
+            return redirect(url_for('auth.login', next=request.url))
     
     try:
         settings_data = request.get_json()
@@ -648,8 +660,32 @@ def api_settings_save():
             return jsonify({'error': 'No settings data provided'}), 400
         
         from app.services.settings_service import SettingsService
+        
+        # Convert flat structure to nested structure expected by SettingsService
+        nested_settings = {}
+        for key, value in settings_data.items():
+            # Determine category based on setting key
+            if key in ['restaurant_name', 'language', 'timezone', 'currency']:
+                category = 'general'
+            elif key in ['gst_number', 'tax_rate', 'service_charge']:
+                category = 'business'
+            elif key in ['cash_enabled', 'card_enabled', 'upi_enabled']:
+                category = 'payment'
+            elif key in ['low_stock_alerts', 'order_notifications', 'email_notifications']:
+                category = 'notifications'
+            elif key in ['two_factor_auth', 'session_timeout', 'strong_passwords']:
+                category = 'security'
+            elif key in ['auto_backup', 'default_printer', 'debug_mode']:
+                category = 'advanced'
+            else:
+                category = 'general'  # Default category
+            
+            if category not in nested_settings:
+                nested_settings[category] = {}
+            nested_settings[category][key] = value
+        
         results = SettingsService.update_multiple_settings(
-            settings_data,
+            nested_settings,
             user_id=current_user.id,
             ip_address=request.remote_addr,
             user_agent=request.headers.get('User-Agent')
@@ -680,11 +716,19 @@ def api_settings_save():
         return jsonify({'error': 'Failed to save settings'}), 500
 
 @bp.route('/api/settings/reset', methods=['POST'])
+@csrf.exempt
 @login_required
 def api_settings_reset():
     """API endpoint to reset settings"""
+    # Check user permissions first
     if not current_user.can_access_manager_features():
-        return jsonify({'error': 'Access denied'}), 403
+        # Check if request is AJAX/JSON request
+        if request.headers.get('Accept') == 'application/json' or request.headers.get('Content-Type') == 'application/json':
+            return jsonify({'error': 'Access denied'}), 403
+        else:
+            # For web requests, redirect to login with proper flash message
+            flash('You do not have permission to access settings.', 'error')
+            return redirect(url_for('auth.login', next=request.url))
     
     try:
         category = request.get_json().get('category') if request.get_json() else None
@@ -701,11 +745,19 @@ def api_settings_reset():
         return jsonify({'error': 'Failed to reset settings'}), 500
 
 @bp.route('/api/settings/export')
+@csrf.exempt
 @login_required
 def api_settings_export():
     """API endpoint to export settings"""
+    # Check user permissions first
     if not current_user.can_access_manager_features():
-        return jsonify({'error': 'Access denied'}), 403
+        # Check if request is AJAX/JSON request
+        if request.headers.get('Accept') == 'application/json':
+            return jsonify({'error': 'Access denied'}), 403
+        else:
+            # For web requests, redirect to login with proper flash message
+            flash('You do not have permission to access settings.', 'error')
+            return redirect(url_for('auth.login', next=request.url))
     
     try:
         from app.services.settings_service import SettingsService
@@ -716,11 +768,19 @@ def api_settings_export():
         return jsonify({'error': 'Failed to export settings'}), 500
 
 @bp.route('/api/settings/import', methods=['POST'])
+@csrf.exempt
 @login_required
 def api_settings_import():
     """API endpoint to import settings"""
+    # Check user permissions first
     if not current_user.can_access_manager_features():
-        return jsonify({'error': 'Access denied'}), 403
+        # Check if request is AJAX/JSON request
+        if request.headers.get('Accept') == 'application/json' or request.headers.get('Content-Type') == 'application/json':
+            return jsonify({'error': 'Access denied'}), 403
+        else:
+            # For web requests, redirect to login with proper flash message
+            flash('You do not have permission to access settings.', 'error')
+            return redirect(url_for('auth.login', next=request.url))
     
     try:
         settings_data = request.get_json()
@@ -736,11 +796,19 @@ def api_settings_import():
         return jsonify({'error': 'Failed to import settings'}), 500
 
 @bp.route('/api/settings/category/<category>')
+@csrf.exempt
 @login_required
 def api_settings_category(category):
     """API endpoint to load specific category settings"""
+    # Check user permissions first
     if not current_user.can_access_manager_features():
-        return jsonify({'error': 'Access denied'}), 403
+        # Check if request is AJAX/JSON request
+        if request.headers.get('Accept') == 'application/json':
+            return jsonify({'error': 'Access denied'}), 403
+        else:
+            # For web requests, redirect to login with proper flash message
+            flash('You do not have permission to access settings.', 'error')
+            return redirect(url_for('auth.login', next=request.url))
     
     try:
         from app.services.settings_service import SettingsService

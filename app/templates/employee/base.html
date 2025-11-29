@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .employee-card {
+        transition: all 0.3s ease;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background: white;
+    }
+    
+    .employee-card:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        transform: translateY(-2px);
+    }
+    
+    .status-badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+    
+    .status-present { background-color: #10b981; color: white; }
+    .status-absent { background-color: #ef4444; color: white; }
+    .status-late { background-color: #f59e0b; color: white; }
+    .status-leave { background-color: #3b82f6; color: white; }
+    .status-pending { background-color: #6b7280; color: white; }
+    .status-approved { background-color: #10b981; color: white; }
+    .status-rejected { background-color: #ef4444; color: white; }
+    
+    .shift-timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+    
+    .shift-timeline::before {
+        content: '';
+        position: absolute;
+        left: 0.5rem;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background-color: #e5e7eb;
+    }
+    
+    .shift-item {
+        position: relative;
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        background-color: #f9fafb;
+        border-radius: 0.5rem;
+        border-left: 3px solid #3b82f6;
+    }
+    
+    .shift-item::before {
+        content: '';
+        position: absolute;
+        left: -1.75rem;
+        top: 1rem;
+        width: 0.75rem;
+        height: 0.75rem;
+        border-radius: 50%;
+        background-color: #3b82f6;
+        border: 2px solid white;
+    }
+    
+    .performance-score {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 3rem;
+        height: 3rem;
+        border-radius: 50%;
+        font-weight: bold;
+        font-size: 1.125rem;
+    }
+    
+    .score-excellent { background-color: #10b981; color: white; }
+    .score-good { background-color: #3b82f6; color: white; }
+    .score-average { background-color: #f59e0b; color: white; }
+    .score-poor { background-color: #ef4444; color: white; }
+    
+    .attendance-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        text-align: center;
+    }
+    
+    .stats-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stats-label {
+        font-size: 0.875rem;
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}
+
+{% block sidebar %}
+{% if current_user.can_access_manager_features() %}
+<div class="mb-6">
+    <h3 class="text-lg font-semibold text-gray-900 mb-4">Employee Management</h3>
+    <nav class="space-y-1">
+        <a href="{{ url_for('employee.dashboard') }}" 
+           class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if request.endpoint == 'employee.dashboard' %}bg-indigo-100 text-indigo-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
+            <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+            </svg>
+            Dashboard
+        </a>
+        
+        <a href="{{ url_for('employee.profiles') }}" 
+           class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if request.endpoint == 'employee.profiles' %}bg-indigo-100 text-indigo-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
+            <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+            Employee Profiles
+        </a>
+        
+        <a href="{{ url_for('employee.attendance') }}" 
+           class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if request.endpoint == 'employee.attendance' %}bg-indigo-100 text-indigo-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
+            <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Attendance
+        </a>
+        
+        <a href="{{ url_for('employee.shifts') }}" 
+           class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if request.endpoint == 'employee.shifts' %}bg-indigo-100 text-indigo-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
+            <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            Shift Scheduling
+        </a>
+        
+        <a href="{{ url_for('employee.leaves') }}" 
+           class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if request.endpoint == 'employee.leaves' %}bg-indigo-100 text-indigo-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
+            <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+            </svg>
+            Leave Management
+        </a>
+        
+        {% if current_user.can_access_admin_features() %}
+        <a href="{{ url_for('employee.payroll') }}" 
+           class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if request.endpoint == 'employee.payroll' %}bg-indigo-100 text-indigo-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
+            <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Payroll
+        </a>
+        
+        <a href="{{ url_for('employee.performance') }}" 
+           class="flex items-center px-3 py-2 text-sm font-medium rounded-md {% if request.endpoint == 'employee.performance' %}bg-indigo-100 text-indigo-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
+            <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+            Performance
+        </a>
+        {% endif %}
+    </nav>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="mb-4 rounded-md p-4 {% if category == 'error' %}bg-red-50 text-red-800{% elif category == 'warning' %}bg-yellow-50 text-yellow-800{% elif category == 'success' %}bg-green-50 text-green-800{% else %}bg-blue-50 text-blue-800{% endif %}">
+                    <div class="flex">
+                        <div class="ml-3">
+                            <p class="text-sm font-medium">{{ message }}</p>
+                        </div>
+                        <div class="ml-auto pl-3">
+                            <div class="-mx-1.5 -my-1.5">
+                                <button type="button" class="inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 {% if category == 'error' %}bg-red-50 text-red-500 hover:bg-red-100{% elif category == 'warning' %}bg-yellow-50 text-yellow-500 hover:bg-yellow-100{% elif category == 'success' %}bg-green-50 text-green-500 hover:bg-green-100{% else %}bg-blue-50 text-blue-500 hover:bg-blue-100{% endif %}">
+                                    <span class="sr-only">Dismiss</span>
+                                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    {% block employee_content %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Socket.IO connection for real-time updates
+if (typeof socket !== 'undefined') {
+    // Join restaurant room for real-time updates
+    socket.on('connect', function() {
+        {% if current_user.restaurant_id %}
+        socket.emit('join_room', {room: 'restaurant_{{ current_user.restaurant_id }}'});
+        {% endif %}
+    });
+    
+    // Listen for attendance updates
+    socket.on('attendance_updated', function(data) {
+        console.log('Attendance updated:', data);
+        // Refresh attendance data if on attendance page
+        if (window.location.pathname.includes('/attendance')) {
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    });
+    
+    // Listen for shift updates
+    socket.on('shift_updated', function(data) {
+        console.log('Shift updated:', data);
+        // Refresh shift data if on shifts page
+        if (window.location.pathname.includes('/shifts')) {
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    });
+    
+    // Listen for leave updates
+    socket.on('leave_updated', function(data) {
+        console.log('Leave updated:', data);
+        // Refresh leave data if on leaves page
+        if (window.location.pathname.includes('/leaves')) {
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    });
+}
+
+// Utility functions
+function formatTime(timeString) {
+    if (!timeString) return '--';
+    const time = new Date(timeString);
+    return time.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+    });
+}
+
+function formatDate(dateString) {
+    if (!dateString) return '--';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+    });
+}
+
+function formatCurrency(amount) {
+    if (!amount) return '₹0.00';
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR'
+    }).format(amount);
+}
+
+// Auto-refresh functionality
+function setupAutoRefresh(interval = 30000) {
+    setInterval(function() {
+        // Only refresh if page is visible
+        if (!document.hidden) {
+            // Check for real-time updates
+            fetch('/employee/api/attendance/stats')
+                .then(response => response.json())
+                .then(data => {
+                    // Update dashboard stats if available
+                    updateDashboardStats(data);
+                })
+                .catch(error => console.error('Error fetching stats:', error));
+        }
+    }, interval);
+}
+
+function updateDashboardStats(stats) {
+    // Update dashboard statistics if elements exist
+    const presentElement = document.getElementById('stat-present');
+    const absentElement = document.getElementById('stat-absent');
+    const onLeaveElement = document.getElementById('stat-on-leave');
+    
+    if (presentElement) presentElement.textContent = stats.present || 0;
+    if (absentElement) absentElement.textContent = stats.absent || 0;
+    if (onLeaveElement) onLeaveElement.textContent = stats.on_leave || 0;
+}
+
+// Initialize auto-refresh when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    setupAutoRefresh();
+});
+</script>
+{% endblock %}

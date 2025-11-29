@@ -50,6 +50,7 @@ def invoices():
     
     return render_template('billing/invoices.html', invoices=invoices, status_filter=status_filter)
 
+@bp.route('/invoice/new', methods=['GET', 'POST'])
 @bp.route('/invoices/create', methods=['GET', 'POST'])
 @login_required
 def create_invoice():
@@ -79,7 +80,11 @@ def create_invoice():
             issue_date=datetime.strptime(request.form.get('issue_date', ''), '%Y-%m-%d') if request.form.get('issue_date') else datetime.utcnow(),
             due_date=datetime.strptime(request.form.get('due_date', ''), '%Y-%m-%d') if request.form.get('due_date') else None,
             terms=request.form.get('terms'),
-            notes=request.form.get('notes')
+            notes=request.form.get('notes'),
+            subtotal=0.00,  # Initialize with 0, will be calculated after items are added
+            tax_amount=0.00,
+            total_amount=0.00,
+            balance_amount=0.00
         )
         
         db.session.add(invoice)
@@ -93,13 +98,22 @@ def create_invoice():
         
         for i, description in enumerate(item_descriptions):
             if description and i < len(item_quantities) and i < len(item_prices):
+                quantity = float(item_quantities[i]) if item_quantities[i] else 0
+                unit_price = float(item_prices[i]) if item_prices[i] else 0
+                tax_rate = float(item_tax_rates[i]) if item_tax_rates[i] else 0
+                
+                # Calculate tax amount
+                subtotal = quantity * unit_price
+                tax_amount = subtotal * (tax_rate / 100)
+                
                 invoice_item = InvoiceItem(
                     invoice_id=invoice.id,
                     description=description,
-                    quantity=float(item_quantities[i]) if item_quantities[i] else 0,
-                    unit_price=float(item_prices[i]) if item_prices[i] else 0,
-                    tax_rate=float(item_tax_rates[i]) if item_tax_rates[i] else 0,
-                    tax_amount=float(item_quantities[i]) * float(item_prices[i]) * (float(item_tax_rates[i]) if item_tax_rates[i] else 0)
+                    quantity=quantity,
+                    unit_price=unit_price,
+                    discount_amount=0.00,  # Initialize with 0
+                    tax_rate=tax_rate,
+                    tax_amount=tax_amount
                 )
                 invoice_item.calculate_totals()
                 db.session.add(invoice_item)

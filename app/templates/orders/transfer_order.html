@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}Transfer Order {{ order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exchange-alt me-2"></i>
+                        Transfer Order {{ order.order_number }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Current Order Info -->
+                    <div class="alert alert-info mb-4">
+                        <h6><i class="fas fa-info-circle me-1"></i>Current Order Information</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Current Table:</strong> {{ order.table.number if order.table else 'None' }}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Order Total:</strong> ${{ "%.2f"|format(order.total) }}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Status:</strong> 
+                                <span class="badge bg-{{ 
+                                    'success' if order.status.value == 'served' else
+                                    'warning' if order.status.value in ['pending', 'confirmed', 'preparing', 'ready'] else
+                                    'danger' if order.status.value == 'cancelled' else
+                                    'secondary'
+                                }}">
+                                    {{ order.status.value.title() }}
+                                </span>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Items:</strong> {{ order.items|length }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transfer Form -->
+                    <form method="POST" id="transferForm">
+                        {{ csrf_token() }}
+                        
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label for="new_table_id" class="form-label">
+                                    <i class="fas fa-table me-1"></i>
+                                    Select Destination Table
+                                </label>
+                                <select class="form-select form-select-lg" id="new_table_id" name="new_table_id" required>
+                                    <option value="">Choose a table...</option>
+                                    {% for table in available_tables %}
+                                    <option value="{{ table.id }}">
+                                        Table {{ table.number }} 
+                                        ({{ table.capacity }} guests, {{ table.get_status_text() }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Table Selection Visual -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="card bg-light">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Available Tables</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if available_tables %}
+                                            <div class="row">
+                                                {% for table in available_tables %}
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="card border-{{ 
+                                                        'success' if table.status.value == 'free' else
+                                                        'warning' if table.status.value == 'reserved' else
+                                                        'info' if table.status.value == 'cleaning' else
+                                                        'secondary'
+                                                    }} cursor-pointer" 
+                                                         onclick="selectTable({{ table.id }})">
+                                                        <div class="card-body text-center p-3">
+                                                            <h5>{{ table.number }}</h5>
+                                                            <p class="mb-1">{{ table.capacity }} Guests</p>
+                                                            <span class="badge bg-{{ table.get_status_color() }}">
+                                                                {{ table.get_status_text() }}
+                                                            </span>
+                                                            {% if table.floor_section %}
+                                                            <br><small class="text-muted">{{ table.floor_section }}</small>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <div class="text-center text-muted py-3">
+                                                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                                                <p>No available tables for transfer</p>
+                                                <p class="small">All tables are currently occupied or reserved.</p>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Transfer Notes -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label for="transfer_notes" class="form-label">Transfer Notes (Optional)</label>
+                                <textarea class="form-control" id="transfer_notes" name="transfer_notes" rows="3"
+                                          placeholder="Reason for transfer or special instructions..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Confirmation Checkbox -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="confirm_transfer" required>
+                                    <label class="form-check-label" for="confirm_transfer">
+                                        <strong>I confirm that I want to transfer order {{ order.order_number }} 
+                                        to the selected table.</strong>
+                                        <br><small class="text-muted">This action will update the table status and 
+                                        move all order items to the new table.</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{{ url_for('orders.order_details', order_id=order.id) }}" 
+                                       class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left me-1"></i>Cancel
+                                    </a>
+                                    <button type="submit" class="btn btn-primary" id="transferBtn">
+                                        <i class="fas fa-exchange-alt me-1"></i>Transfer Order
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.cursor-pointer {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.cursor-pointer:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.border-success {
+    border-color: #28a745 !important;
+}
+.border-warning {
+    border-color: #ffc107 !important;
+}
+.border-info {
+    border-color: #17a2b8 !important;
+}
+.border-secondary {
+    border-color: #6c757d !important;
+}
+</style>
+
+<script>
+function selectTable(tableId) {
+    document.getElementById('new_table_id').value = tableId;
+    
+    // Update visual selection
+    document.querySelectorAll('.cursor-pointer').forEach(card => {
+        card.classList.remove('border-primary', 'border-3');
+    });
+    
+    event.currentTarget.classList.add('border-primary', 'border-3');
+}
+
+// Form validation
+document.getElementById('transferForm').addEventListener('submit', function(e) {
+    const newTableId = document.getElementById('new_table_id').value;
+    const confirmTransfer = document.getElementById('confirm_transfer').checked;
+    
+    if (!newTableId) {
+        e.preventDefault();
+        alert('Please select a destination table');
+        return;
+    }
+    
+    if (!confirmTransfer) {
+        e.preventDefault();
+        alert('Please confirm the transfer by checking the confirmation box');
+        return;
+    }
+    
+    // Show loading state
+    const transferBtn = document.getElementById('transferBtn');
+    transferBtn.disabled = true;
+    transferBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Transferring...';
+});
+
+// Auto-refresh table availability
+setInterval(() => {
+    fetch('/tables/api/available-for-merge')
+        .then(response => response.json())
+        .then(data => {
+            // Update available tables if needed
+            const currentSelection = document.getElementById('new_table_id').value;
+            const select = document.getElementById('new_table_id');
+            
+            // Clear current options
+            select.innerHTML = '<option value="">Choose a table...</option>';
+            
+            // Add updated options
+            data.tables.forEach(table => {
+                const option = document.createElement('option');
+                option.value = table.id;
+                option.textContent = `Table ${table.number} (${table.capacity} guests, ${table.status_text})`;
+                select.appendChild(option);
+            });
+            
+            // Restore selection if still available
+            if (currentSelection) {
+                select.value = currentSelection;
+            }
+        });
+}, 30000); // Refresh every 30 seconds
+</script>
+{% endblock %}

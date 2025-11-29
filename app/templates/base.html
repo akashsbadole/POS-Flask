@@ -27,7 +27,7 @@
     <meta name="htmx-config" content='{"defaultView":"data","defaultSwapStyle":"innerHTML","historyCacheSize":10,"refreshOnHistoryMiss":true,"globalViewTransitions":true}'>
     
     <!-- Alpine.js -->
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.15.2/dist/cdn.min.js"></script>
     
     <!-- App.js - Main application JavaScript -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
@@ -213,6 +213,33 @@
                         <span class="w-5 mr-3" aria-hidden="true">📊</span>
                         Dashboard
                     </a>
+
+                    <a href="{{ url_for('orders.view_cart') }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="7"
+                       data-shortcut="Alt+7"
+                       aria-label="Point of Sale - Press Alt+7">
+                        <span class="w-5 mr-3" aria-hidden="true">💰</span>
+                        POS
+                    </a>
+
+                    <a href="{{ url_for('orders.list_orders') }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="7"
+                       data-shortcut="Alt+7"
+                       aria-label="Orders - Press Alt+7">
+                         <span class="w-5 mr-3" aria-hidden="true">🖥️</span>
+                       Orders
+                    </a>
+
+                    <a href="{{ url_for('orders.view_cart', tpos=1) }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="8"
+                       data-shortcut="Alt+8"
+                       aria-label="TPOS - Press Alt+8">
+                         <span class="w-5 mr-3" aria-hidden="true">💻</span>
+                       TPOS
+                    </a>
                    
                     <a href="{{ url_for('main.menu_dashboard') }}"
                        class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
@@ -220,7 +247,7 @@
                        data-shortcut="Alt+2"
                        aria-label="Menu Management - Press Alt+2">
                         <span class="w-5 mr-3" aria-hidden="true">📖</span>
-                        Menu
+                         Menu
                     </a>
                    
                     <a href="{{ url_for('main.tables_dashboard') }}"
@@ -249,22 +276,75 @@
                         <span class="w-5 mr-3" aria-hidden="true">📦</span>
                         Inventory
                     </a>
+
+                    <a href="{{ url_for('customers.dashboard') }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="6"
+                       data-shortcut="Alt+6"
+                       aria-label="Customers - Press Alt+6">
+                        <span class="w-5 mr-3" aria-hidden="true">👥</span>
+                        Customers
+                    </a>
+
+                    <a href="{{ url_for('billing.dashboard') }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="b"
+                       data-shortcut="Alt+B"
+                       aria-label="Billing - Press Alt+B">
+                        <span class="w-5 mr-3" aria-hidden="true">🧾</span>
+                        Billing
+                    </a>
+
+                    <a href="{{ url_for('delivery.dashboard') }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="d"
+                       data-shortcut="Alt+D"
+                       aria-label="Delivery - Press Alt+D">
+                        <span class="w-5 mr-3" aria-hidden="true">🚚</span>
+                        Delivery
+                    </a>
+
+                    <a href="{{ url_for('employee.dashboard') }}"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="e"
+                       data-shortcut="Alt+E"
+                       aria-label="Employee - Press Alt+E">
+                        <span class="w-5 mr-3" aria-hidden="true">👨‍💼</span>
+                        Employee
+                    </a>
+
                     {% endif %}
                     
                     {% if current_user.can_access_admin_features() %}
+                    <a href="/ai/health"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="0"
+                       data-shortcut="Alt+0"
+                       aria-label="AI Features - Press Alt+0">
+                        <span class="w-5 mr-3" aria-hidden="true">🤖</span>
+                        AI Features
+                    </a>
+                    <a href="/online-ordering/"
+                       class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+                       accesskey="-"
+                       data-shortcut="Alt+-"
+                       aria-label="Online Ordering - Press Alt+-">
+                        <span class="w-5 mr-3" aria-hidden="true">🌐</span>
+                        Online Ordering
+                    </a>
                     <a href="{{ url_for('settings.dashboard') }}"
                        class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
-                       accesskey="7"
-                       data-shortcut="Alt+7"
-                       aria-label="Settings - Press Alt+7">
+                       accesskey="s"
+                       data-shortcut="Alt+S"
+                       aria-label="Settings - Press Alt+S">
                         <span class="w-5 mr-3" aria-hidden="true">⚙️</span>
                         Settings
                     </a>
                     <a href="{{ url_for('main.system_status') }}"
                        class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-100 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
-                       accesskey="8"
-                       data-shortcut="Alt+8"
-                       aria-label="System Status - Press Alt+8">
+                       accesskey="x"
+                       data-shortcut="Alt+X"
+                       aria-label="System Status - Press Alt+X">
                         <span class="w-5 mr-3" aria-hidden="true">🖥️</span>
                         System Status
                     </a>

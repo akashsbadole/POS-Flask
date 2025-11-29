@@ -1,0 +1,516 @@
+{% extends "pwa-base.html" %}
+
+{% block content %}
+<div id="dashboard-content" class="p-6 space-y-6">
+    <!-- Welcome Section -->
+    <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold mb-2">Welcome back, {{ current_user.name if current_user else 'User' }}!</h1>
+                <p class="opacity-90">{{ moment().format('dddd, MMMM Do, YYYY') }}</p>
+            </div>
+            <div class="text-right">
+                <div class="text-3xl font-bold" id="revenue-today">$0.00</div>
+                <div class="text-sm opacity-90">Today's Revenue</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
+            <div class="flex items-center">
+                <div class="p-3 bg-blue-100 rounded-full">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2v2a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H9z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Orders Today</p>
+                    <p class="text-2xl font-semibold text-gray-900" id="orders-today">0</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
+            <div class="flex items-center">
+                <div class="p-3 bg-green-100 rounded-full">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3-2m0-8c1.657 0 3 .895 3 2s-1.343 2-3 2m0-8c1.657 0 3 .895 3 2s-1.343 2-3 2"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Revenue Today</p>
+                    <p class="text-2xl font-semibold text-gray-900" id="revenue-stat">$0.00</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-yellow-500">
+            <div class="flex items-center">
+                <div class="p-3 bg-yellow-100 rounded-full">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2H3v2h14zM6 9l6 6 6-6H6z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Active Tables</p>
+                    <p class="text-2xl font-semibold text-gray-900" id="active-tables">0</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
+            <div class="flex items-center">
+                <div class="p-3 bg-purple-100 rounded-full">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 016-6h2a6 6 0 016 6v1a3 3 0 003-3h6a3 3 0 003-3v-1a6 6 0 00-6-6H3a6 6 0 00-6 6v1a3 3 0 003 3h6a3 3 0 003-3v-1a6 6 0 00-6-6H3z"></path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Pending Orders</p>
+                    <p class="text-2xl font-semibold text-gray-900" id="pending-orders">0</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button onclick="window.location.href='/orders/new'" class="flex flex-col items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all group">
+                <svg class="w-8 h-8 text-gray-400 group-hover:text-blue-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                <span class="text-sm font-medium text-gray-600 group-hover:text-blue-600">New Order</span>
+            </button>
+            
+            <button onclick="window.location.href='/menu'" class="flex flex-col items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all group">
+                <svg class="w-8 h-8 text-gray-400 group-hover:text-green-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 19 7.5 19s3.332-.523 4.5-1.747M6 9.75h8M6 15h8"></path>
+                </svg>
+                <span class="text-sm font-medium text-gray-600 group-hover:text-green-600">Manage Menu</span>
+            </button>
+            
+            <button onclick="window.location.href='/inventory'" class="flex flex-col items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-yellow-500 hover:bg-yellow-50 transition-all group">
+                <svg class="w-8 h-8 text-gray-400 group-hover:text-yellow-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4M16 17l4 4m0 0l-4 4m4-4h-4m-4 4l4-4m-4-4l4 4"></path>
+                </svg>
+                <span class="text-sm font-medium text-gray-600 group-hover:text-yellow-600">Inventory</span>
+            </button>
+            
+            <button onclick="window.location.href='/reports'" class="flex flex-col items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all group">
+                <svg class="w-8 h-8 text-gray-400 group-hover:text-purple-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v1a1 1 0 001 1h4a1 1 0 001-1v-1m3-2V8a2 2 0 00-2-2H8a2 2 0 00-2 2v7m3 2h-3"></path>
+                </svg>
+                <span class="text-sm font-medium text-gray-600 group-hover:text-purple-600">Reports</span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Recent Activity</h2>
+            <button onclick="refreshActivity()" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Refresh
+            </button>
+        </div>
+        
+        <div id="recent-activity" class="space-y-3">
+            <!-- Activity items will be loaded here -->
+            <div class="text-center py-8 text-gray-500">
+                <svg class="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                <p>Loading recent activity...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Offline Status Indicator -->
+    <div id="offline-status" class="hidden bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <div class="flex items-center">
+            <svg class="w-5 h-5 text-yellow-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+            </svg>
+            <div>
+                <h3 class="font-semibold text-yellow-800">Offline Mode</h3>
+                <p class="text-yellow-700 text-sm">Showing cached data. Some features may be limited.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Dashboard functionality
+class PWADashboard {
+    constructor() {
+        this.isOnline = navigator.onLine;
+        this.refreshInterval = null;
+        this.init();
+    }
+    
+    init() {
+        this.setupConnectivityDetection();
+        this.loadDashboardData();
+        this.startAutoRefresh();
+        this.setupRealTimeUpdates();
+    }
+    
+    setupConnectivityDetection() {
+        window.addEventListener('online', () => {
+            this.isOnline = true;
+            this.hideOfflineStatus();
+            this.loadDashboardData();
+        });
+        
+        window.addEventListener('offline', () => {
+            this.isOnline = false;
+            this.showOfflineStatus();
+        });
+        
+        // Initial check
+        if (!this.isOnline) {
+            this.showOfflineStatus();
+        }
+    }
+    
+    showOfflineStatus() {
+        const status = document.getElementById('offline-status');
+        if (status) {
+            status.classList.remove('hidden');
+        }
+    }
+    
+    hideOfflineStatus() {
+        const status = document.getElementById('offline-status');
+        if (status) {
+            status.classList.add('hidden');
+        }
+    }
+    
+    async loadDashboardData() {
+        try {
+            // Load dashboard statistics
+            const response = await fetch('/api/dashboard/stats', {
+                headers: {
+                    'X-PWA-Request': 'true'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                this.updateDashboardStats(data);
+            } else if (response.status === 0 || !this.isOnline) {
+                // Load from cache
+                this.loadCachedDashboardData();
+            }
+        } catch (error) {
+            console.warn('PWA Dashboard: Failed to load data, using cache', error);
+            this.loadCachedDashboardData();
+        }
+    }
+    
+    loadCachedDashboardData() {
+        // Try to load from localStorage cache
+        const cachedData = localStorage.getItem('dashboard-stats');
+        if (cachedData) {
+            const data = JSON.parse(cachedData);
+            this.updateDashboardStats(data);
+        } else {
+            // Show default values
+            this.updateDashboardStats({
+                orders_today: 0,
+                revenue_today: 0,
+                active_tables: 0,
+                pending_orders: 0
+            });
+        }
+    }
+    
+    updateDashboardStats(data) {
+        // Update DOM with animation
+        this.animateValue('orders-today', data.orders_today || 0);
+        this.animateValue('revenue-today', `$${(data.revenue_today || 0).toFixed(2)}`);
+        this.animateValue('revenue-stat', `$${(data.revenue_today || 0).toFixed(2)}`);
+        this.animateValue('active-tables', data.active_tables || 0);
+        this.animateValue('pending-orders', data.pending_orders || 0);
+        
+        // Cache the data
+        try {
+            localStorage.setItem('dashboard-stats', JSON.stringify(data));
+        } catch (error) {
+            console.warn('PWA Dashboard: Failed to cache data', error);
+        }
+    }
+    
+    animateValue(elementId, newValue) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.style.transition = 'all 0.5s ease-out';
+            element.textContent = newValue;
+            
+            // Add highlight effect
+            element.classList.add('bg-yellow-100');
+            setTimeout(() => {
+                element.classList.remove('bg-yellow-100');
+            }, 500);
+        }
+    }
+    
+    async loadRecentActivity() {
+        try {
+            const response = await fetch('/api/dashboard/activity?limit=5');
+            
+            if (response.ok) {
+                const activities = await response.json();
+                this.renderActivity(activities);
+            }
+        } catch (error) {
+            console.warn('PWA Dashboard: Failed to load activity', error);
+            this.renderActivity([]);
+        }
+    }
+    
+    renderActivity(activities) {
+        const container = document.getElementById('recent-activity');
+        
+        if (!activities || activities.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <svg class="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.707.293H19a2 2 0 012 2v1a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.707.293H19a2 2 0 012 2v1a2 2 0 01-2 2H7z"></path>
+                    </svg>
+                    <p>No recent activity</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const activityHTML = activities.map(activity => `
+            <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div class="flex-shrink-0">
+                    ${this.getActivityIcon(activity.type)}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900">${activity.description}</p>
+                    <p class="text-xs text-gray-500">${this.formatTime(activity.timestamp)}</p>
+                </div>
+            </div>
+        `).join('');
+        
+        container.innerHTML = activityHTML;
+    }
+    
+    getActivityIcon(type) {
+        const icons = {
+            'order': '<svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M8 11h8m0 0v4H8"></path></svg>',
+            'payment': '<svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm6-4V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6"></path></svg>',
+            'inventory': '<svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4M16 17l4 4m0 0l-4 4m4-4h-4m-4 4l4-4m-4-4l4 4"></path></svg>',
+            'menu': '<svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 19 7.5 19s3.332-.523 4.5-1.747M6 9.75h8M6 15h8"></path></svg>'
+        };
+        
+        return icons[type] || '<svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h1m1-4h1M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+    }
+    
+    formatTime(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diff = now - date;
+        
+        if (diff < 60000) { // Less than 1 minute
+            return 'Just now';
+        } else if (diff < 3600000) { // Less than 1 hour
+            const minutes = Math.floor(diff / 60000);
+            return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+        } else if (diff < 86400000) { // Less than 1 day
+            const hours = Math.floor(diff / 3600000);
+            return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+        } else {
+            return date.toLocaleDateString();
+        }
+    }
+    
+    startAutoRefresh() {
+        // Refresh every 30 seconds when online
+        this.refreshInterval = setInterval(() => {
+            if (this.isOnline) {
+                this.loadDashboardData();
+                this.loadRecentActivity();
+            }
+        }, 30000);
+    }
+    
+    setupRealTimeUpdates() {
+        // Listen for real-time updates via WebSocket or Server-Sent Events
+        if ('EventSource' in window) {
+            const eventSource = new EventSource('/api/dashboard/updates');
+            
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                this.handleRealTimeUpdate(data);
+            };
+            
+            eventSource.onerror = () => {
+                console.warn('PWA Dashboard: Real-time updates disconnected');
+            };
+        }
+    }
+    
+    handleRealTimeUpdate(data) {
+        switch (data.type) {
+            case 'new_order':
+                this.showNotification('New Order', `Order #${data.order_id} has been placed`);
+                this.loadDashboardData();
+                this.loadRecentActivity();
+                break;
+            case 'payment_received':
+                this.showNotification('Payment Received', `Payment of $${data.amount} received`);
+                this.loadDashboardData();
+                break;
+            case 'table_status':
+                this.loadDashboardData();
+                break;
+        }
+    }
+    
+    showNotification(title, message) {
+        // Show in-app notification
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(title, {
+                body: message,
+                icon: '/static/images/icon-192x192.png',
+                badge: '/static/images/badge.png'
+            });
+        }
+        
+        // Show toast notification
+        this.showToast(title, message);
+    }
+    
+    showToast(title, message) {
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-20 right-4 bg-white rounded-lg shadow-lg p-4 max-w-sm z-50 transform translate-x-full transition-transform duration-300';
+        toast.innerHTML = `
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h1m1-4h1M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h4 class="font-semibold text-gray-900">${title}</h4>
+                    <p class="text-sm text-gray-600">${message}</p>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // Animate in
+        setTimeout(() => {
+            toast.classList.remove('translate-x-full');
+        }, 100);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.remove();
+                    }
+                }, 300);
+            }
+        }, 5000);
+    }
+    
+    cleanup() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+        }
+    }
+}
+
+// Global refresh function
+window.refreshActivity = function() {
+    if (window.pwaDashboard) {
+        window.pwaDashboard.loadRecentActivity();
+    }
+};
+
+// Initialize dashboard when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    window.pwaDashboard = new PWADashboard();
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (window.pwaDashboard) {
+        window.pwaDashboard.cleanup();
+    }
+});
+</script>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Dashboard specific styles */
+    .stat-card {
+        transition: all 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+    
+    .quick-action-btn {
+        transition: all 0.2s ease;
+    }
+    
+    .quick-action-btn:hover {
+        transform: scale(1.05);
+    }
+    
+    .activity-item {
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Reduced motion support */
+    @media (prefers-reduced-motion: reduce) {
+        .stat-card:hover {
+            transform: none;
+        }
+        
+        .quick-action-btn:hover {
+            transform: none;
+        }
+        
+        .activity-item {
+            animation: none;
+        }
+    }
+</style>
+{% endblock %}

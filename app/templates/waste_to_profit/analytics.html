@@ -1,0 +1,328 @@
+{% extends "waste_to_profit/base.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Waste Analytics</h1>
+        <div class="flex space-x-2">
+            <a href="{{ url_for('waste_to_profit.waste_patterns') }}" class="btn-primary">Pattern Analysis</a>
+            <a href="{{ url_for('waste_to_profit.cost_analysis') }}" class="btn-secondary">Cost Analysis</a>
+            <a href="{{ url_for('waste_to_profit.waste_recommendations') }}" class="btn-success">Recommendations</a>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-red-600">{{ "%.2f"|format(overview.total_waste_quantity or 0) }}kg</div>
+                    <div class="metric-label">Total Waste</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-yellow-600">${{ "%.2f"|format(overview.total_waste_cost or 0) }}</div>
+                    <div class="metric-label">Waste Cost</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-green-600">{{ "%.1f"|format(overview.waste_reduction_percentage or 0) }}%</div>
+                    <div class="metric-label">Reduction Rate</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="metric-value text-blue-600">{{ overview.waste_records_count or 0 }}</div>
+                    <div class="metric-label">Waste Records</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="chart-container">
+            <h3 class="text-lg font-semibold mb-4">Waste Trend (Last 30 Days)</h3>
+            <canvas id="waste-trend-chart" width="400" height="200"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h3 class="text-lg font-semibold mb-4">Waste by Category</h3>
+            <canvas id="waste-category-chart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="chart-container">
+            <h3 class="text-lg font-semibold mb-4">Waste by Department</h3>
+            <canvas id="waste-department-chart" width="400" height="200"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h3 class="text-lg font-semibold mb-4">Waste Reasons</h3>
+            <canvas id="waste-reasons-chart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Top Wasted Items -->
+    <div class="card mb-6">
+        <div class="card-header">
+            <h3 class="card-title">Top Wasted Items</h3>
+            <a href="{{ url_for('waste_to_profit.cost_analysis') }}" class="btn-primary btn-sm">View Details</a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="waste-table">
+                    <thead>
+                        <tr>
+                            <th>Ingredient</th>
+                            <th>Category</th>
+                            <th>Quantity Wasted</th>
+                            <th>Cost</th>
+                            <th>Waste %</th>
+                            <th>Trend</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in overview.top_wasted_items[:10] %}
+                        <tr>
+                            <td class="font-medium">{{ item.ingredient_name }}</td>
+                            <td>{{ item.category }}</td>
+                            <td>{{ "%.2f"|format(item.total_quantity) }} {{ item.unit }}</td>
+                            <td class="text-red-600">${{ "%.2f"|format(item.total_cost) }}</td>
+                            <td>
+                                <span class="badge badge-{{ 'danger' if item.waste_percentage > 20 else 'warning' if item.waste_percentage > 10 else 'success' }}">
+                                    {{ "%.1f"|format(item.waste_percentage) }}%
+                                </span>
+                            </td>
+                            <td>
+                                {% if item.trend == 'decreasing' %}
+                                <span class="text-green-600">↓ {{ "%.1f"|format(item.trend_percentage) }}%</span>
+                                {% elif item.trend == 'increasing' %}
+                                <span class="text-red-600">↑ {{ "%.1f"|format(item.trend_percentage) }}%</span>
+                                {% else %}
+                                <span class="text-gray-600">→ {{ "%.1f"|format(item.trend_percentage) }}%</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Waste Reduction Progress -->
+    <div class="card mb-6">
+        <div class="card-header">
+            <h3 class="card-title">Waste Reduction Progress</h3>
+        </div>
+        <div class="card-body">
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <span class="text-sm font-medium">Monthly Target</span>
+                        <span class="text-sm text-gray-600">{{ "%.1f"|format(overview.monthly_reduction_target or 0) }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill bg-blue-600" style="width: {{ overview.monthly_reduction_progress or 0 }}%"></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <span class="text-sm font-medium">Quarterly Target</span>
+                        <span class="text-sm text-gray-600">{{ "%.1f"|format(overview.quarterly_reduction_target or 0) }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill bg-green-600" style="width: {{ overview.quarterly_reduction_progress or 0 }}%"></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <span class="text-sm font-medium">Annual Target</span>
+                        <span class="text-sm text-gray-600">{{ "%.1f"|format(overview.annual_reduction_target or 0) }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill bg-purple-600" style="width: {{ overview.annual_reduction_progress or 0 }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Waste Records -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Recent Waste Records</h3>
+            <a href="{{ url_for('waste_to_profit.waste_patterns') }}" class="btn-primary btn-sm">View All</a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="waste-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Ingredient</th>
+                            <th>Quantity</th>
+                            <th>Reason</th>
+                            <th>Cost</th>
+                            <th>Recorded By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in overview.recent_waste_records[:10] %}
+                        <tr>
+                            <td>{{ record.waste_date.strftime('%Y-%m-%d') if record.waste_date else 'N/A' }}</td>
+                            <td class="font-medium">{{ record.ingredient_name }}</td>
+                            <td>{{ "%.2f"|format(record.quantity) }} {{ record.unit }}</td>
+                            <td>{{ record.waste_reason }}</td>
+                            <td class="text-red-600">${{ "%.2f"|format(record.cost_value or 0) }}</td>
+                            <td>{{ record.recorded_by_name }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+});
+
+function initializeCharts() {
+    // Waste Trend Chart
+    const wasteTrendCtx = document.getElementById('waste-trend-chart').getContext('2d');
+    new Chart(wasteTrendCtx, {
+        type: 'line',
+        data: {
+            labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+            datasets: [{
+                label: 'Waste (kg)',
+                data: [12, 19, 8, 15],
+                borderColor: 'rgb(239, 68, 68)',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Waste by Category Chart
+    const wasteCategoryCtx = document.getElementById('waste-category-chart').getContext('2d');
+    new Chart(wasteCategoryCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Vegetables', 'Meat', 'Dairy', 'Grains', 'Other'],
+            datasets: [{
+                data: [30, 25, 20, 15, 10],
+                backgroundColor: [
+                    'rgba(34, 197, 94, 0.8)',
+                    'rgba(239, 68, 68, 0.8)',
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(245, 158, 11, 0.8)',
+                    'rgba(156, 163, 175, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+
+    // Waste by Department Chart
+    const wasteDepartmentCtx = document.getElementById('waste-department-chart').getContext('2d');
+    new Chart(wasteDepartmentCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Kitchen', 'Bar', 'Dining', 'Storage'],
+            datasets: [{
+                label: 'Waste Cost ($)',
+                data: [450, 120, 80, 150],
+                backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                borderColor: 'rgba(239, 68, 68, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Waste Reasons Chart
+    const wasteReasonsCtx = document.getElementById('waste-reasons-chart').getContext('2d');
+    new Chart(wasteReasonsCtx, {
+        type: 'pie',
+        data: {
+            labels: ['Expired', 'Overproduction', 'Spoilage', 'Customer Returns', 'Other'],
+            datasets: [{
+                data: [35, 25, 20, 10, 10],
+                backgroundColor: [
+                    'rgba(239, 68, 68, 0.8)',
+                    'rgba(245, 158, 11, 0.8)',
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(34, 197, 94, 0.8)',
+                    'rgba(156, 163, 175, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+</script>
+{% endblock %}

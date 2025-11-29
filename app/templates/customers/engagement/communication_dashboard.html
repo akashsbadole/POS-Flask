@@ -1,0 +1,1314 @@
+{% extends "base.html" %}
+
+{% block title %}Communication Hub{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header with Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">Communication Hub</h1>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="openComposeModal()">
+                        <i class="fas fa-plus"></i> Compose
+                    </button>
+                    <button class="btn btn-success" onclick="createCampaign()">
+                        <i class="fas fa-bullhorn"></i> Campaign
+                    </button>
+                    <button class="btn btn-info" onclick="refreshCommunicationData()">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Communication Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-envelope fa-2x mb-2"></i>
+                    <h4 class="card-title">Total Sent</h4>
+                    <h2 class="mb-0" id="total-sent">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-check fa-2x mb-2"></i>
+                    <h4 class="card-title">Delivered</h4>
+                    <h2 class="mb-0" id="delivered">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-mouse-pointer fa-2x mb-2"></i>
+                    <h4 class="card-title">Click Rate</h4>
+                    <h2 class="mb-0" id="click-rate">0%</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <h4 class="card-title">Pending</h4>
+                    <h2 class="mb-0" id="pending">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-times fa-2x mb-2"></i>
+                    <h4 class="card-title">Failed</h4>
+                    <h2 class="mb-0" id="failed">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-2x mb-2"></i>
+                    <h4 class="card-title">Engagement</h4>
+                    <h2 class="mb-0" id="engagement-rate">0%</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Communication Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Filter Communications</h5>
+                </div>
+                <div class="card-body">
+                    <form id="communication-filters" class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Channel</label>
+                            <select class="form-control" name="channel" id="channel-filter">
+                                <option value="">All Channels</option>
+                                <option value="email">Email</option>
+                                <option value="sms">SMS</option>
+                                <option value="push">Push Notification</option>
+                                <option value="whatsapp">WhatsApp</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Status</label>
+                            <select class="form-control" name="status" id="status-filter">
+                                <option value="">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="sent">Sent</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="failed">Failed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Message Type</label>
+                            <select class="form-control" name="message_type" id="message-type-filter">
+                                <option value="">All Types</option>
+                                <option value="promotion">Promotion</option>
+                                <option value="announcement">Announcement</option>
+                                <option value="reminder">Reminder</option>
+                                <option value="loyalty">Loyalty Update</option>
+                                <option value="feedback">Feedback Request</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Date Range</label>
+                            <input type="date" class="form-control" name="start_date" id="start-date">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <input type="date" class="form-control" name="end_date" id="end-date">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="button" class="btn btn-primary w-100" onclick="applyFilters()">
+                                <i class="fas fa-search"></i> Filter
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Communication Tabs -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <ul class="nav nav-tabs" id="communicationTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="messages-tab" data-bs-toggle="tab" data-bs-target="#messages" type="button" role="tab">
+                        <i class="fas fa-envelope"></i> Messages
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="campaigns-tab" data-bs-toggle="tab" data-bs-target="#campaigns" type="button" role="tab">
+                        <i class="fas fa-bullhorn"></i> Campaigns
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="templates-tab" data-bs-toggle="tab" data-bs-target="#templates" type="button" role="tab">
+                        <i class="fas fa-file-alt"></i> Templates
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics" type="button" role="tab">
+                        <i class="fas fa-chart-line"></i> Analytics
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="communicationTabContent">
+        <!-- Messages Tab -->
+        <div class="tab-pane fade show active" id="messages" role="tabpanel">
+            <div class="card">
+                <div class="card-body">
+                    <div id="messages-list">
+                        <div class="text-center py-5">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">Loading messages...</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <nav aria-label="Messages pagination" class="mt-4">
+                        <ul class="pagination justify-content-center" id="messages-pagination">
+                            <!-- Pagination will be populated by JavaScript -->
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+
+        <!-- Campaigns Tab -->
+        <div class="tab-pane fade" id="campaigns" role="tabpanel">
+            <div class="card">
+                <div class="card-body">
+                    <div id="campaigns-list">
+                        <div class="text-center py-5">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">Loading campaigns...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Templates Tab -->
+        <div class="tab-pane fade" id="templates" role="tabpanel">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Message Templates</h5>
+                    <button class="btn btn-primary btn-sm" onclick="createTemplate()">
+                        <i class="fas fa-plus"></i> New Template
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="templates-list">
+                        <div class="text-center py-5">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">Loading templates...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div class="tab-pane fade" id="analytics" role="tabpanel">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Channel Performance</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="channel-performance-chart" width="400" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Message Type Performance</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="message-type-chart" width="400" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Communication Trends</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="communication-trends-chart" width="800" height="400"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Compose Message Modal -->
+<div class="modal fade" id="composeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Compose Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="compose-form">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Channel</label>
+                                <select class="form-control" name="channel" id="compose-channel">
+                                    <option value="email">Email</option>
+                                    <option value="sms">SMS</option>
+                                    <option value="push">Push Notification</option>
+                                    <option value="whatsapp">WhatsApp</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Message Type</label>
+                                <select class="form-control" name="message_type" id="compose-message-type">
+                                    <option value="promotion">Promotion</option>
+                                    <option value="announcement">Announcement</option>
+                                    <option value="reminder">Reminder</option>
+                                    <option value="loyalty">Loyalty Update</option>
+                                    <option value="feedback">Feedback Request</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Recipients</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="recipient_type" id="all-customers" value="all" checked>
+                                    <label class="form-check-label" for="all-customers">
+                                        All Customers
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="recipient_type" id="segment-customers" value="segment">
+                                    <label class="form-check-label" for="segment-customers">
+                                        Customer Segment
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="recipient_type" id="individual-customers" value="individual">
+                                    <label class="form-check-label" for="individual-customers">
+                                        Individual Customers
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <select class="form-control" name="segment" id="segment-select" disabled>
+                                    <option value="">Select Segment</option>
+                                    <option value="loyalty_members">Loyalty Members</option>
+                                    <option value="new_customers">New Customers</option>
+                                    <option value="high_value">High Value Customers</option>
+                                    <option value="at_risk">At Risk Customers</option>
+                                </select>
+                                <input type="text" class="form-control mt-2" name="customer_list" id="customer-list" placeholder="Enter customer IDs (comma separated)" disabled>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Subject</label>
+                        <input type="text" class="form-control" name="subject" id="compose-subject" placeholder="Enter message subject...">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Message</label>
+                        <textarea class="form-control" name="message" id="compose-message" rows="6" placeholder="Enter your message here..."></textarea>
+                        <small class="text-muted">Use placeholders like {customer_name}, {loyalty_points}, {next_tier} for personalization</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Schedule</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="schedule" id="send-now" value="now" checked>
+                            <label class="form-check-label" for="send-now">
+                                Send Now
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="schedule" id="send-later" value="later">
+                            <label class="form-check-label" for="send-later">
+                                Schedule for Later
+                            </label>
+                        </div>
+                        <input type="datetime-local" class="form-control mt-2" name="scheduled_time" id="scheduled-time" disabled>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane"></i> Send Message
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Campaign Modal -->
+<div class="modal fade" id="campaignModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Campaign</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="campaign-form">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Campaign Name</label>
+                                <input type="text" class="form-control" name="name" placeholder="Enter campaign name...">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Campaign Type</label>
+                                <select class="form-control" name="campaign_type">
+                                    <option value="promotion">Promotional Campaign</option>
+                                    <option value="announcement">Announcement Campaign</option>
+                                    <option value="loyalty">Loyalty Campaign</option>
+                                    <option value="re_engagement">Re-engagement Campaign</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="3" placeholder="Describe your campaign..."></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Start Date</label>
+                                <input type="datetime-local" class="form-control" name="start_date">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">End Date</label>
+                                <input type="datetime-local" class="form-control" name="end_date">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Target Audience</label>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <select class="form-control" name="target_segment">
+                                    <option value="all">All Customers</option>
+                                    <option value="loyalty_members">Loyalty Members</option>
+                                    <option value="new_customers">New Customers</option>
+                                    <option value="high_value">High Value</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="number" class="form-control" name="min_age" placeholder="Min Age">
+                            </div>
+                            <div class="col-md-4">
+                                <input type="number" class="form-control" name="max_age" placeholder="Max Age">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Campaign Messages</label>
+                        <div id="campaign-messages">
+                            <div class="row mb-2">
+                                <div class="col-md-3">
+                                    <select class="form-control" name="message_channel[]">
+                                        <option value="email">Email</option>
+                                        <option value="sms">SMS</option>
+                                        <option value="push">Push</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-5">
+                                    <input type="text" class="form-control" name="message_subject[]" placeholder="Subject">
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="number" class="form-control" name="message_delay[]" placeholder="Delay (days)" min="0">
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addCampaignMessage()">
+                            <i class="fas fa-plus"></i> Add Message
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createCampaign()">
+                    <i class="fas fa-rocket"></i> Create Campaign
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Template Modal -->
+<div class="modal fade" id="templateModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Template</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="template-form">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Template Name</label>
+                                <input type="text" class="form-control" name="name" placeholder="Enter template name...">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Channel</label>
+                                <select class="form-control" name="channel">
+                                    <option value="email">Email</option>
+                                    <option value="sms">SMS</option>
+                                    <option value="push">Push Notification</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Message Type</label>
+                        <select class="form-control" name="message_type">
+                            <option value="promotion">Promotion</option>
+                            <option value="announcement">Announcement</option>
+                            <option value="reminder">Reminder</option>
+                            <option value="loyalty">Loyalty Update</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Subject Template</label>
+                        <input type="text" class="form-control" name="subject_template" placeholder="Subject with placeholders...">
+                        <small class="text-muted">Use placeholders: {customer_name}, {restaurant_name}, {loyalty_points}, etc.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Message Template</label>
+                        <textarea class="form-control" name="message_template" rows="8" placeholder="Message with placeholders..."></textarea>
+                        <small class="text-muted">Available placeholders: {customer_name}, {restaurant_name}, {loyalty_points}, {next_tier}, {special_offer}, {expiry_date}</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveTemplate()">
+                    <i class="fas fa-save"></i> Save Template
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let channelPerformanceChart = null;
+let messageTypeChart = null;
+let communicationTrendsChart = null;
+let currentMessagesPage = 1;
+let totalMessagesPages = 1;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadCommunicationDashboard();
+    initializeCharts();
+    
+    // Handle recipient type changes
+    document.querySelectorAll('input[name="recipient_type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const segmentSelect = document.getElementById('segment-select');
+            const customerList = document.getElementById('customer-list');
+            
+            if (this.value === 'segment') {
+                segmentSelect.disabled = false;
+                customerList.disabled = true;
+            } else if (this.value === 'individual') {
+                segmentSelect.disabled = true;
+                customerList.disabled = false;
+            } else {
+                segmentSelect.disabled = true;
+                customerList.disabled = true;
+            }
+        });
+    });
+    
+    // Handle schedule radio button
+    document.getElementById('send-later').addEventListener('change', function() {
+        document.getElementById('scheduled-time').disabled = !this.checked;
+    });
+    
+    document.getElementById('send-now').addEventListener('change', function() {
+        document.getElementById('scheduled-time').disabled = !this.checked;
+    });
+    
+    // Set default date range (last 30 days)
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+    
+    document.getElementById('start-date').value = thirtyDaysAgo.toISOString().split('T')[0];
+    document.getElementById('end-date').value = today.toISOString().split('T')[0];
+});
+
+function loadCommunicationDashboard() {
+    loadCommunicationStatistics();
+    loadMessages();
+    loadCampaigns();
+    loadTemplates();
+    loadAnalyticsData();
+}
+
+function loadCommunicationStatistics() {
+    fetch('/api/customers/engagement/communication/statistics', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        updateCommunicationStatistics(data);
+    })
+    .catch(error => {
+        console.error('Error loading communication statistics:', error);
+    });
+}
+
+function updateCommunicationStatistics(data) {
+    document.getElementById('total-sent').textContent = formatNumber(data.total_sent || 0);
+    document.getElementById('delivered').textContent = formatNumber(data.delivered || 0);
+    document.getElementById('click-rate').textContent = (data.click_rate || 0) + '%';
+    document.getElementById('pending').textContent = formatNumber(data.pending || 0);
+    document.getElementById('failed').textContent = formatNumber(data.failed || 0);
+    document.getElementById('engagement-rate').textContent = (data.engagement_rate || 0) + '%';
+}
+
+function loadMessages(page = 1) {
+    const filters = getFilterValues();
+    
+    fetch('/api/customers/engagement/communication/messages?' + new URLSearchParams({
+        page: page,
+        per_page: 20,
+        ...filters
+    }), {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderMessages(data.messages || []);
+        updateMessagesPagination(data.pagination || {});
+    })
+    .catch(error => {
+        console.error('Error loading messages:', error);
+        document.getElementById('messages-list').innerHTML = '<div class="text-center text-muted">Error loading messages</div>';
+    });
+}
+
+function renderMessages(messages) {
+    const container = document.getElementById('messages-list');
+    
+    if (messages.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-5">No messages found</div>';
+        return;
+    }
+    
+    const messagesHtml = messages.map(message => {
+        const channelIcon = getChannelIcon(message.channel);
+        const statusBadge = getStatusBadge(message.status);
+        const messageTypeBadge = getMessageTypeBadge(message.message_type);
+        
+        return `
+            <div class="row mb-3 p-3 border rounded message-item">
+                <div class="col-md-1">
+                    <div class="text-center">
+                        <div class="channel-icon bg-light rounded-circle p-2">
+                            <i class="${channelIcon}"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <div class="d-flex justify-content-between">
+                        <h6 class="mb-1">${message.subject || 'No Subject'}</h6>
+                        <small class="text-muted">${new Date(message.created_at).toLocaleString()}</small>
+                    </div>
+                    <p class="mb-2 text-truncate">${message.content || message.message}</p>
+                    <div>
+                        ${messageTypeBadge}
+                        ${statusBadge}
+                        <span class="badge bg-info">${message.recipient_count || 0} recipients</span>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="mb-2">
+                        <strong>Performance:</strong><br>
+                        <small>Open: ${message.open_rate || 0}% | Click: ${message.click_rate || 0}%</small>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewMessageDetails(${message.id})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" onclick="duplicateMessage(${message.id})">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteMessage(${message.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = messagesHtml;
+}
+
+function getChannelIcon(channel) {
+    const icons = {
+        'email': 'fas fa-envelope',
+        'sms': 'fas fa-sms',
+        'push': 'fas fa-bell',
+        'whatsapp': 'fab fa-whatsapp'
+    };
+    return icons[channel] || 'fas fa-envelope';
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'pending': '<span class="badge bg-warning">Pending</span>',
+        'sent': '<span class="badge bg-info">Sent</span>',
+        'delivered': '<span class="badge bg-success">Delivered</span>',
+        'failed': '<span class="badge bg-danger">Failed</span>'
+    };
+    return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
+}
+
+function getMessageTypeBadge(type) {
+    const badges = {
+        'promotion': '<span class="badge bg-primary">Promotion</span>',
+        'announcement': '<span class="badge bg-success">Announcement</span>',
+        'reminder': '<span class="badge bg-info">Reminder</span>',
+        'loyalty': '<span class="badge bg-warning">Loyalty</span>',
+        'feedback': '<span class="badge bg-secondary">Feedback</span>'
+    };
+    return badges[type] || '<span class="badge bg-secondary">Unknown</span>';
+}
+
+function updateMessagesPagination(pagination) {
+    currentMessagesPage = pagination.current_page || 1;
+    totalMessagesPages = pagination.total_pages || 1;
+    
+    const paginationContainer = document.getElementById('messages-pagination');
+    
+    if (totalMessagesPages <= 1) {
+        paginationContainer.innerHTML = '';
+        return;
+    }
+    
+    let paginationHtml = '';
+    
+    // Previous button
+    paginationHtml += `
+        <li class="page-item ${currentMessagesPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="loadMessages(${currentMessagesPage - 1})">Previous</a>
+        </li>
+    `;
+    
+    // Page numbers
+    for (let i = 1; i <= totalMessagesPages; i++) {
+        if (i === 1 || i === totalMessagesPages || (i >= currentMessagesPage - 2 && i <= currentMessagesPage + 2)) {
+            paginationHtml += `
+                <li class="page-item ${i === currentMessagesPage ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="loadMessages(${i})">${i}</a>
+                </li>
+            `;
+        } else if (i === currentMessagesPage - 3 || i === currentMessagesPage + 3) {
+            paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+    }
+    
+    // Next button
+    paginationHtml += `
+        <li class="page-item ${currentMessagesPage === totalMessagesPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="loadMessages(${currentMessagesPage + 1})">Next</a>
+        </li>
+    `;
+    
+    paginationContainer.innerHTML = paginationHtml;
+}
+
+function loadCampaigns() {
+    fetch('/api/customers/engagement/communication/campaigns', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderCampaigns(data.campaigns || []);
+    })
+    .catch(error => {
+        console.error('Error loading campaigns:', error);
+        document.getElementById('campaigns-list').innerHTML = '<div class="text-center text-muted">Error loading campaigns</div>';
+    });
+}
+
+function renderCampaigns(campaigns) {
+    const container = document.getElementById('campaigns-list');
+    
+    if (campaigns.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-5">No campaigns found</div>';
+        return;
+    }
+    
+    const campaignsHtml = campaigns.map(campaign => {
+        const statusBadge = getCampaignStatusBadge(campaign.status);
+        const progress = calculateCampaignProgress(campaign);
+        
+        return `
+            <div class="row mb-3 p-3 border rounded">
+                <div class="col-md-8">
+                    <div class="d-flex justify-content-between">
+                        <h6 class="mb-1">${campaign.name}</h6>
+                        ${statusBadge}
+                    </div>
+                    <p class="mb-2">${campaign.description || 'No description'}</p>
+                    <div class="mb-2">
+                        <strong>Progress:</strong>
+                        <div class="progress">
+                            <div class="progress-bar bg-${progress.color}" style="width: ${progress.percentage}%"></div>
+                        </div>
+                        <small>${progress.percentage}% complete (${progress.sent}/${progress.total} messages sent)</small>
+                    </div>
+                    <div>
+                        <small class="text-muted">
+                            Start: ${new Date(campaign.start_date).toLocaleDateString()} | 
+                            End: ${new Date(campaign.end_date).toLocaleDateString()}
+                        </small>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="mb-2">
+                        <strong>Performance:</strong><br>
+                        <small>Open: ${campaign.open_rate || 0}% | Click: ${campaign.click_rate || 0}%</small>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewCampaignDetails(${campaign.id})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" onclick="pauseCampaign(${campaign.id})">
+                            <i class="fas fa-pause"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteCampaign(${campaign.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = campaignsHtml;
+}
+
+function getCampaignStatusBadge(status) {
+    const badges = {
+        'draft': '<span class="badge bg-secondary">Draft</span>',
+        'active': '<span class="badge bg-success">Active</span>',
+        'paused': '<span class="badge bg-warning">Paused</span>',
+        'completed': '<span class="badge bg-primary">Completed</span>',
+        'cancelled': '<span class="badge bg-danger">Cancelled</span>'
+    };
+    return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
+}
+
+function calculateCampaignProgress(campaign) {
+    const sent = campaign.messages_sent || 0;
+    const total = campaign.total_messages || 1;
+    const percentage = Math.round((sent / total) * 100);
+    
+    let color = 'info';
+    if (percentage >= 100) color = 'success';
+    else if (percentage >= 75) color = 'primary';
+    else if (percentage >= 50) color = 'warning';
+    
+    return { percentage, sent, total, color };
+}
+
+function loadTemplates() {
+    fetch('/api/customers/engagement/communication/templates', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderTemplates(data.templates || []);
+    })
+    .catch(error => {
+        console.error('Error loading templates:', error);
+        document.getElementById('templates-list').innerHTML = '<div class="text-center text-muted">Error loading templates</div>';
+    });
+}
+
+function renderTemplates(templates) {
+    const container = document.getElementById('templates-list');
+    
+    if (templates.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-5">No templates found</div>';
+        return;
+    }
+    
+    const templatesHtml = templates.map(template => {
+        const channelIcon = getChannelIcon(template.channel);
+        const messageTypeBadge = getMessageTypeBadge(template.message_type);
+        
+        return `
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <h6 class="card-title">${template.name}</h6>
+                            <div class="channel-icon bg-light rounded-circle p-1">
+                                <i class="${channelIcon}"></i>
+                            </div>
+                        </div>
+                        <p class="card-text text-truncate">${template.subject_template}</p>
+                        <div>${messageTypeBadge}</div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="btn-group w-100">
+                            <button class="btn btn-sm btn-outline-primary" onclick="useTemplate(${template.id})">
+                                <i class="fas fa-paper-plane"></i> Use
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="editTemplate(${template.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate(${template.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = `<div class="row">${templatesHtml}</div>`;
+}
+
+function loadAnalyticsData() {
+    // This would load actual analytics data from API
+    // For now, using sample data in chart rendering
+}
+
+function initializeCharts() {
+    renderChannelPerformanceChart();
+    renderMessageTypeChart();
+    renderCommunicationTrendsChart();
+}
+
+function renderChannelPerformanceChart() {
+    const ctx = document.getElementById('channel-performance-chart').getContext('2d');
+    
+    if (channelPerformanceChart) {
+        channelPerformanceChart.destroy();
+    }
+    
+    // Sample data - would come from API
+    const labels = ['Email', 'SMS', 'Push', 'WhatsApp'];
+    const sent = [450, 320, 180, 95];
+    const delivered = [420, 305, 165, 88];
+    const clicked = [85, 45, 28, 15];
+    
+    channelPerformanceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Sent',
+                data: sent,
+                backgroundColor: '#007bff'
+            }, {
+                label: 'Delivered',
+                data: delivered,
+                backgroundColor: '#28a745'
+            }, {
+                label: 'Clicked',
+                data: clicked,
+                backgroundColor: '#ffc107'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function renderMessageTypeChart() {
+    const ctx = document.getElementById('message-type-chart').getContext('2d');
+    
+    if (messageTypeChart) {
+        messageTypeChart.destroy();
+    }
+    
+    // Sample data - would come from API
+    const labels = ['Promotion', 'Announcement', 'Reminder', 'Loyalty', 'Feedback'];
+    const data = [180, 120, 95, 85, 45];
+    
+    messageTypeChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: [
+                    '#007bff',
+                    '#28a745',
+                    '#ffc107',
+                    '#fd7e14',
+                    '#6c757d'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+function renderCommunicationTrendsChart() {
+    const ctx = document.getElementById('communication-trends-chart').getContext('2d');
+    
+    if (communicationTrendsChart) {
+        communicationTrendsChart.destroy();
+    }
+    
+    // Sample data - would come from API
+    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const sent = [120, 135, 142, 155, 168, 175];
+    const delivered = [110, 125, 130, 145, 158, 165];
+    const clicked = [25, 28, 32, 38, 42, 48];
+    
+    communicationTrendsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Sent',
+                data: sent,
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                fill: true
+            }, {
+                label: 'Delivered',
+                data: delivered,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                fill: true
+            }, {
+                label: 'Clicked',
+                data: clicked,
+                borderColor: '#ffc107',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function getFilterValues() {
+    const filters = {};
+    
+    const channel = document.getElementById('channel-filter').value;
+    const status = document.getElementById('status-filter').value;
+    const messageType = document.getElementById('message-type-filter').value;
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    
+    if (channel) filters.channel = channel;
+    if (status) filters.status = status;
+    if (messageType) filters.message_type = messageType;
+    if (startDate) filters.start_date = startDate;
+    if (endDate) filters.end_date = endDate;
+    
+    return filters;
+}
+
+function applyFilters() {
+    currentMessagesPage = 1;
+    loadMessages();
+}
+
+function openComposeModal() {
+    const modal = new bootstrap.Modal(document.getElementById('composeModal'));
+    modal.show();
+}
+
+function sendMessage() {
+    const form = document.getElementById('compose-form');
+    const formData = new FormData(form);
+    
+    const messageData = {
+        channel: formData.get('channel'),
+        message_type: formData.get('message_type'),
+        recipient_type: formData.get('recipient_type'),
+        segment: formData.get('segment'),
+        customer_list: formData.get('customer_list'),
+        subject: formData.get('subject'),
+        message: formData.get('message'),
+        schedule: formData.get('schedule'),
+        scheduled_time: formData.get('scheduled_time')
+    };
+    
+    fetch('/api/customers/engagement/communication/send', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        },
+        body: JSON.stringify(messageData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Message sent successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('composeModal')).hide();
+            form.reset();
+            loadMessages();
+            loadCommunicationStatistics();
+        } else {
+            showAlert(data.error || 'Error sending message', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error sending message:', error);
+        showAlert('Error sending message', 'danger');
+    });
+}
+
+function createCampaign() {
+    const modal = new bootstrap.Modal(document.getElementById('campaignModal'));
+    modal.show();
+}
+
+function addCampaignMessage() {
+    const container = document.getElementById('campaign-messages');
+    const messageRow = document.createElement('div');
+    messageRow.className = 'row mb-2';
+    messageRow.innerHTML = `
+        <div class="col-md-3">
+            <select class="form-control" name="message_channel[]">
+                <option value="email">Email</option>
+                <option value="sms">SMS</option>
+                <option value="push">Push</option>
+            </select>
+        </div>
+        <div class="col-md-5">
+            <input type="text" class="form-control" name="message_subject[]" placeholder="Subject">
+        </div>
+        <div class="col-md-4">
+            <div class="input-group">
+                <input type="number" class="form-control" name="message_delay[]" placeholder="Delay (days)" min="0">
+                <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    container.appendChild(messageRow);
+}
+
+function createTemplate() {
+    const modal = new bootstrap.Modal(document.getElementById('templateModal'));
+    modal.show();
+}
+
+function saveTemplate() {
+    const form = document.getElementById('template-form');
+    const formData = new FormData(form);
+    
+    const templateData = {
+        name: formData.get('name'),
+        channel: formData.get('channel'),
+        message_type: formData.get('message_type'),
+        subject_template: formData.get('subject_template'),
+        message_template: formData.get('message_template')
+    };
+    
+    fetch('/api/customers/engagement/communication/templates', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        },
+        body: JSON.stringify(templateData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Template saved successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('templateModal')).hide();
+            form.reset();
+            loadTemplates();
+        } else {
+            showAlert(data.error || 'Error saving template', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving template:', error);
+        showAlert('Error saving template', 'danger');
+    });
+}
+
+function refreshCommunicationData() {
+    loadCommunicationDashboard();
+    showAlert('Communication data refreshed!', 'info');
+}
+
+function formatNumber(num) {
+    return new Intl.NumberFormat().format(num);
+}
+
+function showAlert(message, type) {
+    // Implementation depends on your alert system
+    console.log(`${type}: ${message}`);
+}
+
+// Placeholder functions for actions that would be implemented
+function viewMessageDetails(messageId) {
+    console.log('View message details:', messageId);
+}
+
+function duplicateMessage(messageId) {
+    console.log('Duplicate message:', messageId);
+}
+
+function deleteMessage(messageId) {
+    if (confirm('Are you sure you want to delete this message?')) {
+        console.log('Delete message:', messageId);
+    }
+}
+
+function viewCampaignDetails(campaignId) {
+    console.log('View campaign details:', campaignId);
+}
+
+function pauseCampaign(campaignId) {
+    console.log('Pause campaign:', campaignId);
+}
+
+function deleteCampaign(campaignId) {
+    if (confirm('Are you sure you want to delete this campaign?')) {
+        console.log('Delete campaign:', campaignId);
+    }
+}
+
+function useTemplate(templateId) {
+    console.log('Use template:', templateId);
+}
+
+function editTemplate(templateId) {
+    console.log('Edit template:', templateId);
+}
+
+function deleteTemplate(templateId) {
+    if (confirm('Are you sure you want to delete this template?')) {
+        console.log('Delete template:', templateId);
+    }
+}
+</script>
+
+<style>
+.channel-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.message-item:hover {
+    background-color: #f8f9fa;
+    transition: background-color 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.progress {
+    height: 8px;
+}
+
+.nav-tabs .nav-link {
+    color: #495057;
+}
+
+.nav-tabs .nav-link.active {
+    font-weight: bold;
+}
+</style>
+{% endblock %}

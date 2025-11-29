@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="description" content="Advanced Restaurant Point of Sale System with offline capabilities">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Restaurant POS">
+    <meta name="application-name" content="Restaurant POS">
+    <meta name="msapplication-TileColor" content="#3b82f6">
+    <meta name="msapplication-config" content="/browserconfig.xml">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    
+    <!-- Icons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/favicon-16x16.png') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    
+    <!-- Splash Screens for iOS -->
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/splash-640x1136.png') }}" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/splash-750x1334.png') }}" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/splash-1242x2208.png') }}" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/splash-1125x2436.png') }}" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/splash-1536x2732.png') }}" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- PWA Specific CSS -->
+    <style>
+        /* PWA App Shell Styles */
+        .pwa-loading {
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        
+        .pwa-loaded {
+            opacity: 1;
+        }
+        
+        /* Safe area insets for notched displays */
+        .safe-area-inset-top {
+            padding-top: env(safe-area-inset-top);
+        }
+        
+        .safe-area-inset-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        
+        .safe-area-inset-left {
+            padding-left: env(safe-area-inset-left);
+        }
+        
+        .safe-area-inset-right {
+            padding-right: env(safe-area-inset-right);
+        }
+        
+        /* Smooth transitions */
+        .page-transition {
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+        }
+        
+        .page-enter {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        
+        .page-enter-active {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        
+        .page-exit {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+        
+        /* Touch-friendly interactions */
+        .touch-target {
+            min-height: 44px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Pull-to-refresh indicator */
+        .pull-to-refresh {
+            position: fixed;
+            top: -60px;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(to bottom, #3b82f6, #2563eb);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 500;
+            transition: transform 0.3s ease-in-out;
+            z-index: 100;
+        }
+        
+        .pull-to-refresh.active {
+            transform: translateY(60px);
+        }
+        
+        /* Offline indicator */
+        .offline-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #ef4444;
+            z-index: 1000;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Install prompt animations */
+        .install-prompt {
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        /* Material Icons fallback */
+        .material-icons {
+            font-family: 'Material Icons';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-block;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-feature-settings: 'liga';
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* Enhanced focus states for accessibility */
+        .focus-visible {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+        
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            .border-gray-300 {
+                border-color: #000;
+            }
+            
+            .text-gray-600 {
+                color: #000;
+            }
+        }
+        
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            .transition-transform {
+                transition: none;
+            }
+            
+            .animate-spin {
+                animation: none;
+            }
+        }
+    </style>
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="{{ url_for('static', filename='js/pwa-app-shell.js') }}" as="script">
+    <link rel="preload" href="{{ url_for('static', filename='js/offline-manager.js') }}" as="script">
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="h-full bg-gray-50 pwa-loading">
+    <!-- Pull to refresh indicator -->
+    <div id="pull-to-refresh" class="pull-to-refresh">
+        <span id="pull-text">Pull to refresh</span>
+    </div>
+    
+    <!-- Offline indicator -->
+    <div id="offline-indicator" class="offline-indicator hidden"></div>
+    
+    <!-- Main App Container -->
+    <div id="app-container" class="h-full">
+        <!-- App shell will be inserted here by JavaScript -->
+        {% block content %}{% endblock %}
+    </div>
+    
+    <!-- Critical JavaScript -->
+    <script>
+        // PWA Bootstrap
+        window.PWA_CONFIG = {
+            API_BASE: '{{ url_for("api.index") }}',
+            STATIC_URL: '{{ url_for("static", filename="") }}',
+            OFFLINE_PAGES: {{ offline_pages|tojson if offline_pages else [] }},
+            USER_ID: {{ current_user.id if current_user else 'null' }},
+            RESTAURANT_ID: {{ current_user.restaurant_id if current_user else 'null' }}
+        };
+        
+        // Register service worker immediately
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('{{ url_for("static", filename="sw.js") }}')
+                .then(registration => {
+                    console.log('PWA: Service Worker registered', registration);
+                    
+                    // Check for service worker updates
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // Show update notification
+                                showUpdateNotification();
+                            }
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('PWA: Service Worker registration failed', error);
+                });
+        }
+        
+        // Show update notification
+        function showUpdateNotification() {
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-20 left-4 right-4 bg-blue-50 border border-blue-200 rounded-lg p-4 z-50 install-prompt';
+            notification.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <div>
+                        <h4 class="font-semibold text-blue-800">Update Available</h4>
+                        <p class="text-blue-700 text-sm">A new version is available. Refresh to update.</p>
+                    </div>
+                    <button onclick="location.reload()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm">
+                        Update Now
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(notification);
+        }
+        
+        // Setup pull-to-refresh
+        let startY = 0;
+        let currentY = 0;
+        let pulling = false;
+        
+        document.addEventListener('touchstart', (e) => {
+            if (window.scrollY === 0) {
+                startY = e.touches[0].pageY;
+                pulling = true;
+            }
+        });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (pulling) {
+                currentY = e.touches[0].pageY;
+                const diff = currentY - startY;
+                
+                if (diff > 0 && diff < 120) {
+                    const pullIndicator = document.getElementById('pull-to-refresh');
+                    const pullText = document.getElementById('pull-text');
+                    
+                    pullIndicator.style.transform = `translateY(${Math.min(diff, 60)}px)`;
+                    
+                    if (diff > 80) {
+                        pullText.textContent = 'Release to refresh';
+                    } else {
+                        pullText.textContent = 'Pull to refresh';
+                    }
+                }
+            }
+        });
+        
+        document.addEventListener('touchend', () => {
+            if (pulling) {
+                const diff = currentY - startY;
+                const pullIndicator = document.getElementById('pull-to-refresh');
+                
+                if (diff > 80) {
+                    // Trigger refresh
+                    pullIndicator.classList.add('active');
+                    pullText.textContent = 'Refreshing...';
+                    
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    // Reset
+                    pullIndicator.style.transform = 'translateY(0)';
+                    pullText.textContent = 'Pull to refresh';
+                }
+                
+                pulling = false;
+            }
+        });
+        
+        // Show app when loaded
+        window.addEventListener('load', () => {
+            document.body.classList.remove('pwa-loading');
+            document.body.classList.add('pwa-loaded');
+        });
+        
+        // Handle online/offline status
+        function updateOnlineStatus() {
+            const offlineIndicator = document.getElementById('offline-indicator');
+            if (navigator.onLine) {
+                offlineIndicator.classList.add('hidden');
+            } else {
+                offlineIndicator.classList.remove('hidden');
+            }
+        }
+        
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus();
+    </script>
+    
+    <!-- App Shell JavaScript -->
+    <script src="{{ url_for('static', filename='js/pwa-app-shell.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/offline-manager.js') }}"></script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

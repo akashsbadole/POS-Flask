@@ -48,8 +48,11 @@ class Invoice(db.Model):
     
     def calculate_totals(self):
         """Calculate invoice totals"""
-        self.subtotal = sum(item.total_price for item in self.items)
-        self.balance_amount = self.total_amount - self.paid_amount
+        from decimal import Decimal
+        self.subtotal = sum(Decimal(str(item.total_price)) for item in self.items)
+        self.tax_amount = sum(Decimal(str(item.tax_amount)) for item in self.items)
+        self.total_amount = self.subtotal + self.tax_amount
+        self.balance_amount = self.total_amount - Decimal(str(self.paid_amount))
     
     def mark_as_sent(self):
         """Mark invoice as sent"""

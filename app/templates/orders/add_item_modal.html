@@ -1,0 +1,422 @@
+<!-- Add Item to Table Order Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    Add Item to Order {{ order.order_number }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addItemForm" method="POST">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="order_id" value="{{ order.id }}">
+                    
+                    <!-- Menu Item Selection -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label for="itemSearch" class="form-label">Search Menu Item</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="itemSearch" 
+                                       placeholder="Type to search menu items..." autocomplete="off">
+                                <button class="btn btn-outline-secondary" type="button" onclick="showQuickItems()">
+                                    <i class="fas fa-star"></i> Quick
+                                </button>
+                            </div>
+                            <div id="searchResults" class="position-absolute w-100 bg-white border rounded shadow-sm" 
+                                 style="max-height: 200px; overflow-y: auto; z-index: 1000; display: none;">
+                                <!-- Search results will appear here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Items Grid -->
+                    <div id="quickItemsSection" class="mb-3" style="display: none;">
+                        <h6>Quick Items</h6>
+                        <div id="quickItemsGrid" class="row">
+                            <!-- Quick items will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Selected Item Details -->
+                    <div id="itemDetailsSection" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6 id="selectedItemName" class="card-title">Selected Item</h6>
+                                        <p id="selectedItemDescription" class="text-muted">Item description</p>
+                                        
+                                        <!-- Variants -->
+                                        <div id="variantsSection" class="mb-3" style="display: none;">
+                                            <label class="form-label">Variants</label>
+                                            <div id="variantsList" class="btn-group-vertical w-100" role="group">
+                                                <!-- Variants will be loaded here -->
+                                            </div>
+                                        </div>
+
+                                        <!-- Add-ons -->
+                                        <div id="addOnsSection" class="mb-3" style="display: none;">
+                                            <label class="form-label">Add-ons</label>
+                                            <div id="addOnsList">
+                                                <!-- Add-ons will be loaded here -->
+                                            </div>
+                                        </div>
+
+                                        <!-- Quantity and Notes -->
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <label for="quantity" class="form-label">Quantity</label>
+                                                <input type="number" class="form-control" id="quantity" name="quantity" 
+                                                       value="1" min="1" max="99">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="seat_number" class="form-label">Seat Number (Optional)</label>
+                                                <input type="text" class="form-control" id="seat_number" name="seat_number" 
+                                                       placeholder="e.g., A1, B2" maxlength="10">
+                                            </div>
+                                        </div>
+
+                                        <div class="row">
+                                            <div class="col-12">
+                                                <label for="notes" class="form-label">Special Instructions</label>
+                                                <textarea class="form-control" id="notes" name="notes" rows="2"
+                                                          placeholder="Special requests or dietary requirements..."></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Price Summary</h6>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Base Price:</span>
+                                            <span id="basePrice">$0.00</span>
+                                        </div>
+                                        <div id="variantPriceRow" class="d-flex justify-content-between mb-2" style="display: none;">
+                                            <span>Variant:</span>
+                                            <span id="variantPrice">$0.00</span>
+                                        </div>
+                                        <div id="addOnsPriceRow" class="d-flex justify-content-between mb-2" style="display: none;">
+                                            <span>Add-ons:</span>
+                                            <span id="addOnsPrice">$0.00</span>
+                                        </div>
+                                        <hr>
+                                        <div class="d-flex justify-content-between fw-bold">
+                                            <span>Total:</span>
+                                            <span id="totalPrice">$0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Quantity:</span>
+                                            <span id="totalQuantity">1</span>
+                                        </div>
+                                        <hr>
+                                        <div class="d-flex justify-content-between fw-bold fs-5">
+                                            <span>Order Total:</span>
+                                            <span id="orderTotal">$0.00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addItemToOrder()">
+                    <i class="fas fa-plus me-1"></i>Add to Order
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.position-absolute {
+    position: absolute;
+}
+.btn-group-vertical .btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border-radius: 0;
+}
+.btn-group-vertical .btn:first-child {
+    border-top-left-radius: 0.375rem;
+    border-top-right-radius: 0.375rem;
+}
+.btn-group-vertical .btn:last-child {
+    border-bottom-left-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+}
+</style>
+
+<script>
+let selectedItem = null;
+let selectedVariant = null;
+let selectedAddOns = [];
+
+// Load quick items on modal show
+document.getElementById('addItemModal').addEventListener('show.bs.modal', function() {
+    loadQuickItems();
+});
+
+// Search functionality
+document.getElementById('itemSearch').addEventListener('input', function(e) {
+    const query = e.target.value.trim();
+    const searchResults = document.getElementById('searchResults');
+    
+    if (query.length < 2) {
+        searchResults.style.display = 'none';
+        return;
+    }
+    
+    fetch(`/orders/api/menu/search?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.items && data.items.length > 0) {
+                const resultsHtml = data.items.map(item => `
+                    <div class="p-2 border-bottom hover-bg-light cursor-pointer" 
+                         onclick="selectMenuItem(${item.id})">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>${item.name}</strong>
+                                <br><small class="text-muted">${item.description || ''}</small>
+                            </div>
+                            <div class="text-end">
+                                <strong>$${item.price.toFixed(2)}</strong>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                
+                searchResults.innerHTML = resultsHtml;
+                searchResults.style.display = 'block';
+            } else {
+                searchResults.innerHTML = '<div class="p-2 text-muted">No items found</div>';
+                searchResults.style.display = 'block';
+            }
+        });
+});
+
+// Hide search results when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#itemSearch') && !e.target.closest('#searchResults')) {
+        document.getElementById('searchResults').style.display = 'none';
+    }
+});
+
+function showQuickItems() {
+    document.getElementById('quickItemsSection').style.display = 'block';
+    document.getElementById('searchResults').style.display = 'none';
+}
+
+function loadQuickItems() {
+    fetch('/orders/api/quick-items')
+        .then(response => response.json())
+        .then(data => {
+            const itemsHtml = data.items.map(item => `
+                <div class="col-md-6 mb-2">
+                    <div class="card h-100 cursor-pointer hover-shadow" onclick="selectMenuItem(${item.id})">
+                        <div class="card-body p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${item.name}</strong>
+                                    <br><small class="text-muted">${item.description || ''}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-success">$${item.price.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('quickItemsGrid').innerHTML = itemsHtml;
+        });
+}
+
+function selectMenuItem(itemId) {
+    // Get item details
+    fetch(`/menu/api/item/${itemId}`)
+        .then(response => response.json())
+        .then(data => {
+            selectedItem = data.item;
+            selectedVariant = null;
+            selectedAddOns = [];
+            
+            // Update UI
+            document.getElementById('itemDetailsSection').style.display = 'block';
+            document.getElementById('selectedItemName').textContent = selectedItem.name;
+            document.getElementById('selectedItemDescription').textContent = selectedItem.description || '';
+            
+            // Load variants
+            loadVariants();
+            
+            // Load add-ons
+            loadAddOns();
+            
+            // Update price
+            updatePriceSummary();
+            
+            // Hide search and quick items
+            document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('quickItemsSection').style.display = 'none';
+        });
+}
+
+function loadVariants() {
+    const variantsSection = document.getElementById('variantsSection');
+    const variantsList = document.getElementById('variantsList');
+    
+    if (selectedItem.variants && selectedItem.variants.length > 0) {
+        variantsSection.style.display = 'block';
+        
+        const variantsHtml = selectedItem.variants.map(variant => `
+            <input type="radio" class="btn-check" name="variant_id" value="${variant.id}" 
+                   id="variant_${variant.id}" onchange="selectVariant(${variant.id})">
+            <label class="btn btn-outline-primary" for="variant_${variant.id}">
+                ${variant.name}
+                <br><small>$${variant.price_modifier.toFixed(2)}</small>
+            </label>
+        `).join('');
+        
+        variantsList.innerHTML = variantsHtml;
+    } else {
+        variantsSection.style.display = 'none';
+    }
+}
+
+function selectVariant(variantId) {
+    selectedVariant = selectedItem.variants.find(v => v.id === variantId);
+    updatePriceSummary();
+}
+
+function loadAddOns() {
+    const addOnsSection = document.getElementById('addOnsSection');
+    const addOnsList = document.getElementById('addOnsList');
+    
+    if (selectedItem.add_ons && selectedItem.add_ons.length > 0) {
+        addOnsSection.style.display = 'block';
+        
+        const addOnsHtml = selectedItem.add_ons.map(addOn => `
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" value="${addOn.id}" 
+                       id="addon_${addOn.id}" onchange="toggleAddOn(${addOn.id})">
+                <label class="form-check-label" for="addon_${addOn.id}">
+                    <div class="d-flex justify-content-between">
+                        <span>${addOn.name}</span>
+                        <span class="text-success">+$${addOn.price.toFixed(2)}</span>
+                    </div>
+                </label>
+            </div>
+        `).join('');
+        
+        addOnsList.innerHTML = addOnsHtml;
+    } else {
+        addOnsSection.style.display = 'none';
+    }
+}
+
+function toggleAddOn(addOnId) {
+    const addOn = selectedItem.add_ons.find(a => a.id === addOnId);
+    const index = selectedAddOns.findIndex(a => a.id === addOnId);
+    
+    if (index > -1) {
+        selectedAddOns.splice(index, 1);
+    } else {
+        selectedAddOns.push(addOn);
+    }
+    
+    updatePriceSummary();
+}
+
+function updatePriceSummary() {
+    if (!selectedItem) return;
+    
+    let basePrice = selectedItem.price;
+    let variantPrice = 0;
+    let addOnsPrice = 0;
+    
+    // Calculate variant price
+    if (selectedVariant) {
+        variantPrice = selectedVariant.price_modifier;
+    }
+    
+    // Calculate add-ons price
+    addOnsPrice = selectedAddOns.reduce((sum, addOn) => sum + addOn.price, 0);
+    
+    const unitPrice = basePrice + variantPrice + addOnsPrice;
+    const quantity = parseInt(document.getElementById('quantity').value) || 1;
+    const totalPrice = unitPrice * quantity;
+    
+    // Update UI
+    document.getElementById('basePrice').textContent = `$${basePrice.toFixed(2)}`;
+    
+    const variantPriceRow = document.getElementById('variantPriceRow');
+    if (selectedVariant) {
+        variantPriceRow.style.display = 'flex';
+        document.getElementById('variantPrice').textContent = `$${variantPrice.toFixed(2)}`;
+    } else {
+        variantPriceRow.style.display = 'none';
+    }
+    
+    const addOnsPriceRow = document.getElementById('addOnsPriceRow');
+    if (selectedAddOns.length > 0) {
+        addOnsPriceRow.style.display = 'flex';
+        document.getElementById('addOnsPrice').textContent = `$${addOnsPrice.toFixed(2)}`;
+    } else {
+        addOnsPriceRow.style.display = 'none';
+    }
+    
+    document.getElementById('totalPrice').textContent = `$${unitPrice.toFixed(2)}`;
+    document.getElementById('totalQuantity').textContent = quantity;
+    document.getElementById('orderTotal').textContent = `$${totalPrice.toFixed(2)}`;
+}
+
+// Quantity change listener
+document.getElementById('quantity').addEventListener('input', updatePriceSummary);
+
+function addItemToOrder() {
+    if (!selectedItem) {
+        alert('Please select an item first');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('item_id', selectedItem.id);
+    formData.append('quantity', document.getElementById('quantity').value);
+    formData.append('notes', document.getElementById('notes').value);
+    formData.append('seat_number', document.getElementById('seat_number').value);
+    
+    if (selectedVariant) {
+        formData.append('variant_id', selectedVariant.id);
+    }
+    
+    selectedAddOns.forEach(addOn => {
+        formData.append('add_ons', addOn.id);
+    });
+    
+    fetch(`/orders/orders/table/{{ order.table_id }}/add-item`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.text())
+    .then(html => {
+        // Close modal and reload page
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addItemModal'));
+        modal.hide();
+        location.reload();
+    })
+    .catch(error => {
+        console.error('Error adding item:', error);
+        alert('Error adding item to order');
+    });
+}
+</script>

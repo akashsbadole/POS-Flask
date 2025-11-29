@@ -68,36 +68,79 @@
 
             <!-- Tables positioned absolutely -->
             {% for table in tables %}
+            {% set current_order = table.get_current_order() %}
             <div class="absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200 hover:scale-105"
-                 style="left: {{ table.floor_position_x or (loop.index0 % 6 * 120 + 80) }}px; 
+                 style="left: {{ table.floor_position_x or (loop.index0 % 6 * 120 + 80) }}px;
                         top: {{ table.floor_position_y or (loop.index0 // 6 * 120 + 120) }}px;">
                 <div class="relative group">
-                    <!-- Table card -->
-                    <div class="w-20 h-20 {{ table.get_status_color() }} rounded-lg shadow-lg flex flex-col items-center justify-center text-white font-bold cursor-pointer"
+                    <!-- Table card with order indicator -->
+                    <div class="w-20 h-20 {{ table.get_status_color() }} rounded-lg shadow-lg flex flex-col items-center justify-center text-white font-bold cursor-pointer relative"
                          onclick="showTableDetails({{ table.id }})">
                         <div class="text-lg">{{ table.number }}</div>
                         {% if table.name %}
                         <div class="text-xs opacity-75">{{ table.name }}</div>
                         {% endif %}
+                        
+                        <!-- Order status indicator -->
+                        {% if current_order %}
+                        <div class="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center text-xs font-bold animate-pulse">
+                            {{ current_order.items|length }}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Waiter assignment indicator -->
+                        {% if table.assigned_waiter %}
+                        <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-xs">
+                            <span class="text-white">W</span>
+                        </div>
+                        {% endif %}
                     </div>
                     
-                    <!-- Hover tooltip -->
-                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                        <div class="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 shadow-lg">
-                            <div class="font-medium">{{ table.number }}{% if table.name %} - {{ table.name }}{% endif %}</div>
-                            <div>Capacity: {{ table.capacity }}</div>
-                            <div>Status: {{ table.get_status_text() }}</div>
-                            {% if table.floor_section %}
-                            <div>Section: {{ table.floor_section }}</div>
-                            {% endif %}
-                            {% if table.get_current_session() %}
-                            {% set session = table.get_current_session() %}
-                            <div class="border-t border-gray-700 mt-1 pt-1">
-                                <div>Order: #{{ session.order_number }}</div>
-                                <div>Duration: {{ "%.0f"|format(session.duration_minutes) }}m</div>
-                                <div>Total: ₹{{ "%.2f"|format(session.total) }}</div>
+                    <!-- Enhanced hover tooltip with order info -->
+                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10 w-64">
+                        <div class="bg-gray-900 text-white text-xs rounded-lg py-3 px-4 shadow-lg">
+                            <div class="font-medium text-sm mb-2">{{ table.number }}{% if table.name %} - {{ table.name }}{% endif %}</div>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <div>Capacity: {{ table.capacity }}</div>
+                                <div>Status: {{ table.get_status_text() }}</div>
+                                {% if table.floor_section %}
+                                <div>Section: {{ table.floor_section }}</div>
+                                {% endif %}
+                                {% if table.assigned_waiter %}
+                                <div>Waiter: {{ table.assigned_waiter.name }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            {% if current_order %}
+                            <div class="border-t border-gray-700 mt-2 pt-2">
+                                <div class="font-medium mb-1">Current Order:</div>
+                                <div class="grid grid-cols-2 gap-1">
+                                    <div>#{{ current_order.order_number }}</div>
+                                    <div>{{ current_order.status.value.title() }}</div>
+                                    <div>{{ "%.0f"|format(current_order.get_duration_minutes()) }}m</div>
+                                    <div>₹{{ "%.2f"|format(current_order.total) }}</div>
+                                </div>
+                                <div class="mt-1">{{ current_order.items|length }} items</div>
                             </div>
                             {% endif %}
+                            
+                            <!-- Quick actions -->
+                            <div class="mt-3 pt-2 border-t border-gray-700 flex space-x-2">
+                                {% if current_order %}
+                                <button onclick="event.stopPropagation(); viewOrder({{ current_order.id }})"
+                                        class="flex-1 bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded text-xs">
+                                    View Order
+                                </button>
+                                {% endif %}
+                                <button onclick="event.stopPropagation(); createOrder({{ table.id }})"
+                                        class="flex-1 bg-green-600 hover:bg-green-700 px-2 py-1 rounded text-xs">
+                                    New Order
+                                </button>
+                                <button onclick="event.stopPropagation(); quickOrder({{ table.id }})"
+                                        class="flex-1 bg-purple-600 hover:bg-purple-700 px-2 py-1 rounded text-xs">
+                                    Quick Add
+                                </button>
+                            </div>
                         </div>
                         <div class="w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 absolute top-full left-1/2 transform -translate-x-1/2"></div>
                     </div>
@@ -186,13 +229,145 @@
 
 <script>
 function showTableDetails(tableId) {
-    // This would typically fetch table details via API
-    // For now, just show a simple modal
-    document.getElementById('table-modal').classList.remove('hidden');
+    // Fetch table details with order information
+    fetch(`/tables/api/table/${tableId}`)
+        .then(response => response.json())
+        .then(data => {
+            const content = document.getElementById('table-details-content');
+            content.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h4 class="text-lg font-semibold">Table ${data.number}</h4>
+                        <span class="px-2 py-1 text-xs font-medium rounded-full ${getStatusClass(data.status)}">
+                            ${data.status}
+                        </span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-gray-500">Capacity:</span>
+                            <span class="font-medium">${data.capacity} seats</span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Section:</span>
+                            <span class="font-medium">${data.floor_section || 'Main'}</span>
+                        </div>
+                        ${data.assigned_waiter ? `
+                        <div>
+                            <span class="text-gray-500">Waiter:</span>
+                            <span class="font-medium">${data.assigned_waiter.name}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    
+                    ${data.current_order ? `
+                    <div class="border-t pt-4">
+                        <h5 class="font-medium mb-2">Current Order</h5>
+                        <div class="bg-gray-50 rounded p-3 text-sm">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>Order #${data.current_order.order_number}</div>
+                                <div>${data.current_order.status}</div>
+                                <div>${data.current_order.items.length} items</div>
+                                <div>₹${parseFloat(data.current_order.total).toFixed(2)}</div>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="flex space-x-2 pt-4">
+                        ${data.current_order ? `
+                        <button onclick="viewOrder(${data.current_order.id})"
+                                class="flex-1 bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700">
+                            View Order
+                        </button>
+                        ` : ''}
+                        <button onclick="createOrder(${data.id})"
+                                class="flex-1 bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700">
+                            New Order
+                        </button>
+                        <button onclick="quickOrder(${data.id})"
+                                class="flex-1 bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700">
+                            Quick Add
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('table-modal').classList.remove('hidden');
+        })
+        .catch(error => {
+            console.error('Error fetching table details:', error);
+            alert('Error loading table details');
+        });
 }
 
 function closeTableModal() {
     document.getElementById('table-modal').classList.add('hidden');
+function viewOrder(orderId) {
+    window.location.href = `/orders/${orderId}`;
+}
+
+function createOrder(tableId) {
+    window.location.href = `/orders/tables/${tableId}/create-order`;
+}
+
+function quickOrder(tableId) {
+    window.location.href = `/tables/${tableId}/quick-order`;
+}
+
+function assignOrderToTable() {
+    const tableId = document.getElementById('table-select').value;
+    const orderNumber = document.getElementById('order-number').value;
+    
+    if (!tableId || !orderNumber) {
+        alert('Please select a table and enter an order number');
+        return;
+    }
+    
+    // Make API call to assign order to table
+    fetch(`/orders/assign-to-table`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            table_id: tableId,
+            order_number: orderNumber
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            // Clear form
+            document.getElementById('table-select').value = '';
+            document.getElementById('order-number').value = '';
+            // Refresh page to show updated table status
+            location.reload();
+        } else {
+            alert(data.message || 'Failed to assign order');
+        }
+    })
+    .catch(error => {
+        console.error('Error assigning order:', error);
+        alert('Error assigning order to table');
+    });
+}
+
+function getStatusClass(status) {
+    switch(status.toLowerCase()) {
+        case 'available': return 'bg-green-100 text-green-800';
+        case 'occupied': return 'bg-red-100 text-red-800';
+        case 'reserved': return 'bg-blue-100 text-blue-800';
+        case 'cleaning': return 'bg-yellow-100 text-yellow-800';
+        case 'maintenance': return 'bg-gray-100 text-gray-800';
+        default: return 'bg-gray-100 text-gray-800';
+    }
+}
+
+// Auto-refresh table status every 30 seconds
+setInterval(() => {
+    location.reload();
+}, 30000);
 }
 
 function assignOrderToTable() {

@@ -8,3 +8,4 @@ from flask import Blueprint
 bp = Blueprint('delivery', __name__, url_prefix='/delivery')
 
 from app.delivery import routes
+from app.delivery import api_routes

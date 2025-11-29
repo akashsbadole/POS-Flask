@@ -1,0 +1,649 @@
+{% extends "employee/base.html" %}
+
+{% block title %}Payroll Management{% endblock %}
+
+{% block employee_content %}
+<div class="py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Page Header -->
+        <div class="mb-8 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Payroll Management</h1>
+                <p class="mt-2 text-gray-600">Manage employee salaries and payments</p>
+            </div>
+            <div class="flex space-x-3">
+                <input type="month" 
+                       id="monthFilter" 
+                       value="{{ month_filter }}"
+                       class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                       onchange="filterByMonth(this.value)">
+                
+                <select id="statusFilter" 
+                        onchange="filterByStatus(this.value)"
+                        class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">All Status</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="processed" {% if status_filter == 'processed' %}selected{% endif %}>Processed</option>
+                    <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>Paid</option>
+                    <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>Failed</option>
+                </select>
+                
+                <button onclick="openGeneratePayrollModal()" 
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Generate Payroll
+                </button>
+                
+                <button onclick="exportPayroll()" 
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Export
+                </button>
+            </div>
+        </div>
+
+        <!-- Payroll Summary -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-full">
+                        <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Total Payroll</p>
+                        <p class="text-2xl font-bold text-gray-900" id="totalPayroll">₹0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-full">
+                        <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Paid</p>
+                        <p class="text-2xl font-bold text-gray-900" id="paidCount">0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-yellow-100 rounded-full">
+                        <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Pending</p>
+                        <p class="text-2xl font-bold text-gray-900" id="pendingCount">0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-purple-100 rounded-full">
+                        <svg class="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-600">Overtime</p>
+                        <p class="text-2xl font-bold text-gray-900" id="overtimeHours">0h</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payroll Table -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Payroll Records</h3>
+                    <div class="flex space-x-2">
+                        <button onclick="bulkProcess()" 
+                                class="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">
+                            Bulk Process
+                        </button>
+                        <button onclick="bulkPay()" 
+                                class="text-sm bg-green-100 text-green-800 px-3 py-1 rounded hover:bg-green-200">
+                            Bulk Pay
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Employee
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Pay Period
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Basic Salary
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Overtime
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Gross Pay
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Net Pay
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Status
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200" id="payrollTableBody">
+                            {% for payroll in payroll_records %}
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0 h-10 w-10">
+                                            <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                                                <span class="text-sm font-medium text-indigo-600">
+                                                    {{ payroll.user.name[0] if payroll.user else '?' }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="ml-4">
+                                            <div class="text-sm font-medium text-gray-900">
+                                                {{ payroll.user.name if payroll.user else 'Unknown' }}
+                                            </div>
+                                            <div class="text-sm text-gray-500">
+                                                {{ payroll.user.role if payroll.user else 'N/A' }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ payroll.pay_period_start.strftime('%b %d') }} - {{ payroll.pay_period_end.strftime('%b %d, %Y') }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {{ formatCurrency(payroll.basic_salary) }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {% if payroll.overtime_hours %}
+                                        {{ "%.1f"|format(payroll.overtime_hours) }}h
+                                        <span class="text-xs text-gray-500">({{ formatCurrency(payroll.overtime_pay) }})</span>
+                                    {% else %}
+                                        --
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {{ formatCurrency(payroll.gross_pay) }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {{ formatCurrency(payroll.net_pay) }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="status-badge 
+                                        {% if payroll.payment_status == 'paid' %}status-present
+                                        {% elif payroll.payment_status == 'processed' %}status-late
+                                        {% elif payroll.payment_status == 'failed' %}status-absent
+                                        {% else %}status-pending{% endif %}">
+                                        {{ payroll.payment_status.title() }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <button onclick="viewPayroll({{ payroll.id }})" 
+                                            class="text-indigo-600 hover:text-indigo-900 mr-3">
+                                        View
+                                    </button>
+                                    {% if payroll.payment_status == 'pending' %}
+                                    <button onclick="processPayroll({{ payroll.id }})" 
+                                            class="text-blue-600 hover:text-blue-900 mr-3">
+                                        Process
+                                    </button>
+                                    {% endif %}
+                                    {% if payroll.payment_status == 'processed' %}
+                                    <button onclick="markAsPaid({{ payroll.id }})" 
+                                            class="text-green-600 hover:text-green-900 mr-3">
+                                        Mark Paid
+                                    </button>
+                                    {% endif %}
+                                    <button onclick="generatePayslip({{ payroll.id }})" 
+                                            class="text-gray-600 hover:text-gray-900">
+                                        Payslip
+                                    </button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                                    No payroll records found
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Payroll Modal -->
+<div id="generatePayrollModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Generate Payroll</h3>
+            <form id="generatePayrollForm">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Restaurant</label>
+                        <select name="restaurant_id" id="restaurantSelect" required
+                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">Select Restaurant</option>
+                            <!-- Restaurant options would be populated here -->
+                        </select>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Period Start</label>
+                            <input type="date" name="period_start" id="periodStart" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Period End</label>
+                            <input type="date" name="period_end" id="periodEnd" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                    </div>
+                    
+                    <div class="bg-blue-50 p-4 rounded-md">
+                        <h4 class="text-sm font-medium text-blue-800 mb-2">Payroll Generation Options</h4>
+                        <div class="space-y-2">
+                            <label class="flex items-center">
+                                <input type="checkbox" name="include_overtime" checked class="mr-2">
+                                <span class="text-sm text-blue-700">Include overtime calculations</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="include_deductions" checked class="mr-2">
+                                <span class="text-sm text-blue-700">Include standard deductions</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="auto_process" class="mr-2">
+                                <span class="text-sm text-blue-700">Auto-process after generation</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" onclick="closeGenerateModal()" 
+                            class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        Generate Payroll
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Payroll Details Modal -->
+<div id="payrollDetailsModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-2/3 max-w-4xl shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Payroll Details</h3>
+                <button onclick="closeDetailsModal()" 
+                        class="text-gray-400 hover:text-gray-600">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div id="payrollDetailsContent">
+                <!-- Payroll details will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterByMonth(month) {
+    const url = new URL(window.location);
+    if (month) {
+        url.searchParams.set('month', month);
+    } else {
+        url.searchParams.delete('month');
+    }
+    window.location.href = url.toString();
+}
+
+function filterByStatus(status) {
+    const url = new URL(window.location);
+    if (status) {
+        url.searchParams.set('status', status);
+    } else {
+        url.searchParams.delete('status');
+    }
+    window.location.href = url.toString();
+}
+
+function openGeneratePayrollModal() {
+    document.getElementById('generatePayrollModal').classList.remove('hidden');
+    // Set default dates to current month
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    document.getElementById('periodStart').value = firstDay.toISOString().split('T')[0];
+    document.getElementById('periodEnd').value = lastDay.toISOString().split('T')[0];
+}
+
+function closeGenerateModal() {
+    document.getElementById('generatePayrollModal').classList.add('hidden');
+}
+
+function viewPayroll(id) {
+    fetch(`/employee/api/payroll/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            const detailsHtml = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="text-lg font-medium text-gray-900 mb-4">Employee Information</h4>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Name:</span>
+                                <span class="text-sm font-medium">${data.user_name}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Pay Period:</span>
+                                <span class="text-sm font-medium">${formatDate(data.pay_period_start)} - ${formatDate(data.pay_period_end)}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Status:</span>
+                                <span class="status-badge status-${data.payment_status}">${data.payment_status}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-lg font-medium text-gray-900 mb-4">Payment Breakdown</h4>
+                        <div class="space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Basic Salary:</span>
+                                <span class="text-sm font-medium">${formatCurrency(data.basic_salary)}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Overtime Pay:</span>
+                                <span class="text-sm font-medium">${formatCurrency(data.overtime_pay)}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Incentives:</span>
+                                <span class="text-sm font-medium">${formatCurrency(data.incentives)}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Bonuses:</span>
+                                <span class="text-sm font-medium">${formatCurrency(data.bonuses)}</span>
+                            </div>
+                            <div class="border-t pt-2">
+                                <div class="flex justify-between">
+                                    <span class="text-sm font-medium text-gray-900">Gross Pay:</span>
+                                    <span class="text-sm font-bold text-gray-900">${formatCurrency(data.gross_pay)}</span>
+                                </div>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Deductions:</span>
+                                <span class="text-sm font-medium">${formatCurrency(data.deductions)}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-sm text-gray-600">Tax:</span>
+                                <span class="text-sm font-medium">${formatCurrency(data.tax_deduction)}</span>
+                            </div>
+                            <div class="border-t pt-2">
+                                <div class="flex justify-between">
+                                    <span class="text-sm font-medium text-gray-900">Net Pay:</span>
+                                    <span class="text-sm font-bold text-green-600">${formatCurrency(data.net_pay)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                ${data.notes ? `
+                <div class="mt-6">
+                    <h4 class="text-lg font-medium text-gray-900 mb-2">Notes</h4>
+                    <p class="text-sm text-gray-600">${data.notes}</p>
+                </div>
+                ` : ''}
+            `;
+            
+            document.getElementById('payrollDetailsContent').innerHTML = detailsHtml;
+            document.getElementById('payrollDetailsModal').classList.remove('hidden');
+        })
+        .catch(error => {
+            console.error('Error fetching payroll details:', error);
+            showNotification('Error loading payroll details', 'error');
+        });
+}
+
+function closeDetailsModal() {
+    document.getElementById('payrollDetailsModal').classList.add('hidden');
+}
+
+function processPayroll(id) {
+    if (confirm('Are you sure you want to process this payroll?')) {
+        fetch(`/employee/api/payroll/${id}/process`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Payroll processed successfully', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showNotification(data.message || 'Failed to process payroll', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error processing payroll:', error);
+            showNotification('Error processing payroll', 'error');
+        });
+    }
+}
+
+function markAsPaid(id) {
+    if (confirm('Are you sure you want to mark this payroll as paid?')) {
+        fetch(`/employee/api/payroll/${id}/pay`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Payroll marked as paid', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showNotification(data.message || 'Failed to mark as paid', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error marking payroll as paid:', error);
+            showNotification('Error marking payroll as paid', 'error');
+        });
+    }
+}
+
+function generatePayslip(id) {
+    window.open(`/employee/payroll/${id}/payslip`, '_blank');
+}
+
+function bulkProcess() {
+    if (confirm('Are you sure you want to process all pending payrolls?')) {
+        showNotification('Bulk processing initiated', 'success');
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
+    }
+}
+
+function bulkPay() {
+    if (confirm('Are you sure you want to mark all processed payrolls as paid?')) {
+        showNotification('Bulk payment initiated', 'success');
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
+    }
+}
+
+function exportPayroll() {
+    const month = document.getElementById('monthFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    
+    let url = `/employee/payroll/export?month=${month}`;
+    if (status) {
+        url += `&status=${status}`;
+    }
+    
+    window.open(url, '_blank');
+}
+
+// Handle generate payroll form submission
+document.getElementById('generatePayrollForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('/employee/payroll/generate', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: new URLSearchParams(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeGenerateModal();
+            showNotification(data.message, 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.message || 'Failed to generate payroll', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error generating payroll:', error);
+        showNotification('Error generating payroll', 'error');
+    });
+});
+
+// Update statistics
+function updateStats() {
+    const rows = document.querySelectorAll('#payrollTableBody tr');
+    let totalPayroll = 0, paid = 0, pending = 0, overtimeHours = 0;
+    
+    rows.forEach(row => {
+        const cells = row.getElementsByTagName('td');
+        if (cells.length >= 7) {
+            const netPayText = cells[5].textContent;
+            const statusText = cells[6].textContent.trim();
+            const overtimeText = cells[3].textContent;
+            
+            // Extract numeric values
+            const netPay = parseFloat(netPayText.replace(/[₹,]/g, '')) || 0;
+            totalPayroll += netPay;
+            
+            if (statusText.includes('Paid')) paid++;
+            else if (statusText.includes('Pending')) pending++;
+            
+            // Extract overtime hours
+            const overtimeMatch = overtimeText.match(/([\d.]+)h/);
+            if (overtimeMatch) {
+                overtimeHours += parseFloat(overtimeMatch[1]);
+            }
+        }
+    });
+    
+    document.getElementById('totalPayroll').textContent = formatCurrency(totalPayroll);
+    document.getElementById('paidCount').textContent = paid;
+    document.getElementById('pendingCount').textContent = pending;
+    document.getElementById('overtimeHours').textContent = overtimeHours.toFixed(1) + 'h';
+}
+
+// Initialize stats on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateStats();
+});
+
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 p-4 rounded-md shadow-lg z-50 ${
+        type === 'success' ? 'bg-green-50 text-green-800' : 
+        type === 'error' ? 'bg-red-50 text-red-800' : 
+        'bg-blue-50 text-blue-800'
+    }`;
+    notification.innerHTML = `
+        <div class="flex">
+            <div class="ml-3">
+                <p class="text-sm font-medium">${message}</p>
+            </div>
+            <div class="ml-auto pl-3">
+                <button onclick="this.parentElement.parentElement.remove()" class="inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    type === 'success' ? 'bg-green-50 text-green-500 hover:bg-green-100' : 
+                    type === 'error' ? 'bg-red-50 text-red-500 hover:bg-red-100' : 
+                    'bg-blue-50 text-blue-500 hover:bg-blue-100'
+                }">
+                    <span class="sr-only">Dismiss</span>
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

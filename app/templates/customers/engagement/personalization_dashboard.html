@@ -1,0 +1,877 @@
+{% extends "base.html" %}
+
+{% block title %}Personalization Engine{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header with Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">Personalization Engine</h1>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="trainPersonalizationModel()">
+                        <i class="fas fa-brain"></i> Train Model
+                    </button>
+                    <button class="btn btn-success" onclick="generateRecommendations()">
+                        <i class="fas fa-magic"></i> Generate
+                    </button>
+                    <button class="btn btn-info" onclick="refreshPersonalizationData()">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Personalization Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <h4 class="card-title">Active Profiles</h4>
+                    <h2 class="mb-0" id="active-profiles">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-2x mb-2"></i>
+                    <h4 class="card-title">Accuracy</h4>
+                    <h2 class="mb-0" id="model-accuracy">0%</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-magic fa-2x mb-2"></i>
+                    <h4 class="card-title">Recommendations</h4>
+                    <h2 class="mb-0" id="total-recommendations">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-mouse-pointer fa-2x mb-2"></i>
+                    <h4 class="card-title">Click Rate</h4>
+                    <h2 class="mb-0" id="click-rate">0%</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-shopping-cart fa-2x mb-2"></i>
+                    <h4 class="card-title">Conversion</h4>
+                    <h2 class="mb-0" id="conversion-rate">0%</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-database fa-2x mb-2"></i>
+                    <h4 class="card-title">Data Points</h4>
+                    <h2 class="mb-0" id="data-points">0</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Personalization Controls -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Personalization Settings</h5>
+                </div>
+                <div class="card-body">
+                    <form id="personalization-settings" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Algorithm</label>
+                            <select class="form-control" name="algorithm" id="algorithm-select">
+                                <option value="collaborative">Collaborative Filtering</option>
+                                <option value="content_based">Content-Based</option>
+                                <option value="hybrid">Hybrid Approach</option>
+                                <option value="deep_learning">Deep Learning</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Recommendation Type</label>
+                            <select class="form-control" name="recommendation_type" id="recommendation-type">
+                                <option value="menu_item">Menu Items</option>
+                                <option value="combo">Combos</option>
+                                <option value="promotion">Promotions</option>
+                                <option value="experience">Dining Experience</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Target Segment</label>
+                            <select class="form-control" name="target_segment" id="target-segment">
+                                <option value="all">All Customers</option>
+                                <option value="new">New Customers</option>
+                                <option value="loyal">Loyal Customers</option>
+                                <option value="high_value">High Value</option>
+                                <option value="at_risk">At Risk</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Diversity Factor</label>
+                            <input type="range" class="form-control" name="diversity_factor" id="diversity-factor" min="0" max="100" value="50">
+                            <small class="text-muted">Balance between similarity and diversity</small>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Max Recommendations</label>
+                            <input type="number" class="form-control" name="max_recommendations" id="max-recommendations" value="10" min="1" max="50">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Freshness Weight</label>
+                            <input type="range" class="form-control" name="freshness_weight" id="freshness-weight" min="0" max="100" value="30">
+                            <small class="text-muted">Preference for recent items</small>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Seasonality</label>
+                            <select class="form-control" name="seasonality" id="seasonality">
+                                <option value="enabled">Enabled</option>
+                                <option value="disabled">Disabled</option>
+                                <option value="auto">Auto-detect</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="button" class="btn btn-primary w-100" onclick="updatePersonalizationSettings()">
+                                <i class="fas fa-save"></i> Apply Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Segments and Preferences -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Customer Segments</h5>
+                </div>
+                <div class="card-body">
+                    <div id="customer-segments">
+                        <div class="text-center py-5">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">Loading customer segments...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Popular Preferences</h5>
+                </div>
+                <div class="card-body">
+                    <div id="popular-preferences">
+                        <div class="text-center py-5">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">Loading preferences...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendation Preview -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Recommendation Preview</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="previewRecommendations('sample')">
+                            Sample Customer
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="previewRecommendations('new')">
+                            New Customer
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="previewRecommendations('loyal')">
+                            Loyal Customer
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="recommendation-preview">
+                        <div class="text-center py-5">
+                            <i class="fas fa-magic fa-2x text-muted"></i>
+                            <p class="mt-2">Select a customer type to preview recommendations</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Analytics -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Model Performance</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="model-performance-chart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Recommendation Impact</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="recommendation-impact-chart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Recommendations -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Recent Recommendations</h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="exportRecommendationData()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="recent-recommendations">
+                        <div class="text-center py-5">
+                            <i class="fas fa-spinner fa-spin fa-2x"></i>
+                            <p class="mt-2">Loading recent recommendations...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Profile Modal -->
+<div class="modal fade" id="customerProfileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Customer Personalization Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="customer-profile-details">
+                    <!-- Customer profile will be populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="generateCustomerRecommendations()">
+                    Generate Recommendations
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Model Training Modal -->
+<div class="modal fade" id="modelTrainingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Training Personalization Model</h5>
+            </div>
+            <div class="modal-body text-center">
+                <div id="training-progress">
+                    <i class="fas fa-brain fa-3x text-primary mb-3"></i>
+                    <h5>Training in Progress</h5>
+                    <p>Please wait while we train the personalization model...</p>
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" id="training-progress-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <p id="training-status">Initializing...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let modelPerformanceChart = null;
+let recommendationImpactChart = null;
+let currentCustomerId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadPersonalizationDashboard();
+    initializeCharts();
+    
+    // Update diversity factor display
+    document.getElementById('diversity-factor').addEventListener('input', function() {
+        const value = this.value;
+        const label = value < 33 ? 'More Similar' : value < 66 ? 'Balanced' : 'More Diverse';
+        this.nextElementSibling.textContent = label + ' (' + value + '%)';
+    });
+    
+    // Update freshness weight display
+    document.getElementById('freshness-weight').addEventListener('input', function() {
+        this.nextElementSibling.textContent = 'Preference for recent items (' + this.value + '%)';
+    });
+});
+
+function loadPersonalizationDashboard() {
+    loadPersonalizationStatistics();
+    loadCustomerSegments();
+    loadPopularPreferences();
+    loadRecentRecommendations();
+    loadPerformanceData();
+}
+
+function loadPersonalizationStatistics() {
+    fetch('/api/customers/engagement/personalization/statistics', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        updatePersonalizationStatistics(data);
+    })
+    .catch(error => {
+        console.error('Error loading personalization statistics:', error);
+    });
+}
+
+function updatePersonalizationStatistics(data) {
+    document.getElementById('active-profiles').textContent = formatNumber(data.active_profiles || 0);
+    document.getElementById('model-accuracy').textContent = (data.model_accuracy || 0) + '%';
+    document.getElementById('total-recommendations').textContent = formatNumber(data.total_recommendations || 0);
+    document.getElementById('click-rate').textContent = (data.click_rate || 0) + '%';
+    document.getElementById('conversion-rate').textContent = (data.conversion_rate || 0) + '%';
+    document.getElementById('data-points').textContent = formatNumber(data.data_points || 0);
+}
+
+function loadCustomerSegments() {
+    fetch('/api/customers/engagement/personalization/segments', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderCustomerSegments(data.segments || []);
+    })
+    .catch(error => {
+        console.error('Error loading customer segments:', error);
+        document.getElementById('customer-segments').innerHTML = '<div class="text-center text-muted">Error loading segments</div>';
+    });
+}
+
+function renderCustomerSegments(segments) {
+    const container = document.getElementById('customer-segments');
+    
+    if (segments.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted">No segments found</div>';
+        return;
+    }
+    
+    const segmentsHtml = segments.map(segment => `
+        <div class="d-flex justify-content-between align-items-center mb-3 p-2 border rounded">
+            <div>
+                <strong>${segment.name}</strong>
+                <div class="text-muted small">${segment.description}</div>
+            </div>
+            <div class="text-end">
+                <div class="badge bg-primary">${segment.customer_count} customers</div>
+                <div class="text-muted small">${(segment.accuracy || 0).toFixed(1)}% accuracy</div>
+            </div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = segmentsHtml;
+}
+
+function loadPopularPreferences() {
+    fetch('/api/customers/engagement/personalization/preferences', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderPopularPreferences(data.preferences || []);
+    })
+    .catch(error => {
+        console.error('Error loading popular preferences:', error);
+        document.getElementById('popular-preferences').innerHTML = '<div class="text-center text-muted">Error loading preferences</div>';
+    });
+}
+
+function renderPopularPreferences(preferences) {
+    const container = document.getElementById('popular-preferences');
+    
+    if (preferences.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted">No preferences found</div>';
+        return;
+    }
+    
+    const preferencesHtml = preferences.map((pref, index) => {
+        const percentage = (pref.percentage || 0).toFixed(1);
+        return `
+            <div class="mb-3">
+                <div class="d-flex justify-content-between mb-1">
+                    <strong>${pref.preference}</strong>
+                    <span>${percentage}%</span>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar bg-success" style="width: ${percentage}%"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = preferencesHtml;
+}
+
+function loadRecentRecommendations() {
+    fetch('/api/customers/engagement/personalization/recent', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderRecentRecommendations(data.recommendations || []);
+    })
+    .catch(error => {
+        console.error('Error loading recent recommendations:', error);
+        document.getElementById('recent-recommendations').innerHTML = '<div class="text-center text-muted">Error loading recommendations</div>';
+    });
+}
+
+function renderRecentRecommendations(recommendations) {
+    const container = document.getElementById('recent-recommendations');
+    
+    if (recommendations.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted">No recent recommendations</div>';
+        return;
+    }
+    
+    const recommendationsHtml = recommendations.map(rec => `
+        <div class="row mb-3 p-2 border rounded">
+            <div class="col-md-3">
+                <strong>${rec.customer_name}</strong>
+                <div class="text-muted small">${new Date(rec.created_at).toLocaleString()}</div>
+            </div>
+            <div class="col-md-6">
+                <div class="d-flex align-items-center">
+                    <div class="me-2">
+                        ${rec.item_image ? `<img src="${rec.item_image}" alt="${rec.item_name}" class="rounded" style="width: 40px; height: 40px; object-fit: cover;">` : '<div class="bg-light rounded" style="width: 40px; height: 40px;"></div>'}
+                    </div>
+                    <div>
+                        <strong>${rec.item_name}</strong>
+                        <div class="text-muted small">${rec.item_category}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 text-end">
+                <div class="badge bg-${getConfidenceColor(rec.confidence_score)}">${(rec.confidence_score || 0).toFixed(1)}% confidence</div>
+                <div class="text-muted small">${rec.status || 'pending'}</div>
+            </div>
+        </div>
+    `).join('');
+    
+    container.innerHTML = recommendationsHtml;
+}
+
+function getConfidenceColor(score) {
+    if (score >= 80) return 'success';
+    if (score >= 60) return 'info';
+    if (score >= 40) return 'warning';
+    return 'danger';
+}
+
+function initializeCharts() {
+    renderModelPerformanceChart();
+    renderRecommendationImpactChart();
+}
+
+function renderModelPerformanceChart() {
+    const ctx = document.getElementById('model-performance-chart').getContext('2d');
+    
+    if (modelPerformanceChart) {
+        modelPerformanceChart.destroy();
+    }
+    
+    // Sample data - would come from API
+    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const accuracy = [75, 78, 82, 85, 87, 89];
+    const precision = [72, 75, 79, 83, 85, 86];
+    const recall = [70, 73, 77, 81, 84, 85];
+    
+    modelPerformanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Accuracy',
+                data: accuracy,
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                fill: true
+            }, {
+                label: 'Precision',
+                data: precision,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                fill: true
+            }, {
+                label: 'Recall',
+                data: recall,
+                borderColor: '#ffc107',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+function renderRecommendationImpactChart() {
+    const ctx = document.getElementById('recommendation-impact-chart').getContext('2d');
+    
+    if (recommendationImpactChart) {
+        recommendationImpactChart.destroy();
+    }
+    
+    // Sample data - would come from API
+    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const revenue = [2500, 3200, 3800, 4500, 5200, 6100];
+    const orders = [45, 58, 72, 85, 98, 115];
+    
+    recommendationImpactChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Revenue Impact ($)',
+                data: revenue,
+                backgroundColor: '#28a745',
+                borderColor: '#1e7e34',
+                borderWidth: 1,
+                yAxisID: 'y'
+            }, {
+                label: 'Orders Generated',
+                data: orders,
+                backgroundColor: '#007bff',
+                borderColor: '#0056b3',
+                borderWidth: 1,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    beginAtZero: true
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    beginAtZero: true,
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+function loadPerformanceData() {
+    // This would load actual performance data from API
+    // For now, using sample data in chart rendering
+}
+
+function updatePersonalizationSettings() {
+    const form = document.getElementById('personalization-settings');
+    const formData = new FormData(form);
+    
+    const settings = {
+        algorithm: formData.get('algorithm'),
+        recommendation_type: formData.get('recommendation_type'),
+        target_segment: formData.get('target_segment'),
+        diversity_factor: parseInt(formData.get('diversity_factor')),
+        max_recommendations: parseInt(formData.get('max_recommendations')),
+        freshness_weight: parseInt(formData.get('freshness_weight')),
+        seasonality: formData.get('seasonality')
+    };
+    
+    fetch('/api/customers/engagement/personalization/settings', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Personalization settings updated successfully!', 'success');
+        } else {
+            showAlert(data.error || 'Error updating settings', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating settings:', error);
+        showAlert('Error updating settings', 'danger');
+    });
+}
+
+function trainPersonalizationModel() {
+    const modal = new bootstrap.Modal(document.getElementById('modelTrainingModal'));
+    modal.show();
+    
+    // Simulate training progress
+    let progress = 0;
+    const progressBar = document.getElementById('training-progress-bar');
+    const statusText = document.getElementById('training-status');
+    
+    const trainingSteps = [
+        { progress: 10, status: 'Collecting training data...' },
+        { progress: 25, status: 'Preprocessing data...' },
+        { progress: 40, status: 'Feature engineering...' },
+        { progress: 60, status: 'Training model...' },
+        { progress: 80, status: 'Validating model...' },
+        { progress: 95, status: 'Optimizing parameters...' },
+        { progress: 100, status: 'Training complete!' }
+    ];
+    
+    let stepIndex = 0;
+    const interval = setInterval(() => {
+        if (stepIndex < trainingSteps.length) {
+            const step = trainingSteps[stepIndex];
+            progressBar.style.width = step.progress + '%';
+            statusText.textContent = step.status;
+            stepIndex++;
+        } else {
+            clearInterval(interval);
+            setTimeout(() => {
+                modal.hide();
+                showAlert('Model training completed successfully!', 'success');
+                loadPersonalizationStatistics();
+                loadPerformanceData();
+            }, 1000);
+        }
+    }, 800);
+    
+    // Actually start training
+    fetch('/api/customers/engagement/personalization/train', {
+        method: 'POST',
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .catch(error => {
+        console.error('Error training model:', error);
+        clearInterval(interval);
+        modal.hide();
+        showAlert('Error training model', 'danger');
+    });
+}
+
+function generateRecommendations() {
+    const settings = {
+        algorithm: document.getElementById('algorithm-select').value,
+        recommendation_type: document.getElementById('recommendation-type').value,
+        target_segment: document.getElementById('target-segment').value,
+        max_recommendations: parseInt(document.getElementById('max-recommendations').value)
+    };
+    
+    fetch('/api/customers/engagement/personalization/generate', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(`Generated ${data.generated_count} recommendations successfully!`, 'success');
+            loadRecentRecommendations();
+            loadPersonalizationStatistics();
+        } else {
+            showAlert(data.error || 'Error generating recommendations', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error generating recommendations:', error);
+        showAlert('Error generating recommendations', 'danger');
+    });
+}
+
+function previewRecommendations(customerType) {
+    fetch('/api/customers/engagement/personalization/preview', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        },
+        body: JSON.stringify({ customer_type: customerType })
+    })
+    .then(response => response.json())
+    .then(data => {
+        renderRecommendationPreview(data.recommendations || [], customerType);
+    })
+    .catch(error => {
+        console.error('Error loading preview:', error);
+        document.getElementById('recommendation-preview').innerHTML = '<div class="text-center text-muted">Error loading preview</div>';
+    });
+}
+
+function renderRecommendationPreview(recommendations, customerType) {
+    const container = document.getElementById('recommendation-preview');
+    
+    if (recommendations.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted">No recommendations available</div>';
+        return;
+    }
+    
+    const previewHtml = `
+        <div class="row">
+            <div class="col-md-4">
+                <h6>Customer Profile: ${customerType.charAt(0).toUpperCase() + customerType.slice(1)}</h6>
+                <p class="text-muted">${getCustomerTypeDescription(customerType)}</p>
+            </div>
+            <div class="col-md-8">
+                <h6>Recommended Items</h6>
+                <div class="row">
+                    ${recommendations.map(rec => `
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center p-2 border rounded">
+                                <div class="me-3">
+                                    ${rec.item_image ? `<img src="${rec.item_image}" alt="${rec.item_name}" class="rounded" style="width: 50px; height: 50px; object-fit: cover;">` : '<div class="bg-light rounded" style="width: 50px; height: 50px;"></div>'}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <strong>${rec.item_name}</strong>
+                                    <div class="text-muted small">${rec.item_category}</div>
+                                    <div class="badge bg-${getConfidenceColor(rec.confidence_score)}">${(rec.confidence_score || 0).toFixed(1)}% match</div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = previewHtml;
+}
+
+function getCustomerTypeDescription(type) {
+    const descriptions = {
+        'sample': 'A typical customer with mixed preferences and average visit frequency',
+        'new': 'Recently joined customer with limited interaction history',
+        'loyal': 'Regular customer with established preferences and high engagement'
+    };
+    return descriptions[type] || 'Unknown customer type';
+}
+
+function exportRecommendationData() {
+    fetch('/api/customers/engagement/personalization/export', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.blob();
+        } else {
+            throw new Error('Export failed');
+        }
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `recommendation_export_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showAlert('Recommendation data exported successfully!', 'success');
+    })
+    .catch(error => {
+        console.error('Error exporting data:', error);
+        showAlert('Error exporting recommendation data', 'danger');
+    });
+}
+
+function refreshPersonalizationData() {
+    loadPersonalizationDashboard();
+    showAlert('Personalization data refreshed!', 'info');
+}
+
+function formatNumber(num) {
+    return new Intl.NumberFormat().format(num);
+}
+
+function showAlert(message, type) {
+    // Implementation depends on your alert system
+    console.log(`${type}: ${message}`);
+}
+</script>
+
+<style>
+.progress-bar-animated {
+    animation: progress-bar-stripes 1s linear infinite;
+}
+
+.recommendation-item:hover {
+    background-color: #f8f9fa;
+    cursor: pointer;
+}
+
+.segment-item {
+    transition: all 0.3s ease;
+}
+
+.segment-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}

@@ -1,0 +1,304 @@
+{% extends "employee/base.html" %}
+
+{% block title %}Employee Management Dashboard{% endblock %}
+
+{% block employee_content %}
+<div class="py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Page Header -->
+        <div class="mb-8">
+            <h1 class="text-2xl font-bold text-gray-900">Employee Management Dashboard</h1>
+            <p class="mt-2 text-gray-600">Manage your restaurant's workforce efficiently</p>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="stats-card">
+                <div class="stats-number" id="stat-total">{{ total_employees }}</div>
+                <div class="stats-label">Total Employees</div>
+            </div>
+            
+            <div class="stats-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                <div class="stats-number" id="stat-present">{{ present_today }}</div>
+                <div class="stats-label">Present Today</div>
+            </div>
+            
+            <div class="stats-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                <div class="stats-number" id="stat-pending">{{ pending_leaves }}</div>
+                <div class="stats-label">Pending Leaves</div>
+            </div>
+            
+            <div class="stats-card" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                <div class="stats-number" id="stat-payroll">{{ payroll_processed }}</div>
+                <div class="stats-label">Payroll Processed</div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="bg-white shadow rounded-lg mb-8">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Quick Actions</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <a href="{{ url_for('employee.check_in') }}" 
+                       class="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                        </svg>
+                        Check In
+                    </a>
+                    
+                    <a href="{{ url_for('employee.check_out') }}" 
+                       class="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                        Check Out
+                    </a>
+                    
+                    <a href="{{ url_for('employee.request_leave') }}" 
+                       class="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                        </svg>
+                        Request Leave
+                    </a>
+                    
+                    <a href="{{ url_for('employee.create_profile') }}" 
+                       class="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                        </svg>
+                        Add Employee
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activities Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Recent Attendance -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Recent Attendance</h3>
+                        <a href="{{ url_for('employee.attendance') }}" class="text-sm text-indigo-600 hover:text-indigo-900">View All</a>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        {% for attendance in recent_attendances %}
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10">
+                                    <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                                        <span class="text-sm font-medium text-indigo-600">{{ attendance.user.name[0] if attendance.user else '?' }}</span>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">{{ attendance.user.name if attendance.user else 'Unknown' }}</div>
+                                    <div class="text-sm text-gray-500">
+                                        {{ attendance.check_in_time.strftime('%I:%M %p') if attendance.check_in_time else '--' }} - 
+                                        {{ attendance.check_out_time.strftime('%I:%M %p') if attendance.check_out_time else 'Active' }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="status-badge status-{{ attendance.attendance_status }}">
+                                    {{ attendance.attendance_status.replace('_', ' ').title() }}
+                                </span>
+                                {% if attendance.total_hours %}
+                                <span class="text-sm text-gray-500">{{ "%.1f"|format(attendance.total_hours) }}h</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-8 text-gray-500">
+                            No recent attendance records
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Leave Requests -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Recent Leave Requests</h3>
+                        <a href="{{ url_for('employee.leaves') }}" class="text-sm text-indigo-600 hover:text-indigo-900">View All</a>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        {% for leave in recent_leave_requests %}
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10">
+                                    <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                        <span class="text-sm font-medium text-blue-600">{{ leave.user.name[0] if leave.user else '?' }}</span>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">{{ leave.user.name if leave.user else 'Unknown' }}</div>
+                                    <div class="text-sm text-gray-500">
+                                        {{ leave.leave_type.title() }} - {{ leave.total_days }} day(s)
+                                    </div>
+                                    <div class="text-xs text-gray-400">
+                                        {{ leave.start_date.strftime('%b %d') }} - {{ leave.end_date.strftime('%b %d, %Y') }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="status-badge status-{{ leave.status }}">
+                                    {{ leave.status.title() }}
+                                </span>
+                                {% if leave.status == 'pending' %}
+                                <button onclick="approveLeave({{ leave.id }})" 
+                                        class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200">
+                                    Approve
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-8 text-gray-500">
+                            No recent leave requests
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upcoming Shifts -->
+        <div class="bg-white shadow rounded-lg mt-8">
+            <div class="px-4 py-5 sm:p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">Today's Shifts</h3>
+                    <a href="{{ url_for('employee.shifts') }}" class="text-sm text-indigo-600 hover:text-indigo-900">View Schedule</a>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- This would be populated with today's shifts -->
+                    <div class="text-center py-8 text-gray-500 md:col-span-2 lg:col-span-3">
+                        Shift schedule will appear here
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Approve Leave Modal -->
+<div id="approveLeaveModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Approve Leave Request</h3>
+            <p class="text-sm text-gray-500 mb-4">Are you sure you want to approve this leave request?</p>
+            
+            <div class="flex justify-end space-x-3">
+                <button onclick="closeApproveModal()" 
+                        class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                    Cancel
+                </button>
+                <button onclick="confirmApprove()" 
+                        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+                    Approve
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentLeaveId = null;
+
+function approveLeave(leaveId) {
+    currentLeaveId = leaveId;
+    document.getElementById('approveLeaveModal').classList.remove('hidden');
+}
+
+function closeApproveModal() {
+    document.getElementById('approveLeaveModal').classList.add('hidden');
+    currentLeaveId = null;
+}
+
+function confirmApprove() {
+    if (!currentLeaveId) return;
+    
+    fetch(`/employee/leaves/${currentLeaveId}/approve`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeApproveModal();
+            // Show success message
+            showNotification('Leave request approved successfully', 'success');
+            // Reload page after short delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showNotification(data.message || 'Failed to approve leave', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error approving leave:', error);
+        showNotification('Error approving leave request', 'error');
+    });
+}
+
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 p-4 rounded-md shadow-lg z-50 ${
+        type === 'success' ? 'bg-green-50 text-green-800' : 
+        type === 'error' ? 'bg-red-50 text-red-800' : 
+        'bg-blue-50 text-blue-800'
+    }`;
+    notification.innerHTML = `
+        <div class="flex">
+            <div class="ml-3">
+                <p class="text-sm font-medium">${message}</p>
+            </div>
+            <div class="ml-auto pl-3">
+                <button onclick="this.parentElement.parentElement.remove()" class="inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    type === 'success' ? 'bg-green-50 text-green-500 hover:bg-green-100' : 
+                    type === 'error' ? 'bg-red-50 text-red-500 hover:bg-red-100' : 
+                    'bg-blue-50 text-blue-500 hover:bg-blue-100'
+                }">
+                    <span class="sr-only">Dismiss</span>
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Auto-refresh dashboard stats
+setInterval(function() {
+    fetch('/employee/api/attendance/stats')
+        .then(response => response.json())
+        .then(data => {
+            updateDashboardStats(data);
+        })
+        .catch(error => console.error('Error fetching stats:', error));
+}, 30000); // Refresh every 30 seconds
+</script>
+{% endblock %}

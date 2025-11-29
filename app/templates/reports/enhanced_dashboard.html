@@ -1,0 +1,855 @@
+{% extends "base.html" %}
+
+{% block title %}Enhanced Reports Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-card {
+        @apply bg-white rounded-lg shadow-md p-6 mb-6 transition-all duration-300 hover:shadow-lg;
+    }
+    
+    .metric-card {
+        @apply bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg p-4 shadow-md;
+    }
+    
+    .metric-value {
+        @apply text-3xl font-bold;
+    }
+    
+    .metric-label {
+        @apply text-sm opacity-90;
+    }
+    
+    .chart-container {
+        @apply bg-white rounded-lg shadow-md p-4 mb-6;
+        height: 400px;
+    }
+    
+    .report-section {
+        @apply mb-8;
+    }
+    
+    .section-title {
+        @apply text-xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200;
+    }
+    
+    .data-table {
+        @apply w-full bg-white shadow-md rounded-lg overflow-hidden;
+    }
+    
+    .data-table th {
+        @apply bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+    }
+    
+    .data-table td {
+        @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+    }
+    
+    .data-table tr:hover {
+        @apply bg-gray-50;
+    }
+    
+    .status-indicator {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    }
+    
+    .status-high {
+        @apply bg-green-100 text-green-800;
+    }
+    
+    .status-medium {
+        @apply bg-yellow-100 text-yellow-800;
+    }
+    
+    .status-low {
+        @apply bg-red-100 text-red-800;
+    }
+    
+    .filter-section {
+        @apply bg-white rounded-lg shadow-md p-4 mb-6;
+    }
+    
+    .date-range-input {
+        @apply border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-md shadow-sm;
+    }
+    
+    .export-button {
+        @apply bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200;
+    }
+    
+    .refresh-button {
+        @apply bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200;
+    }
+    
+    .loading-spinner {
+        @apply animate-spin rounded-full h-4 w-4 border-b-2 border-white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8" x-data="enhancedReports()">
+    <!-- Header Section -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Enhanced Reports Dashboard</h1>
+        <p class="text-gray-600">Comprehensive analytics and reporting for restaurant management</p>
+    </div>
+
+    <!-- Date Range Filter -->
+    <div class="filter-section">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                <input type="date" x-model="filters.startDate" 
+                       class="date-range-input w-full">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                <input type="date" x-model="filters.endDate" 
+                       class="date-range-input w-full">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Restaurant</label>
+                <select x-model="filters.restaurantId" 
+                        class="date-range-input w-full">
+                    <option value="">All Restaurants</option>
+                    {% for restaurant in restaurants %}
+                    <option value="{{ restaurant.id }}">{{ restaurant.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex space-x-2">
+                <button @click="applyFilters()" 
+                        class="refresh-button">
+                    <span x-show="!loading">Apply Filters</span>
+                    <span x-show="loading" class="loading-spinner"></span>
+                </button>
+                <button @click="refreshData()" 
+                        class="refresh-button">
+                    <span x-show="!refreshing">Refresh</span>
+                    <span x-show="refreshing" class="loading-spinner"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="metric-card">
+            <div class="metric-label">Total Revenue</div>
+            <div class="metric-value" x-text="formatCurrency(metrics.totalRevenue)">$0</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Total Orders</div>
+            <div class="metric-value" x-text="metrics.totalOrders">0</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Avg Order Value</div>
+            <div class="metric-value" x-text="formatCurrency(metrics.avgOrderValue)">$0</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Completion Rate</div>
+            <div class="metric-value" x-text="metrics.completionRate + '%'">0%</div>
+        </div>
+    </div>
+
+    <!-- Sales Analytics Section -->
+    <div class="report-section">
+        <h2 class="section-title">Sales Analytics</h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Hourly Sales Chart -->
+            <div class="chart-container">
+                <h3 class="text-lg font-semibold mb-4">Hourly Sales Analysis</h3>
+                <canvas id="hourlySalesChart"></canvas>
+            </div>
+            
+            <!-- Day Part Performance -->
+            <div class="chart-container">
+                <h3 class="text-lg font-semibold mb-4">Day Part Performance</h3>
+                <canvas id="dayPartChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Top Menu Items -->
+        <div class="dashboard-card">
+            <h3 class="text-lg font-semibold mb-4">Top Menu Items</h3>
+            <div class="overflow-x-auto">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Item Name</th>
+                            <th>Category</th>
+                            <th>Quantity Sold</th>
+                            <th>Revenue</th>
+                            <th>Performance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="item in salesMetrics.topMenuItems" :key="item.item_id">
+                            <tr>
+                                <td x-text="item.rank"></td>
+                                <td x-text="item.name"></td>
+                                <td x-text="item.category_name"></td>
+                                <td x-text="item.total_quantity"></td>
+                                <td x-text="formatCurrency(item.total_revenue)"></td>
+                                <td>
+                                    <span class="status-indicator" 
+                                          :class="getPerformanceClass(item.revenue_per_item)">
+                                        <span x-text="getPerformanceLabel(item.revenue_per_item)"></span>
+                                    </span>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Metrics Section -->
+    <div class="report-section">
+        <h2 class="section-title">Financial Metrics</h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Profit & Loss Chart -->
+            <div class="chart-container">
+                <h3 class="text-lg font-semibold mb-4">Profit & Loss Overview</h3>
+                <canvas id="profitLossChart"></canvas>
+            </div>
+            
+            <!-- Cash Flow Chart -->
+            <div class="chart-container">
+                <h3 class="text-lg font-semibold mb-4">Cash Flow Trend</h3>
+                <canvas id="cashFlowChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Financial Summary Table -->
+        <div class="dashboard-card">
+            <h3 class="text-lg font-semibold mb-4">Financial Summary</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="text-center p-4 bg-green-50 rounded-lg">
+                    <div class="text-2xl font-bold text-green-600" 
+                         x-text="formatCurrency(financialMetrics.grossProfit)">$0</div>
+                    <div class="text-sm text-gray-600">Gross Profit</div>
+                </div>
+                <div class="text-center p-4 bg-blue-50 rounded-lg">
+                    <div class="text-2xl font-bold text-blue-600" 
+                         x-text="financialMetrics.grossMargin + '%'">0%</div>
+                    <div class="text-sm text-gray-600">Gross Margin</div>
+                </div>
+                <div class="text-center p-4 bg-purple-50 rounded-lg">
+                    <div class="text-2xl font-bold text-purple-600" 
+                         x-text="formatCurrency(financialMetrics.netProfit)">$0</div>
+                    <div class="text-sm text-gray-600">Net Profit</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Alerts Section -->
+    <div class="report-section">
+        <h2 class="section-title">Inventory Alerts</h2>
+        <div class="dashboard-card">
+            <h3 class="text-lg font-semibold mb-4">Low Stock Alerts</h3>
+            <div class="overflow-x-auto">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Item Name</th>
+                            <th>Category</th>
+                            <th>Current Stock</th>
+                            <th>Minimum Stock</th>
+                            <th>Shortage</th>
+                            <th>Shortage Value</th>
+                            <th>Urgency</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="item in inventoryMetrics.lowStockAlerts" :key="item.ingredient_id">
+                            <tr>
+                                <td x-text="item.name"></td>
+                                <td x-text="item.category"></td>
+                                <td x-text="item.current_stock"></td>
+                                <td x-text="item.minimum_stock"></td>
+                                <td x-text="item.shortage"></td>
+                                <td x-text="formatCurrency(item.shortage_value)"></td>
+                                <td>
+                                    <span class="status-indicator" 
+                                          :class="item.urgency === 'critical' ? 'status-low' : 'status-medium'">
+                                        <span x-text="item.urgency"></span>
+                                    </span>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employee Performance Section -->
+    <div class="report-section">
+        <h2 class="section-title">Employee Performance</h2>
+        <div class="dashboard-card">
+            <h3 class="text-lg font-semibold mb-4">Top Performers</h3>
+            <div class="overflow-x-auto">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Employee Name</th>
+                            <th>Position</th>
+                            <th>Total Orders</th>
+                            <th>Total Sales</th>
+                            <th>Avg Order Value</th>
+                            <th>Performance Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="employee in employeeMetrics.topPerformers" :key="employee.employee_id">
+                            <tr>
+                                <td x-text="employee.name"></td>
+                                <td x-text="employee.position"></td>
+                                <td x-text="employee.total_orders"></td>
+                                <td x-text="formatCurrency(employee.total_sales)"></td>
+                                <td x-text="formatCurrency(employee.avg_order_value)"></td>
+                                <td>
+                                    <div class="flex items-center">
+                                        <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                                            <div class="bg-blue-600 h-2 rounded-full" 
+                                                 :style="`width: ${employee.efficiency_score}%`"></div>
+                                        </div>
+                                        <span x-text="employee.efficiency_score + '%'"></span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Analytics Section -->
+    <div class="report-section">
+        <h2 class="section-title">Customer Analytics</h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Customer Segments Chart -->
+            <div class="chart-container">
+                <h3 class="text-lg font-semibold mb-4">Customer Segments</h3>
+                <canvas id="customerSegmentsChart"></canvas>
+            </div>
+            
+            <!-- Repeat Customer Analysis -->
+            <div class="chart-container">
+                <h3 class="text-lg font-semibold mb-4">Repeat Customer Analysis</h3>
+                <canvas id="repeatCustomersChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Operational Metrics Section -->
+    <div class="report-section">
+        <h2 class="section-title">Operational Metrics</h2>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Table Turnover Chart -->
+            <div class="chart-container">
+                <h3 class="text-lg font-semibold mb-4">Table Turnover Rates</h3>
+                <canvas id="tableTurnoverChart"></canvas>
+            </div>
+            
+            <!-- Order Fulfillment Chart -->
+            <div class="chart-container">
+                <h3 class="text-lg font-semibold mb-4">Order Fulfillment Efficiency</h3>
+                <canvas id="orderFulfillmentChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Options -->
+    <div class="report-section">
+        <h2 class="section-title">Export Options</h2>
+        <div class="dashboard-card">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <button @click="exportReport('pdf')" 
+                        class="export-button">
+                    Export as PDF
+                </button>
+                <button @click="exportReport('excel')" 
+                        class="export-button">
+                    Export as Excel
+                </button>
+                <button @click="exportReport('csv')" 
+                        class="export-button">
+                    Export as CSV
+                </button>
+                <button @click="scheduleReport()" 
+                        class="export-button">
+                    Schedule Report
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Alpine.js for Reactive Components -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+<script>
+function enhancedReports() {
+    return {
+        filters: {
+            startDate: '{{ (filters.start_date or "") }}',
+            endDate: '{{ (filters.end_date or "") }}',
+            restaurantId: '{{ (filters.restaurant_id or "") }}'
+        },
+        loading: false,
+        refreshing: false,
+        metrics: {
+            totalRevenue: 0,
+            totalOrders: 0,
+            avgOrderValue: 0,
+            completionRate: 0
+        },
+        salesMetrics: {
+            topMenuItems: []
+        },
+        financialMetrics: {
+            grossProfit: 0,
+            grossMargin: 0,
+            netProfit: 0
+        },
+        inventoryMetrics: {
+            lowStockAlerts: []
+        },
+        employeeMetrics: {
+            topPerformers: []
+        },
+        
+        init() {
+            this.loadDashboardData();
+            this.initCharts();
+        },
+        
+        async loadDashboardData() {
+            try {
+                this.loading = true;
+                const response = await fetch('/api/reports/dashboard/summary?' + this.getQueryString());
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.updateMetrics(data.data);
+                    this.updateCharts(data.data);
+                }
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        async refreshData() {
+            try {
+                this.refreshing = true;
+                await fetch('/api/reports/cache/clear', { method: 'POST' });
+                await this.loadDashboardData();
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+            } finally {
+                this.refreshing = false;
+            }
+        },
+        
+        applyFilters() {
+            this.loadDashboardData();
+        },
+        
+        getQueryString() {
+            const params = new URLSearchParams();
+            if (this.filters.startDate) params.append('start_date', this.filters.startDate);
+            if (this.filters.endDate) params.append('end_date', this.filters.endDate);
+            if (this.filters.restaurantId) params.append('restaurant_id', this.filters.restaurantId);
+            return params.toString();
+        },
+        
+        updateMetrics(data) {
+            // Update key metrics from dashboard summary
+            if (data.sales_metrics) {
+                this.metrics.totalOrders = data.sales_metrics.hourly_analysis.reduce((sum, hour) => sum + hour.order_count, 0);
+                this.metrics.totalRevenue = data.sales_metrics.hourly_analysis.reduce((sum, hour) => sum + hour.total_revenue, 0);
+                this.metrics.avgOrderValue = this.metrics.totalRevenue / this.metrics.totalOrders || 0;
+            }
+            
+            if (data.operational_metrics && data.operational_metrics.order_efficiency) {
+                this.metrics.completionRate = data.operational_metrics.order_efficiency.completion_rate || 0;
+            }
+            
+            // Update other metrics
+            if (data.sales_metrics) this.salesMetrics.topMenuItems = data.sales_metrics.top_menu_items || [];
+            if (data.financial_metrics) this.financialMetrics = data.financial_metrics.profit_loss || {};
+            if (data.inventory_metrics) this.inventoryMetrics.lowStockAlerts = data.inventory_metrics.low_stock_alerts || [];
+            if (data.employee_metrics) this.employeeMetrics.topPerformers = data.employee_metrics.top_performers || [];
+        },
+        
+        initCharts() {
+            // Initialize all charts with empty data
+            this.initHourlySalesChart();
+            this.initDayPartChart();
+            this.initProfitLossChart();
+            this.initCashFlowChart();
+            this.initCustomerSegmentsChart();
+            this.initRepeatCustomersChart();
+            this.initTableTurnoverChart();
+            this.initOrderFulfillmentChart();
+        },
+        
+        updateCharts(data) {
+            // Update charts with real data
+            this.updateHourlySalesChart(data.sales_metrics?.hourly_analysis || []);
+            this.updateDayPartChart(data.sales_metrics?.day_part_performance || {});
+            this.updateProfitLossChart(data.financial_metrics?.profit_loss || {});
+            this.updateCashFlowChart(data.financial_metrics?.cash_flow || {});
+            this.updateCustomerSegmentsChart(data.customer_metrics?.customer_segments || {});
+            this.updateRepeatCustomersChart(data.customer_metrics?.repeat_customers || {});
+            this.updateTableTurnoverChart(data.operational_metrics?.table_turnover || []);
+            this.updateOrderFulfillmentChart(data.operational_metrics?.order_efficiency || {});
+        },
+        
+        initHourlySalesChart() {
+            const ctx = document.getElementById('hourlySalesChart').getContext('2d');
+            window.hourlySalesChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Revenue',
+                        data: [],
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        },
+        
+        updateHourlySalesChart(data) {
+            if (window.hourlySalesChart) {
+                window.hourlySalesChart.data.labels = data.map(h => h.time_period);
+                window.hourlySalesChart.data.datasets[0].data = data.map(h => h.total_revenue);
+                window.hourlySalesChart.update();
+            }
+        },
+        
+        initDayPartChart() {
+            const ctx = document.getElementById('dayPartChart').getContext('2d');
+            window.dayPartChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Breakfast', 'Lunch', 'Dinner', 'Late Night'],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            'rgba(255, 206, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)',
+                            'rgba(147, 51, 234, 0.8)',
+                            'rgba(107, 114, 128, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        },
+        
+        updateDayPartChart(data) {
+            if (window.dayPartChart) {
+                const labels = Object.keys(data);
+                const values = labels.map(key => data[key].total_revenue);
+                window.dayPartChart.data.labels = labels.map(l => l.charAt(0).toUpperCase() + l.slice(1));
+                window.dayPartChart.data.datasets[0].data = values;
+                window.dayPartChart.update();
+            }
+        },
+        
+        initProfitLossChart() {
+            const ctx = document.getElementById('profitLossChart').getContext('2d');
+            window.profitLossChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Revenue', 'COGS', 'Expenses', 'Net Profit'],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            'rgba(34, 197, 94, 0.8)',
+                            'rgba(239, 68, 68, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(59, 130, 246, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        },
+        
+        updateProfitLossChart(data) {
+            if (window.profitLossChart && data.revenue) {
+                window.profitLossChart.data.datasets[0].data = [
+                    data.revenue.total_revenue || 0,
+                    data.cost_of_goods_sold?.total_cogs || 0,
+                    data.expenses?.total_expenses || 0,
+                    data.net_profit?.amount || 0
+                ];
+                window.profitLossChart.update();
+            }
+        },
+        
+        initCashFlowChart() {
+            const ctx = document.getElementById('cashFlowChart').getContext('2d');
+            window.cashFlowChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Net Cash Flow',
+                        data: [],
+                        borderColor: 'rgb(16, 185, 129)',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        },
+        
+        updateCashFlowChart(data) {
+            if (window.cashFlowChart && data.daily_breakdown) {
+                window.cashFlowChart.data.labels = data.daily_breakdown.map(d => d.date);
+                window.cashFlowChart.data.datasets[0].data = data.daily_breakdown.map(d => d.net_flow);
+                window.cashFlowChart.update();
+            }
+        },
+        
+        initCustomerSegmentsChart() {
+            const ctx = document.getElementById('customerSegmentsChart').getContext('2d');
+            window.customerSegmentsChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.8)',
+                            'rgba(54, 162, 235, 0.8)',
+                            'rgba(255, 206, 86, 0.8)',
+                            'rgba(75, 192, 192, 0.8)',
+                            'rgba(153, 102, 255, 0.8)',
+                            'rgba(255, 159, 64, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        },
+        
+        updateCustomerSegmentsChart(data) {
+            if (window.customerSegmentsChart && data.summary) {
+                const segments = Object.keys(data.summary).filter(key => key.includes('_percentage'));
+                const values = segments.map(key => data.summary[key]);
+                const labels = segments.map(key => key.replace('_percentage', ''));
+                
+                window.customerSegmentsChart.data.labels = labels;
+                window.customerSegmentsChart.data.datasets[0].data = values;
+                window.customerSegmentsChart.update();
+            }
+        },
+        
+        initRepeatCustomersChart() {
+            const ctx = document.getElementById('repeatCustomersChart').getContext('2d');
+            window.repeatCustomersChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['New', 'Repeat', 'Loyal', 'At Risk'],
+                    datasets: [{
+                        label: 'Customer Count',
+                        data: [],
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        },
+        
+        updateRepeatCustomersChart(data) {
+            if (window.repeatCustomersChart && data.summary) {
+                window.repeatCustomersChart.data.datasets[0].data = [
+                    data.summary.new_customers || 0,
+                    data.summary.repeat_customers || 0,
+                    data.summary.loyal_customers || 0,
+                    data.summary.at_risk_customers || 0
+                ];
+                window.repeatCustomersChart.update();
+            }
+        },
+        
+        initTableTurnoverChart() {
+            const ctx = document.getElementById('tableTurnoverChart').getContext('2d');
+            window.tableTurnoverChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Turnover Rate',
+                        data: [],
+                        backgroundColor: 'rgba(147, 51, 234, 0.8)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        },
+        
+        updateTableTurnoverChart(data) {
+            if (window.tableTurnoverChart) {
+                window.tableTurnoverChart.data.labels = data.map(t => `Table ${t.table_number}`);
+                window.tableTurnoverChart.data.datasets[0].data = data.map(t => t.turnover_rate);
+                window.tableTurnoverChart.update();
+            }
+        },
+        
+        initOrderFulfillmentChart() {
+            const ctx = document.getElementById('orderFulfillmentChart').getContext('2d');
+            window.orderFulfillmentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Completion Rate (%)',
+                        data: [],
+                        borderColor: 'rgb(34, 197, 94)',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        },
+        
+        updateOrderFulfillmentChart(data) {
+            if (window.orderFulfillmentChart && data.hourly_breakdown) {
+                window.orderFulfillmentChart.data.labels = data.hourly_breakdown.map(h => `${h.hour}:00`);
+                window.orderFulfillmentChart.data.datasets[0].data = data.hourly_breakdown.map(h => h.completion_rate);
+                window.orderFulfillmentChart.update();
+            }
+        },
+        
+        formatCurrency(value) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(value);
+        },
+        
+        getPerformanceClass(value) {
+            if (value > 100) return 'status-high';
+            if (value > 50) return 'status-medium';
+            return 'status-low';
+        },
+        
+        getPerformanceLabel(value) {
+            if (value > 100) return 'Excellent';
+            if (value > 50) return 'Good';
+            return 'Poor';
+        },
+        
+        async exportReport(format) {
+            try {
+                const queryString = this.getQueryString();
+                const response = await fetch(`/api/reports/export/${format}?${queryString}`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `enhanced-report.${format}`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                }
+            } catch (error) {
+                console.error('Error exporting report:', error);
+                alert('Error exporting report. Please try again.');
+            }
+        },
+        
+        scheduleReport() {
+            // Open schedule modal or navigate to schedule page
+            alert('Report scheduling feature coming soon!');
+        }
+    };
+}
+</script>
+{% endblock %}
