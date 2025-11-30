@@ -1,0 +1,842 @@
+{% extends "base.html" %}
+
+{% block title %}{{ station.value.title() }} Station{% endblock %}
+
+{% block extra_css %}
+<style>
+.station-container {
+    background: #1a1a1a;
+    color: #ffffff;
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.station-header {
+    background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+    padding: 1.5rem;
+    border-bottom: 2px solid #4a5568;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.station-title {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.station-badge {
+    background: {{ station_config.color_code if station_config else '#4a5568' }};
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.station-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.stat-card {
+    background: rgba(45, 55, 72, 0.8);
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #4a5568;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #63b3ed;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: #a0aec0;
+    margin-top: 0.25rem;
+}
+
+.station-orders {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 1.5rem;
+    padding: 1.5rem;
+}
+
+.order-card {
+    background: #2d3748;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 2px solid #4a5568;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.order-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.order-card.priority-urgent {
+    border-color: #f56565;
+    background: linear-gradient(135deg, #2d3748 0%, #4a1a1a 100%);
+}
+
+.order-card.priority-high {
+    border-color: #ed8936;
+    background: linear-gradient(135deg, #2d3748 0%, #4a2a1a 100%);
+}
+
+.order-card.priority-normal {
+    border-color: #48bb78;
+    background: linear-gradient(135deg, #2d3748 0%, #1a4a2a 100%);
+}
+
+.order-card.priority-low {
+    border-color: #718096;
+    background: linear-gradient(135deg, #2d3748 0%, #2a3a4a 100%);
+}
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #4a5568;
+}
+
+.order-number {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #63b3ed;
+}
+
+.order-time {
+    font-size: 0.875rem;
+    color: #a0aec0;
+}
+
+.order-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+}
+
+.table-info {
+    background: #4a5568;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.order-items {
+    margin-bottom: 1rem;
+}
+
+.item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #4a5568;
+}
+
+.item-name {
+    font-weight: 500;
+    color: #e2e8f0;
+}
+
+.item-quantity {
+    background: #4a5568;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-weight: bold;
+    min-width: 2rem;
+    text-align: center;
+}
+
+.order-notes {
+    background: #1a202c;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: #a0aec0;
+    margin-bottom: 1rem;
+    border-left: 3px solid #4a5568;
+}
+
+.order-timer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.timer-display {
+    font-size: 1.5rem;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+}
+
+.timer-normal { color: #48bb78; }
+.timer-warning { color: #ed8936; }
+.timer-overdue { color: #f56565; animation: pulse 1s infinite; }
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.order-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 0.5rem;
+}
+
+.btn-station {
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    font-size: 0.875rem;
+}
+
+.btn-start {
+    background: #38a169;
+    color: white;
+}
+
+.btn-start:hover { background: #2f855a; }
+
+.btn-ready {
+    background: #3182ce;
+    color: white;
+}
+
+.btn-ready:hover { background: #2c5282; }
+
+.btn-served {
+    background: #48bb78;
+    color: white;
+}
+
+.btn-served:hover { background: #38a169; }
+
+.btn-cancel {
+    background: #e53e3e;
+    color: white;
+}
+
+.btn-cancel:hover { background: #c53030; }
+
+.status-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.status-pending {
+    background: #ed8936;
+    color: white;
+}
+
+.status-preparing {
+    background: #3182ce;
+    color: white;
+}
+
+.status-ready {
+    background: #48bb78;
+    color: white;
+    animation: pulse 2s infinite;
+}
+
+.status-served {
+    background: #718096;
+    color: white;
+}
+
+.status-cancelled {
+    background: #e53e3e;
+    color: white;
+}
+
+.overdue-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #f56565, #ed8936, #f56565);
+    animation: slide 2s linear infinite;
+}
+
+@keyframes slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.performance-summary {
+    background: #2d3748;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1.5rem;
+    border: 1px solid #4a5568;
+}
+
+.performance-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #63b3ed;
+}
+
+.performance-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.metric {
+    text-align: center;
+}
+
+.metric-value {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #48bb78;
+}
+
+.metric-label {
+    font-size: 0.875rem;
+    color: #a0aec0;
+    margin-top: 0.25rem;
+}
+
+.back-button {
+    background: #4a5568;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background 0.2s ease;
+}
+
+.back-button:hover {
+    background: #2d3748;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #a0aec0;
+}
+
+.empty-state-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+@media (max-width: 768px) {
+    .station-orders {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+    }
+    
+    .station-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .order-actions {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="station-container">
+    <div class="station-header">
+        <div class="station-title">
+            {{ station.value.title() }} Station
+            <div class="station-badge">{{ station.value.upper() }}</div>
+        </div>
+        
+        <a href="{{ url_for('kitchen.kds_display') }}" class="back-button">
+            ← Back to All Stations
+        </a>
+        
+        <div class="station-stats">
+            <div class="stat-card">
+                <div class="stat-value" id="pendingCount">0</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="preparingCount">0</div>
+                <div class="stat-label">Preparing</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="readyCount">0</div>
+                <div class="stat-label">Ready</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="completedCount">0</div>
+                <div class="stat-label">Completed Today</div>
+            </div>
+        </div>
+    </div>
+    
+    {% if station_performance %}
+    <div class="performance-summary">
+        <div class="performance-title">Today's Performance</div>
+        <div class="performance-metrics">
+            <div class="metric">
+                <div class="metric-value">{{ station_performance|length }}</div>
+                <div class="metric-label">Orders Completed</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">
+                    {% if station_performance %}
+                        {{ "%.1f"|format((station_performance|selectattr('on_time')|list|length / station_performance|length * 100)) }}%
+                    {% else %}
+                        0%
+                    {% endif %}
+                </div>
+                <div class="metric-label">On-Time Rate</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">
+                    {% if station_performance %}
+                        {{ "%.1f"|format((station_performance|map(attribute='preparation_time')|sum / station_performance|length / 60)) }}m
+                    {% else %}
+                        0m
+                    {% endif %}
+                </div>
+                <div class="metric-label">Avg Prep Time</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">
+                    {% if station_performance %}
+                        {{ "%.1f"|format((station_performance|map(attribute='efficiency')|sum / station_performance|length)) }}%
+                    {% else %}
+                        0%
+                    {% endif %}
+                </div>
+                <div class="metric-label">Efficiency</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="station-orders" id="stationOrders">
+        {% if kitchen_orders %}
+            {% for kitchen_order in kitchen_orders %}
+            <div class="order-card priority-{{ kitchen_order.priority_level.value.lower() }}" 
+                 data-order-id="{{ kitchen_order.id }}"
+                 data-status="{{ kitchen_order.status.value }}">
+                
+                {% if kitchen_order.is_overdue() %}
+                <div class="overdue-indicator"></div>
+                {% endif %}
+                
+                <div class="status-badge status-{{ kitchen_order.status.value }}">
+                    {{ kitchen_order.status.value.title() }}
+                </div>
+                
+                <div class="order-header">
+                    <div class="order-number">
+                        #{{ kitchen_order.order.order_number if kitchen_order.order else 'N/A' }}
+                    </div>
+                    <div class="order-time">
+                        {{ kitchen_order.created_at.strftime('%H:%M') }}
+                    </div>
+                </div>
+                
+                <div class="order-info">
+                    <div class="table-info">
+                        Table {{ kitchen_order.order.table.number if kitchen_order.order and kitchen_order.order.table else 'N/A' }}
+                    </div>
+                    <div>
+                        {{ kitchen_order.order.order_type.value.title() if kitchen_order.order else 'N/A' }}
+                    </div>
+                </div>
+                
+                <div class="order-items">
+                    <div class="item-row">
+                        <div class="item-name">{{ kitchen_order.item_name }}</div>
+                        <div class="item-quantity">{{ kitchen_order.item_quantity or 1 }}x</div>
+                    </div>
+                    {% if kitchen_order.special_instructions %}
+                    <div class="item-row">
+                        <div class="item-name" style="font-style: italic; color: #a0aec0;">
+                            {{ kitchen_order.special_instructions }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                {% if kitchen_order.notes %}
+                <div class="order-notes">
+                    <strong>Notes:</strong> {{ kitchen_order.notes }}
+                </div>
+                {% endif %}
+                
+                <div class="order-timer">
+                    <div class="timer-display timer-{{ 'overdue' if kitchen_order.is_overdue() else 'warning' if kitchen_order.get_preparation_time_remaining() < 300 else 'normal' }}">
+                        {{ kitchen_order.get_preparation_time_remaining() // 60 }}:{{ "%02d"|format(kitchen_order.get_preparation_time_remaining() % 60) }}
+                    </div>
+                    <div class="text-sm text-gray-400">
+                        {% if kitchen_order.is_overdue() %}
+                        Overdue by {{ kitchen_order.get_time_overdue() // 60 }} min
+                        {% else %}
+                        Est. {{ kitchen_order.estimated_completion_time.strftime('%H:%M') if kitchen_order.estimated_completion_time else 'N/A' }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="order-actions">
+                    {% if kitchen_order.status.value == 'pending' %}
+                    <button class="btn-station btn-start" onclick="startPreparation({{ kitchen_order.id }})">
+                        Start
+                    </button>
+                    {% endif %}
+                    
+                    {% if kitchen_order.status.value == 'preparing' %}
+                    <button class="btn-station btn-ready" onclick="markReady({{ kitchen_order.id }})">
+                        Ready
+                    </button>
+                    {% endif %}
+                    
+                    {% if kitchen_order.status.value == 'ready' %}
+                    <button class="btn-station btn-served" onclick="markServed({{ kitchen_order.id }})">
+                        Served
+                    </button>
+                    {% endif %}
+                    
+                    {% if kitchen_order.status.value in ['pending', 'preparing'] %}
+                    <button class="btn-station btn-cancel" onclick="cancelOrder({{ kitchen_order.id }})">
+                        Cancel
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">🍽️</div>
+                <h3>No orders for {{ station.value.title() }} station</h3>
+                <p>Orders will appear here when they're assigned to this station.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+let socket;
+let updateTimer;
+
+function initSocket() {
+    socket = io();
+    
+    socket.on('kitchen_order_update', function(data) {
+        const order = data.kitchen_order;
+        if (order.station === '{{ station.value }}') {
+            updateOrderCard(order);
+            updateStationStats();
+        }
+    });
+    
+    socket.on('connect', function() {
+        console.log('Connected to station view');
+        loadStationOrders();
+    });
+}
+
+function loadStationOrders() {
+    fetch(`/kitchen/kds/api/orders?station={{ station.value }}`)
+        .then(response => response.json())
+        .then(data => {
+            renderOrders(data);
+            updateStationStats();
+        })
+        .catch(error => console.error('Error loading orders:', error));
+}
+
+function renderOrders(orders) {
+    const container = document.getElementById('stationOrders');
+    
+    if (orders.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🍽️</div>
+                <h3>No orders for {{ station.value.title() }} station</h3>
+                <p>Orders will appear here when they're assigned to this station.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = '';
+    orders.forEach(order => {
+        const orderCard = createOrderCard(order);
+        container.appendChild(orderCard);
+    });
+}
+
+function createOrderCard(order) {
+    const div = document.createElement('div');
+    div.className = `order-card priority-${order.priority_level.toLowerCase()}`;
+    div.dataset.orderId = order.id;
+    div.dataset.status = order.status;
+    
+    div.innerHTML = `
+        ${order.is_overdue ? '<div class="overdue-indicator"></div>' : ''}
+        <div class="status-badge status-${order.status}">${order.status.charAt(0).toUpperCase() + order.status.slice(1)}</div>
+        <div class="order-header">
+            <div class="order-number">#${order.order_number || 'N/A'}</div>
+            <div class="order-time">${new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+        </div>
+        <div class="order-info">
+            <div class="table-info">Table ${order.table_number || 'N/A'}</div>
+            <div>${order.order_type || 'N/A'}</div>
+        </div>
+        <div class="order-items">
+            <div class="item-row">
+                <div class="item-name">${order.item_name}</div>
+                <div class="item-quantity">${order.item_quantity || 1}x</div>
+            </div>
+        </div>
+        <div class="order-timer">
+            <div class="timer-display timer-${order.is_overdue ? 'overdue' : order.preparation_time_remaining < 300 ? 'warning' : 'normal'}">
+                ${Math.floor(order.preparation_time_remaining / 60)}:${String(order.preparation_time_remaining % 60).padStart(2, '0')}
+            </div>
+        </div>
+        <div class="order-actions">
+            ${getActionButtons(order)}
+        </div>
+    `;
+    
+    return div;
+}
+
+function getActionButtons(order) {
+    let buttons = '';
+    
+    if (order.status === 'pending') {
+        buttons += `<button class="btn-station btn-start" onclick="startPreparation(${order.id})">Start</button>`;
+    }
+    
+    if (order.status === 'preparing') {
+        buttons += `<button class="btn-station btn-ready" onclick="markReady(${order.id})">Ready</button>`;
+    }
+    
+    if (order.status === 'ready') {
+        buttons += `<button class="btn-station btn-served" onclick="markServed(${order.id})">Served</button>`;
+    }
+    
+    if (['pending', 'preparing'].includes(order.status)) {
+        buttons += `<button class="btn-station btn-cancel" onclick="cancelOrder(${order.id})">Cancel</button>`;
+    }
+    
+    return buttons;
+}
+
+function startPreparation(orderId) {
+    fetch(`/kitchen/kds/orders/${orderId}/start-preparation`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Preparation started', 'success');
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error starting preparation:', error);
+        showNotification('Error starting preparation', 'error');
+    });
+}
+
+function markReady(orderId) {
+    fetch(`/kitchen/kds/orders/${orderId}/mark-ready`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Order marked as ready', 'success');
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error marking ready:', error);
+        showNotification('Error marking ready', 'error');
+    });
+}
+
+function markServed(orderId) {
+    fetch(`/kitchen/kds/orders/${orderId}/mark-served`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Order marked as served', 'success');
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error marking served:', error);
+        showNotification('Error marking served', 'error');
+    });
+}
+
+function cancelOrder(orderId) {
+    const reason = prompt('Reason for cancellation:');
+    if (!reason) return;
+    
+    fetch(`/kitchen/kds/orders/${orderId}/update-status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: `status=cancelled&notes=${encodeURIComponent(reason)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Order cancelled', 'success');
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error cancelling order:', error);
+        showNotification('Error cancelling order', 'error');
+    });
+}
+
+function updateStationStats() {
+    const orders = document.querySelectorAll('.order-card');
+    let pending = 0, preparing = 0, ready = 0;
+    
+    orders.forEach(order => {
+        const status = order.dataset.status;
+        if (status === 'pending') pending++;
+        else if (status === 'preparing') preparing++;
+        else if (status === 'ready') ready++;
+    });
+    
+    document.getElementById('pendingCount').textContent = pending;
+    document.getElementById('preparingCount').textContent = preparing;
+    document.getElementById('readyCount').textContent = ready;
+}
+
+function updateOrderCard(kitchenOrder) {
+    const card = document.querySelector(`[data-order-id="${kitchenOrder.id}"]`);
+    if (card) {
+        const newCard = createOrderCard(kitchenOrder);
+        card.replaceWith(newCard);
+    } else {
+        // New order for this station
+        const container = document.getElementById('stationOrders');
+        const orderCard = createOrderCard(kitchenOrder);
+        
+        // Remove empty state if it exists
+        const emptyState = container.querySelector('.empty-state');
+        if (emptyState) {
+            emptyState.remove();
+        }
+        
+        container.appendChild(orderCard);
+    }
+    
+    updateStationStats();
+}
+
+function getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 ${
+        type === 'success' ? 'bg-green-500' : 
+        type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+    }`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initSocket();
+    updateStationStats();
+    
+    // Update timers every second
+    updateTimer = setInterval(() => {
+        document.querySelectorAll('.timer-display').forEach(timer => {
+            const card = timer.closest('.order-card');
+            const orderId = card.dataset.orderId;
+            // Timer updates would be handled by real-time updates
+        });
+    }, 1000);
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (socket) socket.disconnect();
+    if (updateTimer) clearInterval(updateTimer);
+});
+</script>
+{% endblock %}

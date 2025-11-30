@@ -1,0 +1,528 @@
+{% extends "base.html" %}
+
+{% block title %}Kitchen Performance{% endblock %}
+
+{% block extra_css %}
+<style>
+.performance-container {
+    background: #1a1a1a;
+    color: #ffffff;
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.performance-header {
+    background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+    padding: 2rem;
+    border-bottom: 2px solid #4a5568;
+}
+
+.performance-title {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #63b3ed;
+}
+
+.date-filter {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.filter-select {
+    background: #2d3748;
+    color: #e2e8f0;
+    border: 1px solid #4a5568;
+    padding: 0.75rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    min-width: 150px;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #63b3ed;
+    box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.1);
+}
+
+.overview-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    padding: 0 2rem;
+}
+
+.stat-card {
+    background: #2d3748;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 2px solid #4a5568;
+    text-align: center;
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-value {
+    font-size: 3rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    font-size: 1rem;
+    color: #a0aec0;
+}
+
+.stat-percentage {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-top: 0.5rem;
+}
+
+.percentage-good { color: #48bb78; }
+.percentage-warning { color: #ed8936; }
+.percentage-bad { color: #f56565; }
+
+.station-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    padding: 0 2rem;
+}
+
+.station-card {
+    background: #2d3748;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 2px solid #4a5568;
+}
+
+.station-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #4a5568;
+}
+
+.station-name {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #63b3ed;
+    text-transform: capitalize;
+}
+
+.station-efficiency {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.efficiency-excellent { color: #48bb78; }
+.efficiency-good { color: #38a169; }
+.efficiency-average { color: #ed8936; }
+.efficiency-poor { color: #f56565; }
+
+.station-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.station-stat {
+    text-align: center;
+    padding: 0.75rem;
+    background: #1a202c;
+    border-radius: 8px;
+}
+
+.station-stat-value {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #e2e8f0;
+}
+
+.station-stat-label {
+    font-size: 0.875rem;
+    color: #a0aec0;
+    margin-top: 0.25rem;
+}
+
+.recent-orders {
+    background: #2d3748;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 0 2rem 2rem;
+    border: 2px solid #4a5568;
+}
+
+.recent-orders-header {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+    color: #63b3ed;
+}
+
+.orders-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.orders-table th {
+    background: #4a5568;
+    padding: 1rem;
+    text-align: left;
+    font-weight: bold;
+    color: #e2e8f0;
+    border-bottom: 2px solid #2d3748;
+}
+
+.orders-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #4a5568;
+    color: #e2e8f0;
+}
+
+.orders-table tr:hover {
+    background: rgba(74, 85, 104, 0.3);
+}
+
+.order-status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.status-pending {
+    background: #ed8936;
+    color: white;
+}
+
+.status-preparing {
+    background: #3182ce;
+    color: white;
+}
+
+.status-ready {
+    background: #48bb78;
+    color: white;
+}
+
+.status-served {
+    background: #718096;
+    color: white;
+}
+
+.status-cancelled {
+    background: #e53e3e;
+    color: white;
+}
+
+.station-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: capitalize;
+}
+
+.station-grill { background: #e53e3e; }
+.station-fry { background: #dd6b20; }
+.station-bar { background: #3182ce; }
+.station-prep { background: #38a169; }
+.station-pizza { background: #d69e2e; }
+.station-dessert { background: #805ad5; }
+.station-salad { background: #48bb78; }
+.station-beverage { background: #4299e1; }
+.station-sauce { background: #9f7aea; }
+.station-general { background: #718096; }
+
+.priority-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: capitalize;
+}
+
+.priority-urgent {
+    background: #f56565;
+    color: white;
+}
+
+.priority-high {
+    background: #ed8936;
+    color: white;
+}
+
+.priority-normal {
+    background: #48bb78;
+    color: white;
+}
+
+.priority-low {
+    background: #718096;
+    color: white;
+}
+
+.time-display {
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+}
+
+.overdue {
+    color: #f56565;
+}
+
+.on-time {
+    color: #48bb78;
+}
+
+.late {
+    color: #ed8936;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #a0aec0;
+}
+
+.empty-state-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.back-button {
+    background: #4a5568;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background 0.2s ease;
+    margin-bottom: 1rem;
+}
+
+.back-button:hover {
+    background: #2d3748;
+}
+
+@media (max-width: 768px) {
+    .overview-stats {
+        grid-template-columns: repeat(2, 1fr);
+        padding: 0 1rem;
+    }
+    
+    .station-metrics {
+        grid-template-columns: 1fr;
+        padding: 0 1rem;
+    }
+    
+    .recent-orders {
+        margin: 0 1rem 2rem;
+    }
+    
+    .orders-table {
+        font-size: 0.875rem;
+    }
+    
+    .orders-table th,
+    .orders-table td {
+        padding: 0.5rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="performance-container">
+    <div class="performance-header">
+        <a href="{{ url_for('kitchen.kds_display') }}" class="back-button">
+            ← Back to Kitchen Display
+        </a>
+        
+        <h1 class="performance-title">Kitchen Performance</h1>
+        
+        <div class="date-filter">
+            <label for="daysFilter">Time Period:</label>
+            <select id="daysFilter" class="filter-select" onchange="changePeriod()">
+                <option value="1" {% if days == 1 %}selected{% endif %}>Last 24 Hours</option>
+                <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 Days</option>
+                <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 Days</option>
+                <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 Days</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="overview-stats">
+        <div class="stat-card">
+            <div class="stat-value">{{ total_orders }}</div>
+            <div class="stat-label">Total Orders</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value">{{ on_time_orders }}</div>
+            <div class="stat-label">On-Time Orders</div>
+            <div class="stat-percentage {{ 'percentage-good' if on_time_percentage >= 90 else 'percentage-warning' if on_time_percentage >= 75 else 'percentage-bad' }}">
+                {{ "%.1f"|format(on_time_percentage) }}%
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value">{{ "%.1f"|format(avg_preparation_time / 60) }}m</div>
+            <div class="stat-label">Avg Prep Time</div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-value">{{ station_metrics|length }}</div>
+            <div class="stat-label">Active Stations</div>
+        </div>
+    </div>
+    
+    <div class="station-metrics">
+        {% for station, metrics in station_metrics.items() %}
+        <div class="station-card">
+            <div class="station-header">
+                <div class="station-name">{{ station.title() }}</div>
+                <div class="station-efficiency {{ 'efficiency-excellent' if metrics.efficiency >= 95 else 'efficiency-good' if metrics.efficiency >= 85 else 'efficiency-average' if metrics.efficiency >= 70 else 'efficiency-poor' }}">
+                    {{ "%.1f"|format(metrics.efficiency) }}%
+                </div>
+            </div>
+            
+            <div class="station-stats">
+                <div class="station-stat">
+                    <div class="station-stat-value">{{ metrics.total }}</div>
+                    <div class="station-stat-label">Total Orders</div>
+                </div>
+                
+                <div class="station-stat">
+                    <div class="station-stat-value">{{ metrics.on_time }}</div>
+                    <div class="station-stat-label">On-Time</div>
+                </div>
+                
+                <div class="station-stat">
+                    <div class="station-stat-value">{{ "%.1f"|format(metrics.avg_time / 60) }}m</div>
+                    <div class="station-stat-label">Avg Time</div>
+                </div>
+                
+                <div class="station-stat">
+                    <div class="station-stat-value">{{ "%.1f"|format((metrics.on_time / metrics.total * 100) if metrics.total > 0 else 0) }}%</div>
+                    <div class="station-stat-label">On-Time Rate</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="recent-orders">
+        <div class="recent-orders-header">Recent Orders</div>
+        
+        {% if recent_orders %}
+        <table class="orders-table">
+            <thead>
+                <tr>
+                    <th>Order #</th>
+                    <th>Item</th>
+                    <th>Station</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Prep Time</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in recent_orders %}
+                <tr>
+                    <td>
+                        <strong>#{{ order.order.order_number if order.order else 'N/A' }}</strong>
+                    </td>
+                    <td>{{ order.item_name }}</td>
+                    <td>
+                        <span class="station-badge station-{{ order.station.value }}">
+                            {{ order.station.value.title() }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="priority-badge priority-{{ order.priority_level.value.lower() }}">
+                            {{ order.priority_level.value.title() }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="order-status-badge status-{{ order.status.value }}">
+                            {{ order.status.value.title() }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="time-display {{ 'overdue' if order.is_overdue() else 'on-time' if order.preparation_time and order.preparation_time <= 600 else 'late' }}">
+                            {% if order.preparation_time %}
+                                {{ "%.1f"|format(order.preparation_time / 60) }}m
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </span>
+                    </td>
+                    <td>{{ order.created_at.strftime('%m/%d %H:%M') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📊</div>
+            <h3>No performance data available</h3>
+            <p>Performance metrics will appear here once orders are processed.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function changePeriod() {
+    const days = document.getElementById('daysFilter').value;
+    window.location.href = `/kitchen/kds/performance?days=${days}`;
+}
+
+// Auto-refresh every 30 seconds
+setInterval(() => {
+    window.location.reload();
+}, 30000);
+
+// Add keyboard navigation
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        window.location.href = '{{ url_for("kitchen.kds_display") }}';
+    }
+});
+
+// Add print functionality
+function printReport() {
+    window.print();
+}
+
+// Print button could be added to the UI
+document.addEventListener('DOMContentLoaded', function() {
+    const header = document.querySelector('.performance-header');
+    const printBtn = document.createElement('button');
+    printBtn.className = 'back-button';
+    printBtn.style.marginLeft = 'auto';
+    printBtn.innerHTML = '🖨️ Print Report';
+    printBtn.onclick = printReport;
+    header.appendChild(printBtn);
+});
+</script>
+{% endblock %}

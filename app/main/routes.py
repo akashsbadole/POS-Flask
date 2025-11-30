@@ -132,12 +132,19 @@ def inventory_dashboard():
         func.sum(Ingredient.current_stock * Ingredient.unit_cost)
     ).scalar() or 0
     
+    # Get recent inventory adjustments from last 7 days
+    from app.models.inventory import StockAdjustment
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    recent_adjustments = StockAdjustment.query.filter(
+        StockAdjustment.created_at >= seven_days_ago
+    ).count()
+    
     stats = {
         'total_ingredients': total_ingredients,
         'out_of_stock': out_of_stock,
         'low_stock_count': low_stock,
         'total_value': total_value,
-        'recent_adjustments': 0  # TODO: Implement adjustment tracking
+        'recent_adjustments': recent_adjustments
     }
     
     return render_template('inventory/dashboard.html', stats=stats)
@@ -189,6 +196,46 @@ def reports_dashboard():
         }
         current_date += timedelta(days=1)
     
+    # Calculate growth rates by comparing with previous period
+    previous_start = start_date - timedelta(days=days)
+    previous_end = start_date - timedelta(days=1)
+    
+    previous_orders = Order.query.filter(
+        Order.created_at >= previous_start,
+        Order.created_at <= previous_end
+    ).all()
+    
+    previous_total_orders = len(previous_orders)
+    previous_total_revenue = sum(float(order.total) for order in previous_orders)
+    previous_avg_order_value = previous_total_revenue / previous_total_orders if previous_total_orders > 0 else 0
+    
+    # Calculate growth percentages
+    revenue_growth = ((total_revenue - previous_total_revenue) / previous_total_revenue * 100) if previous_total_revenue > 0 else 0
+    orders_growth = ((total_orders - previous_total_orders) / previous_total_orders * 100) if previous_total_orders > 0 else 0
+    aov_growth = ((average_order_value - previous_avg_order_value) / previous_avg_order_value * 100) if previous_avg_order_value > 0 else 0
+    
+    # Calculate customer growth (new customers vs active customers)
+    total_customers = User.query.filter_by(is_active=True).count()
+    new_customers = User.query.filter(
+        User.created_at >= start_date,
+        User.created_at <= end_date,
+        User.is_active == True
+    ).count()
+    
+    previous_active_customers = User.query.filter(
+        User.last_login >= previous_start,
+        User.last_login <= previous_end,
+        User.is_active == True
+    ).count()
+    
+    current_active_customers = User.query.filter(
+        User.last_login >= start_date,
+        User.last_login <= end_date,
+        User.is_active == True
+    ).count()
+    
+    customers_growth = ((current_active_customers - previous_active_customers) / previous_active_customers * 100) if previous_active_customers > 0 else 0
+    
     stats = {
         'total_orders': total_orders,
         'total_revenue': total_revenue,
@@ -196,11 +243,13 @@ def reports_dashboard():
         'average_order_value': average_order_value,
         'payment_breakdown': payment_breakdown,
         'daily_stats': daily_stats,
-        'revenue_growth': 12.5,  # TODO: Calculate actual growth
-        'orders_growth': 8.3,
-        'customers_growth': 15.2,
-        'aov_growth': 4.1,
-        'total_customers': User.query.filter_by(is_active=True).count()
+        'revenue_growth': round(revenue_growth, 2),
+        'orders_growth': round(orders_growth, 2),
+        'customers_growth': round(customers_growth, 2),
+        'aov_growth': round(aov_growth, 2),
+        'total_customers': total_customers,
+        'new_customers': new_customers,
+        'active_customers': current_active_customers
     }
     
     return render_template('reports/dashboard.html', stats=stats)
@@ -434,12 +483,19 @@ def api_inventory_stats():
         func.sum(Ingredient.current_stock * Ingredient.unit_cost)
     ).scalar() or 0
     
+    # Get recent inventory adjustments from last 7 days
+    from app.models.inventory import StockAdjustment
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    recent_adjustments = StockAdjustment.query.filter(
+        StockAdjustment.created_at >= seven_days_ago
+    ).count()
+    
     stats = {
         'total_ingredients': total_ingredients,
         'out_of_stock': out_of_stock,
         'low_stock_count': low_stock,
         'total_value': total_value,
-        'recent_adjustments': 0  # TODO: Implement adjustment tracking
+        'recent_adjustments': recent_adjustments
     }
     
     return jsonify(stats)
@@ -488,12 +544,19 @@ def api_inventory_stats_alt():
         func.sum(Ingredient.current_stock * Ingredient.unit_cost)
     ).scalar() or 0
     
+    # Get recent inventory adjustments from last 7 days
+    from app.models.inventory import StockAdjustment
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    recent_adjustments = StockAdjustment.query.filter(
+        StockAdjustment.created_at >= seven_days_ago
+    ).count()
+    
     stats = {
         'total_ingredients': total_ingredients,
         'out_of_stock': out_of_stock,
         'low_stock_count': low_stock,
         'total_value': total_value,
-        'recent_adjustments': 0  # TODO: Implement adjustment tracking
+        'recent_adjustments': recent_adjustments
     }
     
     return jsonify(stats)
@@ -589,6 +652,46 @@ def api_reports_stats():
         }
         current_date += timedelta(days=1)
     
+    # Calculate growth rates by comparing with previous period
+    previous_start = start_date - timedelta(days=days)
+    previous_end = start_date - timedelta(days=1)
+    
+    previous_orders = Order.query.filter(
+        Order.created_at >= previous_start,
+        Order.created_at <= previous_end
+    ).all()
+    
+    previous_total_orders = len(previous_orders)
+    previous_total_revenue = sum(float(order.total) for order in previous_orders)
+    previous_avg_order_value = previous_total_revenue / previous_total_orders if previous_total_orders > 0 else 0
+    
+    # Calculate growth percentages
+    revenue_growth = ((total_revenue - previous_total_revenue) / previous_total_revenue * 100) if previous_total_revenue > 0 else 0
+    orders_growth = ((total_orders - previous_total_orders) / previous_total_orders * 100) if previous_total_orders > 0 else 0
+    aov_growth = ((average_order_value - previous_avg_order_value) / previous_avg_order_value * 100) if previous_avg_order_value > 0 else 0
+    
+    # Calculate customer growth (new customers vs active customers)
+    total_customers = User.query.filter_by(is_active=True).count()
+    new_customers = User.query.filter(
+        User.created_at >= start_date,
+        User.created_at <= end_date,
+        User.is_active == True
+    ).count()
+    
+    previous_active_customers = User.query.filter(
+        User.last_login >= previous_start,
+        User.last_login <= previous_end,
+        User.is_active == True
+    ).count()
+    
+    current_active_customers = User.query.filter(
+        User.last_login >= start_date,
+        User.last_login <= end_date,
+        User.is_active == True
+    ).count()
+    
+    customers_growth = ((current_active_customers - previous_active_customers) / previous_active_customers * 100) if previous_active_customers > 0 else 0
+    
     stats = {
         'total_orders': total_orders,
         'total_revenue': total_revenue,
@@ -596,11 +699,13 @@ def api_reports_stats():
         'average_order_value': average_order_value,
         'payment_breakdown': payment_breakdown,
         'daily_stats': daily_stats,
-        'revenue_growth': 12.5,  # TODO: Calculate actual growth
-        'orders_growth': 8.3,
-        'customers_growth': 15.2,
-        'aov_growth': 4.1,
-        'total_customers': User.query.filter_by(is_active=True).count()
+        'revenue_growth': round(revenue_growth, 2),
+        'orders_growth': round(orders_growth, 2),
+        'customers_growth': round(customers_growth, 2),
+        'aov_growth': round(aov_growth, 2),
+        'total_customers': total_customers,
+        'new_customers': new_customers,
+        'active_customers': current_active_customers
     }
     
     return jsonify(stats)

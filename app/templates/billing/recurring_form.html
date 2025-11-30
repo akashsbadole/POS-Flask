@@ -8,7 +8,7 @@
         <h1 class="text-3xl font-bold text-gray-800">
             {% if recurring_invoice %}Edit Recurring Invoice{% else %}Create Recurring Invoice{% endif %}
         </h1>
-        <a href="{{ url_for('billing.recurring') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+        <a href="{{ url_for('billing.recurring_invoices') }}" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
             Cancel
         </a>
     </div>
@@ -98,7 +98,7 @@
 
             <!-- Form Actions -->
             <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-2">
-                <a href="{{ url_for('billing.recurring') }}" class="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400">
+                <a href="{{ url_for('billing.recurring_invoices') }}" class="bg-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-400">
                     Cancel
                 </a>
                 <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">

@@ -123,8 +123,28 @@
                         </div>
                         {% endif %}
                         <div class="flex justify-between text-sm">
-                            <span class="text-gray-600">Tax ({{ "%.2f"|format(order.tax_rate * 100) }}%):</span>
-                            <span class="font-medium">₹{{ "%.2f"|format(order.tax_amount) }}</span>
+                            <span class="text-gray-600">CGST ({{ "%.2f"|format(order.cgst_rate * 100) }}%):</span>
+                            <span class="font-medium">₹{{ "%.2f"|format(order.cgst_amount) }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">SGST ({{ "%.2f"|format(order.sgst_rate * 100) }}%):</span>
+                            <span class="font-medium">₹{{ "%.2f"|format(order.sgst_amount) }}</span>
+                        </div>
+                        {% if order.igst_amount > 0 %}
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">IGST ({{ "%.2f"|format(order.igst_rate * 100) }}%):</span>
+                            <span class="font-medium">₹{{ "%.2f"|format(order.igst_amount) }}</span>
+                        </div>
+                        {% endif %}
+                        {% if order.cess_amount > 0 %}
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">CESS ({{ "%.2f"|format(order.cess_rate * 100) }}%):</span>
+                            <span class="font-medium">₹{{ "%.2f"|format(order.cess_amount) }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="flex justify-between text-sm font-semibold border-t pt-2">
+                            <span class="text-gray-700">Total GST:</span>
+                            <span class="font-medium text-green-600">₹{{ "%.2f"|format(order.tax_amount) }}</span>
                         </div>
                         {% if order.service_charge > 0 %}
                         <div class="flex justify-between text-sm">
@@ -217,12 +237,16 @@
                 <div class="px-6 py-4 border-b">
                     <h2 class="text-lg font-semibold">Actions</h2>
                 </div>
-                <div class="p-6 space-y-2">
+                <div class="p-6 space-y-2 flex flex-wrap">
                     {% if order.is_fully_paid() %}
-                    <a href="{{ url_for('orders.print_receipt', order_id=order.id) }}" 
-                       class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 text-center"
+                    <a href="{{ url_for('orders.print_receipt', order_id=order.id) }}"
+                       class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 text-center mb-2"
                        target="_blank">
                         Print Receipt
+                    </a>
+                    <a href="{{ url_for('orders.download_receipt', order_id=order.id) }}"
+                       class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center mb-2">
+                        Download PDF
                     </a>
                     {% endif %}
                     

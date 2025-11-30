@@ -83,7 +83,7 @@ def item_detail(item_id):
         return redirect(url_for('online_ordering.menu'))
     
     variants = ItemVariant.query.filter_by(item_id=item_id, is_available=True).order_by(ItemVariant.display_order).all()
-    add_ons = AddOn.query.filter_by(is_available=True).order_by(AddOn.display_order).all()
+    add_ons = AddOn.query.filter_by(is_active=True).order_by(AddOn.display_order).all()
     
     return render_template('online_ordering/item_detail.html',
                          item=item,
@@ -389,12 +389,12 @@ def api_menu_items():
                 'id': v.id,
                 'name': v.name,
                 'price_modifier': float(v.price_modifier)
-            } for v in item.variants if v.is_available],
+            } for v in item.variants.filter_by(is_available=True)],
             'add_ons': [{
                 'id': a.id,
                 'name': a.name,
                 'price': float(a.price)
-            } for a in item.add_ons if a.is_available]
+            } for a in AddOn.query.filter_by(is_active=True).order_by(AddOn.display_order).all()]
         } for item in menu_items]
     })
 

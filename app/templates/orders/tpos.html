@@ -173,8 +173,8 @@
                                 
                                 <!-- Current Order Info -->
                                 <div x-show="table.current_session" class="mt-2 p-2 bg-blue-100 rounded text-xs">
-                                    <p class="font-semibold">Order <span x-text="table.current_session.order_number || 'N/A'"></span></p>
-                                    <p class="text-xs" x-text="(table.current_session.guests || 0) + ' guests • ' + formatDuration(table.current_session.duration_minutes || 0)"></p>
+                                    <p class="font-semibold">Order <span x-text="table.current_session ? (table.current_session.order_number || 'N/A') : 'N/A'"></span></p>
+                                    <p class="text-xs" x-text="(table.current_session ? (table.current_session.guests || 0) : 0) + ' guests • ' + formatDuration(table.current_session ? (table.current_session.duration_minutes || 0) : 0)"></p>
                                 </div>
                             </div>
                         </button>
@@ -458,6 +458,12 @@
 
                 <!-- Action Buttons -->
                 <div class="space-y-2 mt-4">
+                    <!-- View Held Orders -->
+                    <a href="{{ url_for('orders.list_held_orders') }}"
+                       class="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-md transition-colors inline-block text-center">
+                        <i class="fas fa-list mr-2"></i>View Held Orders
+                    </a>
+                    
                     <!-- Hold Order -->
                     <button @click="holdOrder()"
                             :disabled="Object.keys(cartItems).length === 0"
@@ -519,7 +525,7 @@
                                     class="p-4 border-2 rounded-lg transition-all">
                                 <div class="text-center">
                                     <p class="font-medium" x-text="variant.name"></p>
-                                    <p class="text-sm text-gray-600">₹<span x-text="(parseFloat(selectedMenuItem?.price || 0) + parseFloat(variant.price_modifier)).toFixed(2)"></span></p>
+                                    <p class="text-sm text-gray-600">₹<span x-text="(parseFloat(selectedMenuItem?.price || 0) + parseFloat(variant.price_modifier || 0)).toFixed(2)"></span></p>
                                 </div>
                             </button>
                         </template>
@@ -532,13 +538,14 @@
                     <div class="space-y-2">
                         <template x-for="addon in selectedMenuItem?.add_ons || []" :key="addon.id">
                             <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="checkbox" 
+                                <input type="checkbox"
                                        :value="addon.id"
                                        x-model="selectedAddons"
+                                       @change="updateItemPrice()"
                                        class="mr-3">
                                 <div class="flex-1">
                                     <p class="font-medium" x-text="addon.name"></p>
-                                    <p class="text-sm text-gray-600">₹<span x-text="addon.price.toFixed(2)"></span></p>
+                                    <p class="text-sm text-gray-600">₹<span x-text="(parseFloat(addon.price || 0)).toFixed(2)"></span></p>
                                 </div>
                             </label>
                         </template>
@@ -554,11 +561,19 @@
                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"></textarea>
                 </div>
 
+                <!-- Current Price Display -->
+                <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-700">Current Price:</span>
+                        <span class="item-price-display text-xl font-bold text-green-600">₹<span x-text="(parseFloat(selectedMenuItem?.price || 0)).toFixed(2)"></span></span>
+                    </div>
+                </div>
+                
                 <!-- Quantity and Add to Cart -->
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-3">
                         <label class="text-sm font-medium text-gray-700">Quantity:</label>
-                        <input type="number" 
+                        <input type="number"
                                x-model="itemQuantity"
                                min="1"
                                value="1"
@@ -1082,93 +1097,133 @@ function tposManager() {
         async loadInitialData() {
             try {
                 // Load menu categories
-                const categoriesResponse = await fetch('{{ url_for("orders.api_categories") }}');
-                if (categoriesResponse.ok) {
-                    const data = await categoriesResponse.json();
-                    this.categories = data.categories || [];
-                } else {
-                    console.error('Failed to load categories:', categoriesResponse.status, categoriesResponse.statusText);
+                try {
+                    const categoriesResponse = await fetch('{{ url_for("orders.api_categories") }}');
+                    if (categoriesResponse.ok) {
+                        const data = await categoriesResponse.json();
+                        this.categories = data.categories || [];
+                    } else {
+                        console.error('Failed to load categories:', categoriesResponse.status, categoriesResponse.statusText);
+                    }
+                } catch (error) {
+                    console.error('Error loading categories:', error);
                 }
                
                 // Load menu items
-                const itemsResponse = await fetch('{{ url_for("orders.api_menu_items") }}');
-                if (itemsResponse.ok) {
-                    const data = await itemsResponse.json();
-                    this.menuItems = data.items || [];
-                } else {
-                    console.error('Failed to load menu items:', itemsResponse.status, itemsResponse.statusText);
+                try {
+                    const itemsResponse = await fetch('{{ url_for("orders.api_menu_items") }}');
+                    if (itemsResponse.ok) {
+                        const data = await itemsResponse.json();
+                        this.menuItems = data.items || [];
+                    } else {
+                        console.error('Failed to load menu items:', itemsResponse.status, itemsResponse.statusText);
+                    }
+                } catch (error) {
+                    console.error('Error loading menu items:', error);
                 }
                
                 // Load quick items
-                const quickResponse = await fetch('{{ url_for("orders.api_quick_items") }}');
-                if (quickResponse.ok) {
-                    const data = await quickResponse.json();
-                    this.quickItems = data.items || [];
-                } else {
-                    console.error('Failed to load quick items:', quickResponse.status, quickResponse.statusText);
+                try {
+                    const quickResponse = await fetch('{{ url_for("orders.api_quick_items") }}');
+                    if (quickResponse.ok) {
+                        const data = await quickResponse.json();
+                        this.quickItems = data.items || [];
+                    } else {
+                        console.error('Failed to load quick items:', quickResponse.status, quickResponse.statusText);
+                    }
+                } catch (error) {
+                    console.error('Error loading quick items:', error);
                 }
                
                 // Load tables
-                const tablesResponse = await fetch('{{ url_for("tables.get_tables") }}');
-                if (tablesResponse.ok) {
-                    const data = await tablesResponse.json();
-                    this.tables = data || [];
-                    // Add status colors to tables
-                    this.tables.forEach(table => {
-                        table.status_color = this.getTableStatusColor(table.status);
-                        table.status_text = this.getTableStatusText(table.status);
-                    });
-                } else {
-                    console.error('Failed to load tables:', tablesResponse.status, tablesResponse.statusText);
+                try {
+                    const tablesResponse = await fetch('{{ url_for("orders.api_tables") }}');
+                    if (tablesResponse.ok) {
+                        const data = await tablesResponse.json();
+                        this.tables = data.tables || [];
+                        // Add status colors to tables
+                        this.tables.forEach(table => {
+                            table.status_color = this.getTableStatusColor(table.status);
+                            table.status_text = this.getTableStatusText(table.status);
+                        });
+                    } else {
+                        console.error('Failed to load tables:', tablesResponse.status, tablesResponse.statusText);
+                    }
+                } catch (error) {
+                    console.error('Error loading tables:', error);
                 }
                
                 // Load cart
-                const cartResponse = await fetch('{{ url_for("orders.api_cart") }}');
-                if (cartResponse.ok) {
-                    const data = await cartResponse.json();
-                    this.cartItems = data.items || {};
-                } else {
-                    console.error('Failed to load cart:', cartResponse.status, cartResponse.statusText);
+                let cartData = null;
+                try {
+                    const cartResponse = await fetch('{{ url_for("orders.api_cart") }}');
+                    if (cartResponse.ok) {
+                        cartData = await cartResponse.json();
+                        this.cartItems = {};
+                        // Convert array back to object with keys
+                        if (cartData.items && Array.isArray(cartData.items)) {
+                            cartData.items.forEach(item => {
+                                const key = this.generateCartKeyFromItem(item);
+                                this.cartItems[key] = item;
+                            });
+                        } else if (cartData.items && typeof cartData.items === 'object') {
+                            // If server returns an object, use it directly
+                            this.cartItems = cartData.items;
+                        }
+                    } else {
+                        console.error('Failed to load cart:', cartResponse.status, cartResponse.statusText);
+                    }
+                } catch (error) {
+                    console.error('Error loading cart:', error);
                 }
                
                 // Load selected customer
-                const customerResponse = await fetch('{{ url_for("orders.api_selected_customer") }}');
-                if (customerResponse.ok) {
-                    const data = await customerResponse.json();
-                    if (data.success) {
-                        this.selectedCustomer = data.customer;
+                try {
+                    const customerResponse = await fetch('{{ url_for("orders.api_selected_customer") }}');
+                    if (customerResponse.ok) {
+                        const data = await customerResponse.json();
+                        if (data.success) {
+                            this.selectedCustomer = data.customer;
+                        }
+                    } else {
+                        console.error('Failed to load selected customer:', customerResponse.status, customerResponse.statusText);
                     }
-                } else {
-                    console.error('Failed to load selected customer:', customerResponse.status, customerResponse.statusText);
+                } catch (error) {
+                    console.error('Error loading selected customer:', error);
                 }
                
                 // Load payment methods
-                const paymentMethodsResponse = await fetch('{{ url_for("orders.api_payment_methods") }}');
-                if (paymentMethodsResponse.ok) {
-                    const data = await paymentMethodsResponse.json();
-                    this.paymentMethods = data.payment_methods || [];
-                } else {
-                    console.error('Failed to load payment methods:', paymentMethodsResponse.status, paymentMethodsResponse.statusText);
+                try {
+                    const paymentMethodsResponse = await fetch('{{ url_for("orders.api_payment_methods") }}');
+                    if (paymentMethodsResponse.ok) {
+                        const data = await paymentMethodsResponse.json();
+                        this.paymentMethods = data.payment_methods || [];
+                    } else {
+                        console.error('Failed to load payment methods:', paymentMethodsResponse.status, paymentMethodsResponse.statusText);
+                    }
+                } catch (error) {
+                    console.error('Error loading payment methods:', error);
                 }
                
                 // Load GST settings
-                const gstResponse = await fetch('{{ url_for("orders.api_gst_settings") }}');
-                if (gstResponse.ok) {
-                    const data = await gstResponse.json();
-                    this.gstSettings = data || this.gstSettings;
-                } else {
-                    console.error('Failed to load GST settings:', gstResponse.status, gstResponse.statusText);
+                try {
+                    const gstResponse = await fetch('{{ url_for("orders.api_gst_settings") }}');
+                    if (gstResponse.ok) {
+                        const data = await gstResponse.json();
+                        this.gstSettings = data || this.gstSettings;
+                    } else {
+                        console.error('Failed to load GST settings:', gstResponse.status, gstResponse.statusText);
+                    }
+                } catch (error) {
+                    console.error('Error loading GST settings:', error);
                 }
                
-                // Load discount from cart API
-                if (cartResponse.ok) {
-                    const cartData = await cartResponse.json();
-                    if (cartData.discount) {
-                        this.discountType = cartData.discount.type || 'percentage';
-                        this.discountValue = cartData.discount.value || 0;
-                        this.discountReason = cartData.discount.reason || '';
-                        this.discountAmount = cartData.discount_amount || 0;
-                    }
+                // Load discount from cart data
+                if (cartData && cartData.discount) {
+                    this.discountType = cartData.discount.type || 'percentage';
+                    this.discountValue = cartData.discount.value || 0;
+                    this.discountReason = cartData.discount.reason || '';
+                    this.discountAmount = cartData.discount_amount || 0;
                 }
                
                 this.filteredCategories = this.categories;
@@ -1241,22 +1296,61 @@ function tposManager() {
             return classes[status] || 'bg-gray-100 text-gray-800';
         },
         
-        quickAddItem(item) {
-            // Create a simple cart item for quick add
-            const cartKey = `quick_${item.id}_${Date.now()}`;
-            this.cartItems[cartKey] = {
-                item_id: item.id,
-                item_name: item.name,
-                quantity: 1,
-                unit_price: parseFloat(item.price),
-                variant_id: null,
-                variant_name: null,
-                add_ons: [],
-                notes: ''
-            };
-            
-            this.calculateTotals();
-            this.showNotification(`Added ${item.name} to order`, 'success');
+        async quickAddItem(item) {
+            try {
+                // Create a simple cart item for quick add
+                const cartKey = `quick_${item.id}_${Date.now()}`;
+                this.cartItems[cartKey] = {
+                    item_id: item.id,
+                    item_name: item.name,
+                    quantity: 1,
+                    unit_price: parseFloat(item.price || 0),
+                    variant_id: null,
+                    variant_name: null,
+                    add_ons: [],
+                    notes: ''
+                };
+                
+                // Send to server
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
+                const response = await fetch('{{ url_for("orders.add_to_cart") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken ? csrfToken.getAttribute('content') : ''
+                    },
+                    body: JSON.stringify({
+                        item_id: item.id,
+                        quantity: 1,
+                        variant_id: null,
+                        add_ons: [],
+                        notes: ''
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        // Reload cart from server to ensure sync
+                        await this.loadCartFromServer();
+                        this.showNotification(`Added ${item.name} to order`, 'success');
+                    } else {
+                        // Remove from local cart and show error
+                        delete this.cartItems[cartKey];
+                        this.calculateTotals();
+                        this.showNotification(data.message || 'Failed to add item to cart', 'error');
+                    }
+                } else {
+                    // Remove from local cart and show error
+                    delete this.cartItems[cartKey];
+                    this.calculateTotals();
+                    const errorData = await response.json().catch(() => ({}));
+                    this.showNotification(errorData.error || `Failed to add item: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error adding quick item to cart:', error);
+                this.showNotification('Error adding item to cart', 'error');
+            }
         },
         
         async loadTableOrder(session) {
@@ -1265,7 +1359,17 @@ function tposManager() {
                 const response = await fetch(`/orders/api/order-items/${session.order_id}`);
                 if (response.ok) {
                     const data = await response.json();
-                    this.cartItems = data.items || {};
+                    this.cartItems = {};
+                    // Convert array back to object with keys
+                    if (data.items && Array.isArray(data.items)) {
+                        data.items.forEach(item => {
+                            const key = this.generateCartKeyFromItem(item);
+                            this.cartItems[key] = item;
+                        });
+                    } else if (data.items && typeof data.items === 'object') {
+                        // If server returns an object, use it directly
+                        this.cartItems = data.items;
+                    }
                     this.calculateTotals();
                 } else {
                     console.error('Failed to load table order:', response.status, response.statusText);
@@ -1307,7 +1411,13 @@ function tposManager() {
             this.selectedMenuItem = item;
             this.selectedVariant = null;
             this.selectedAddons = [];
+            this.specialInstructions = '';
+            this.itemQuantity = 1;
             this.showItemModal = true;
+            // Initialize price display
+            this.$nextTick(() => {
+                this.updateItemPrice();
+            });
         },
         
         getItemButtonClass(itemId) {
@@ -1347,6 +1457,34 @@ function tposManager() {
         
         selectVariant(variant) {
             this.selectedVariant = variant;
+            // Update displayed price when variant changes
+            this.updateItemPrice();
+        },
+        
+        updateItemPrice() {
+            if (!this.selectedMenuItem) return;
+            
+            // Start with base price
+            let price = parseFloat(this.selectedMenuItem.price || 0);
+            
+            // Add variant price modifier if selected
+            if (this.selectedVariant) {
+                price += parseFloat(this.selectedVariant.price_modifier || 0);
+            }
+            
+            // Add prices for selected add-ons
+            this.selectedAddons.forEach(addonId => {
+                const addon = this.selectedMenuItem?.add_ons?.find(a => a.id === addonId);
+                if (addon) {
+                    price += parseFloat(addon.price || 0);
+                }
+            });
+            
+            // Update price display in modal
+            const priceElement = document.querySelector('.item-price-display');
+            if (priceElement) {
+                priceElement.textContent = `₹${price.toFixed(2)}`;
+            }
         },
         
         async addItemToCart() {
@@ -1365,16 +1503,16 @@ function tposManager() {
                 }
                 
                 // Calculate price
-                let unitPrice = parseFloat(this.selectedMenuItem.price);
+                let unitPrice = parseFloat(this.selectedMenuItem.price || 0);
                 if (this.selectedVariant) {
-                    unitPrice += parseFloat(this.selectedVariant.price_modifier);
+                    unitPrice += parseFloat(this.selectedVariant.price_modifier || 0);
                 }
                 
                 // Add addon prices
                 this.selectedAddons.forEach(addonId => {
                     const addon = this.selectedMenuItem?.add_ons?.find(a => a.id === addonId);
                     if (addon) {
-                        unitPrice += parseFloat(addon.price);
+                        unitPrice += parseFloat(addon.price || 0);
                     }
                 });
                 
@@ -1398,12 +1536,12 @@ function tposManager() {
                 };
                 
                 // Send to server
-                const csrfToken = document.querySelector('[name=csrf_token]');
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
                 const response = await fetch('{{ url_for("orders.add_to_cart") }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                        'X-CSRFToken': csrfToken ? csrfToken.getAttribute('content') : ''
                     },
                     body: JSON.stringify({
                         item_id: cartItem.item_id,
@@ -1417,9 +1555,8 @@ function tposManager() {
                 if (response.ok) {
                     const data = await response.json();
                     if (data.success) {
-                        // Add to local cart
-                        this.cartItems[cartKey] = cartItem;
-                        this.calculateTotals();
+                        // Reload cart from server to ensure sync
+                        await this.loadCartFromServer();
                         this.showItemModal = false;
                         this.resetItemSelection();
                         this.showNotification(`${this.selectedMenuItem.name} added to cart`, 'success');
@@ -1451,6 +1588,37 @@ function tposManager() {
             this.itemQuantity = 1;
         },
         
+        async loadCartFromServer() {
+            try {
+                const response = await fetch('{{ url_for("orders.api_cart") }}');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.cartItems = {};
+                    // Convert array back to object with keys
+                    if (data.items && Array.isArray(data.items)) {
+                        data.items.forEach(item => {
+                            const key = this.generateCartKeyFromItem(item);
+                            this.cartItems[key] = item;
+                        });
+                    } else if (data.items && typeof data.items === 'object') {
+                        // If server returns an object, use it directly
+                        this.cartItems = data.items;
+                    }
+                    this.calculateTotals();
+                } else {
+                    console.error('Failed to load cart from server:', response.status, response.statusText);
+                }
+            } catch (error) {
+                console.error('Error loading cart from server:', error);
+            }
+        },
+        
+        generateCartKeyFromItem(item) {
+            const variantId = item.variant_id || '0';
+            const addonIds = item.add_ons ? item.add_ons.map(a => a.id).sort().join('_') : '';
+            return `${item.item_id}_${variantId}_${addonIds}`;
+        },
+        
         // Cart Management
         async updateQuantity(key, quantity) {
             try {
@@ -1460,18 +1628,13 @@ function tposManager() {
                     return;
                 }
                 
-                // Update local cart first for immediate UI feedback
-                const originalQuantity = this.cartItems[key].quantity;
-                this.cartItems[key].quantity = quantity;
-                this.calculateTotals();
-                
                 // Update on server
-                const csrfToken = document.querySelector('[name=csrf_token]');
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
                 const response = await fetch('{{ url_for("orders.update_cart") }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                        'X-CSRFToken': csrfToken ? csrfToken.getAttribute('content') : ''
                     },
                     body: new URLSearchParams({
                         cart_key: key,
@@ -1479,15 +1642,19 @@ function tposManager() {
                     })
                 });
                 
-                if (!response.ok) {
-                    // Revert on error
-                    this.cartItems[key].quantity = originalQuantity;
-                    this.calculateTotals();
+                if (response.ok) {
+                    // Reload cart from server to ensure sync
+                    await this.loadCartFromServer();
+                } else {
+                    // Reload cart from server to restore correct state
+                    await this.loadCartFromServer();
                     const errorData = await response.json().catch(() => ({}));
                     this.showNotification(errorData.error || `Failed to update quantity: ${response.status}`, 'error');
                 }
             } catch (error) {
                 console.error('Error updating quantity:', error);
+                // Reload cart from server to restore correct state
+                await this.loadCartFromServer();
                 this.showNotification('Error updating item quantity', 'error');
             }
         },
@@ -1501,12 +1668,12 @@ function tposManager() {
                 this.calculateTotals();
                 
                 // Remove from server
-                const csrfToken = document.querySelector('[name=csrf_token]');
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
                 const response = await fetch('{{ url_for("orders.update_cart") }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                        'X-CSRFToken': csrfToken ? csrfToken.getAttribute('content') : ''
                     },
                     body: new URLSearchParams({
                         cart_key: key,
@@ -1515,15 +1682,19 @@ function tposManager() {
                 });
                 
                 if (!response.ok) {
-                    // We can't easily revert this without reloading from server
-                    // For now, just show an error message
+                    // Reload cart from server to restore correct state
+                    await this.loadCartFromServer();
                     const errorData = await response.json().catch(() => ({}));
                     this.showNotification(errorData.error || `Failed to remove item: ${response.status}`, 'error');
                 } else {
+                    // Reload cart from server to ensure sync
+                    await this.loadCartFromServer();
                     this.showNotification(`${itemName} removed from cart`, 'success');
                 }
             } catch (error) {
                 console.error('Error removing item:', error);
+                // Reload cart from server to restore correct state
+                await this.loadCartFromServer();
                 this.showNotification('Error removing item from cart', 'error');
             }
         },
@@ -1568,12 +1739,12 @@ function tposManager() {
         
         async selectCustomer(customer) {
             try {
-                const csrfToken = document.querySelector('[name=csrf_token]');
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
                 const response = await fetch('{{ url_for("orders.select_cart_customer") }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                        'X-CSRFToken': csrfToken ? csrfToken.getAttribute('content') : ''
                     },
                     body: JSON.stringify({
                         customer_id: customer.id
@@ -1627,7 +1798,7 @@ function tposManager() {
             if (!this.canProcessPayment()) return;
            
             try {
-                const csrfToken = document.querySelector('[name=csrf_token]');
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
                 const formData = new FormData();
                 formData.append('payment_method', this.selectedPaymentMethod);
                 formData.append('amount', this.total.toString());
@@ -1650,7 +1821,7 @@ function tposManager() {
                     method: 'POST',
                     body: formData,
                     headers: {
-                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                        'X-CSRFToken': csrfToken ? csrfToken.getAttribute('content') : ''
                     }
                 });
                
@@ -1713,7 +1884,7 @@ function tposManager() {
             if (!this.isSplitValid()) return;
             
             try {
-                const csrfToken = document.querySelector('[name=csrf_token]');
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
                 const formData = new FormData();
                 formData.append('split_type', this.splitType);
                 formData.append('total_amount', this.total.toString());
@@ -1766,7 +1937,7 @@ function tposManager() {
                     method: 'POST',
                     body: formData,
                     headers: {
-                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                        'X-CSRFToken': csrfToken ? csrfToken.getAttribute('content') : ''
                     }
                 });
                 
@@ -1869,12 +2040,12 @@ function tposManager() {
             }
             
             try {
-                const csrfToken = document.querySelector('[name=csrf_token]');
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
                 const response = await fetch('{{ url_for("orders.apply_cart_discount") }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                        'X-CSRFToken': csrfToken ? csrfToken.getAttribute('content') : ''
                     },
                     body: JSON.stringify({
                         discount_type: this.discountType,
@@ -1911,11 +2082,11 @@ function tposManager() {
         
         async removeDiscount() {
             try {
-                const csrfToken = document.querySelector('[name=csrf_token]');
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
                 const response = await fetch('{{ url_for("orders.remove_cart_discount") }}', {
                     method: 'POST',
                     headers: {
-                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                        'X-CSRFToken': csrfToken ? csrfToken.getAttribute('content') : ''
                     }
                 });
                 
@@ -1947,11 +2118,11 @@ function tposManager() {
             if (Object.keys(this.cartItems).length === 0) return;
             
             try {
-                const csrfToken = document.querySelector('[name=csrf_token]');
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
                 const response = await fetch('{{ url_for("orders.hold_order") }}', {
                     method: 'POST',
                     headers: {
-                        'X-CSRFToken': csrfToken ? csrfToken.value : ''
+                        'X-CSRFToken': csrfToken ? csrfToken.getAttribute('content') : ''
                     }
                 });
                 
@@ -1979,28 +2150,67 @@ function tposManager() {
         },
         
         // Quick Menu Functions for Table Selector
-        addToCartFromTable(item) {
+        async addToCartFromTable(item) {
             // If no table is selected and in table mode, prompt user to select one first
             if (!this.selectedTable && this.currentOrderMode === 'table') {
                 this.showNotification('Please select a table first', 'warning');
                 return;
             }
             
-            // Create a simple cart item for quick add
-            const cartKey = `quick_${item.id}_${Date.now()}`;
-            this.cartItems[cartKey] = {
-                item_id: item.id,
-                item_name: item.name,
-                quantity: 1,
-                unit_price: parseFloat(item.price),
-                variant_id: null,
-                variant_name: null,
-                add_ons: [],
-                notes: ''
-            };
-            
-            this.calculateTotals();
-            this.showNotification(`Added ${item.name} to order`, 'success');
+            try {
+                // Create a simple cart item for quick add
+                const cartKey = `quick_${item.id}_${Date.now()}`;
+                this.cartItems[cartKey] = {
+                    item_id: item.id,
+                    item_name: item.name,
+                    quantity: 1,
+                    unit_price: parseFloat(item.price || 0),
+                    variant_id: null,
+                    variant_name: null,
+                    add_ons: [],
+                    notes: ''
+                };
+                
+                // Send to server
+                const csrfToken = document.querySelector('meta[name="csrf-token"]');
+                const response = await fetch('{{ url_for("orders.add_to_cart") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken ? csrfToken.getAttribute('content') : ''
+                    },
+                    body: JSON.stringify({
+                        item_id: item.id,
+                        quantity: 1,
+                        variant_id: null,
+                        add_ons: [],
+                        notes: ''
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        // Reload cart from server to ensure sync
+                        await this.loadCartFromServer();
+                        this.showNotification(`Added ${item.name} to order`, 'success');
+                    } else {
+                        // Remove from local cart and show error
+                        delete this.cartItems[cartKey];
+                        this.calculateTotals();
+                        this.showNotification(data.message || 'Failed to add item to cart', 'error');
+                    }
+                } else {
+                    // Remove from local cart and show error
+                    delete this.cartItems[cartKey];
+                    this.calculateTotals();
+                    const errorData = await response.json().catch(() => ({}));
+                    this.showNotification(errorData.error || `Failed to add item: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error adding item to cart from table:', error);
+                this.showNotification('Error adding item to cart', 'error');
+            }
         },
         
         showNotification(message, type = 'info') {

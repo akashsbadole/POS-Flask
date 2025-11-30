@@ -109,12 +109,12 @@
         <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
             <div class="flex-1 flex justify-between sm:hidden">
                 {% if recurring_invoices.has_prev %}
-                <a href="{{ url_for('billing.recurring', page=recurring_invoices.prev_num) }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                <a href="{{ url_for('billing.recurring_invoices', page=recurring_invoices.prev_num) }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                     Previous
                 </a>
                 {% endif %}
                 {% if recurring_invoices.has_next %}
-                <a href="{{ url_for('billing.recurring', page=recurring_invoices.next_num) }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                <a href="{{ url_for('billing.recurring_invoices', page=recurring_invoices.next_num) }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                     Next
                 </a>
                 {% endif %}
@@ -134,7 +134,7 @@
                 <div>
                     <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                         {% if recurring_invoices.has_prev %}
-                        <a href="{{ url_for('billing.recurring', page=recurring_invoices.prev_num) }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        <a href="{{ url_for('billing.recurring_invoices', page=recurring_invoices.prev_num) }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
                             Previous
                         </a>
                         {% endif %}
@@ -142,7 +142,7 @@
                         {% for page_num in recurring_invoices.iter_pages() %}
                             {% if page_num %}
                                 {% if page_num != recurring_invoices.page %}
-                                <a href="{{ url_for('billing.recurring', page=page_num) }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                <a href="{{ url_for('billing.recurring_invoices', page=page_num) }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
                                     {{ page_num }}
                                 </a>
                                 {% else %}
@@ -158,7 +158,7 @@
                         {% endfor %}
                         
                         {% if recurring_invoices.has_next %}
-                        <a href="{{ url_for('billing.recurring', page=recurring_invoices.next_num) }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        <a href="{{ url_for('billing.recurring_invoices', page=recurring_invoices.next_num) }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
                             Next
                         </a>
                         {% endif %}

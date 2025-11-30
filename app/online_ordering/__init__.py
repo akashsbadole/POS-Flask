@@ -7,4 +7,5 @@ from flask import Blueprint
 
 bp = Blueprint('online_ordering', __name__, url_prefix='/online-ordering')
 
-from app import online_ordering
+# Import routes to register them with the blueprint
+from app.online_ordering import routes

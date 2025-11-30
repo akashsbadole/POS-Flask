@@ -68,6 +68,10 @@ class User(UserMixin, db.Model):
         """Check if user can access super admin features"""
         return self.role == 'super_admin'
     
+    def is_super_admin(self):
+        """Check if user is super admin (alias for can_access_super_admin_features)"""
+        return self.role == 'super_admin'
+    
     def can_access_restaurant_features(self):
         """Check if user can access restaurant-specific features"""
         return self.role in ['restaurant_owner', 'manager', 'cashier', 'kitchen', 'staff']

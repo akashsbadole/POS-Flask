@@ -157,6 +157,54 @@ class Order(db.Model):
         
         self.total = float(self.subtotal) + float(self.tax_amount or 0) + float(self.service_charge or 0) - float(self.discount_amount or 0)
     
+    @property
+    def cgst_rate(self):
+        """Get CGST rate from GST settings"""
+        if self.restaurant_id:
+            from app.models.gst import GSTSetting
+            gst_setting = GSTSetting.query.filter_by(
+                restaurant_id=self.restaurant_id,
+                is_active=True
+            ).first()
+            return float(gst_setting.cgst_rate) if gst_setting else 0.09
+        return 0.09  # Default 9%
+    
+    @property
+    def sgst_rate(self):
+        """Get SGST rate from GST settings"""
+        if self.restaurant_id:
+            from app.models.gst import GSTSetting
+            gst_setting = GSTSetting.query.filter_by(
+                restaurant_id=self.restaurant_id,
+                is_active=True
+            ).first()
+            return float(gst_setting.sgst_rate) if gst_setting else 0.09
+        return 0.09  # Default 9%
+    
+    @property
+    def igst_rate(self):
+        """Get IGST rate from GST settings"""
+        if self.restaurant_id:
+            from app.models.gst import GSTSetting
+            gst_setting = GSTSetting.query.filter_by(
+                restaurant_id=self.restaurant_id,
+                is_active=True
+            ).first()
+            return float(gst_setting.igst_rate) if gst_setting else 0.00
+        return 0.00  # Default 0%
+    
+    @property
+    def cess_rate(self):
+        """Get CESS rate from GST settings"""
+        if self.restaurant_id:
+            from app.models.gst import GSTSetting
+            gst_setting = GSTSetting.query.filter_by(
+                restaurant_id=self.restaurant_id,
+                is_active=True
+            ).first()
+            return float(gst_setting.cess_rate) if gst_setting else 0.00
+        return 0.00  # Default 0%
+    
     def get_total_paid(self):
         """Get total amount paid"""
         # Use direct query to get payments
@@ -316,12 +364,10 @@ class Order(db.Model):
             return
         
         # Import here to avoid circular imports
-        from app.notifications.service import NotificationService
+        from app.notifications.service import notification_service
         from flask import current_app
         
         try:
-            notification_service = NotificationService()
-            
             # Create status change message
             status_messages = {
                 OrderStatus.PENDING: "Order pending",
@@ -336,16 +382,13 @@ class Order(db.Model):
             message = status_messages.get(new_status, f"Order status changed to {new_status.value}")
             
             # Send notification to waiter
-            notification_service.send_notification(
-                user_id=self.waiter_id,
-                title=f"Order {self.order_number} Status Update",
-                message=message,
-                notification_type='order_status',
-                data={
-                    'order_id': self.id,
-                    'order_number': self.order_number,
-                    'table_id': self.table_id,
-                    'table_number': self.table.number if self.table else None,
+            notification_service.send_email(
+                to=self.waiter.email if self.waiter else 'admin@restaurant.com',
+                subject=f"Order {self.order_number} Status Update",
+                template='notifications/email/order_status.html',
+                context={
+                    'order': self,
+                    'message': message,
                     'old_status': old_status.value if old_status else None,
                     'new_status': new_status.value
                 }
@@ -356,22 +399,20 @@ class Order(db.Model):
                 from app.models.user import User
                 kitchen_staff = User.query.filter_by(role='kitchen').all()
                 for staff in kitchen_staff:
-                    notification_service.send_notification(
-                        user_id=staff.id,
-                        title=f"Order Ready",
-                        message=f"Order {self.order_number} is ready for serving",
-                        notification_type='order_ready',
-                        data={
-                            'order_id': self.id,
-                            'order_number': self.order_number,
-                            'table_id': self.table_id,
-                            'table_number': self.table.number if self.table else None
+                    notification_service.send_email(
+                        to=staff.email,
+                        subject=f"Order Ready",
+                        template='notifications/email/order_ready.html',
+                        context={
+                            'order': self,
+                            'message': f"Order {self.order_number} is ready for serving"
                         }
                     )
             
             # Emit real-time update via WebSocket if available
-            if hasattr(current_app, 'socketio'):
-                current_app.socketio.emit('order_status_update', {
+            try:
+                from app import socketio
+                socketio.emit('order_status_update', {
                     'order_id': self.id,
                     'order_number': self.order_number,
                     'table_id': self.table_id,
@@ -379,7 +420,11 @@ class Order(db.Model):
                     'old_status': old_status.value if old_status else None,
                     'new_status': new_status.value,
                     'timestamp': datetime.utcnow().isoformat()
-                }, room=f'table_{self.table_id}' if self.table_id else None)
+                }, to=f'table_{self.table_id}' if self.table_id else None)
+            except Exception as e:
+                # Log error but don't fail the status update
+                import sys
+                print(f"Error emitting WebSocket notification: {str(e)}", file=sys.stderr)
                 
         except Exception as e:
             # Log error but don't fail the status update
@@ -403,9 +448,12 @@ class Order(db.Model):
     
     def can_be_split(self):
         """Check if order can be split into multiple checks"""
+        # Use direct query to get items
+        from .order import OrderItem
+        items_count = OrderItem.query.filter_by(order_id=self.id).count()
         return (self.status in [OrderStatus.PENDING, OrderStatus.CONFIRMED] and
                 not self.parent_order_id and
-                len(self.items) > 0)
+                items_count > 0)
     
     def can_be_merged(self):
         """Check if order can be merged with another order"""

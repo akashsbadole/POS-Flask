@@ -1,0 +1,784 @@
+{% extends "base.html" %}
+
+{% block title %}Kitchen Display System{% endblock %}
+
+{% block extra_css %}
+<style>
+.kds-container {
+    background: #1a1a1a;
+    color: #ffffff;
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.kds-header {
+    background: #2d3748;
+    padding: 1rem;
+    border-bottom: 2px solid #4a5568;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.kds-filters {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.kds-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: #2d3748;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+    border: 2px solid #4a5568;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #63b3ed;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #a0aec0;
+    margin-top: 0.25rem;
+}
+
+.kitchen-orders {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    padding: 1rem;
+}
+
+.order-card {
+    background: #2d3748;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 2px solid #4a5568;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.order-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.order-card.priority-urgent {
+    border-color: #f56565;
+    background: linear-gradient(135deg, #2d3748 0%, #4a1a1a 100%);
+}
+
+.order-card.priority-high {
+    border-color: #ed8936;
+    background: linear-gradient(135deg, #2d3748 0%, #4a2a1a 100%);
+}
+
+.order-card.priority-normal {
+    border-color: #48bb78;
+    background: linear-gradient(135deg, #2d3748 0%, #1a4a2a 100%);
+}
+
+.order-card.priority-low {
+    border-color: #718096;
+    background: linear-gradient(135deg, #2d3748 0%, #2a3a4a 100%);
+}
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #4a5568;
+}
+
+.order-number {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: #63b3ed;
+}
+
+.order-time {
+    font-size: 0.875rem;
+    color: #a0aec0;
+}
+
+.order-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+}
+
+.station-badge {
+    background: #4a5568;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.station-grill { background: #e53e3e; }
+.station-fry { background: #dd6b20; }
+.station-bar { background: #3182ce; }
+.station-prep { background: #38a169; }
+.station-pizza { background: #d69e2e; }
+.station-dessert { background: #805ad5; }
+.station-salad { background: #48bb78; }
+.station-beverage { background: #4299e1; }
+.station-sauce { background: #9f7aea; }
+.station-general { background: #718096; }
+
+.order-items {
+    margin-bottom: 1rem;
+}
+
+.item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #4a5568;
+}
+
+.item-name {
+    font-weight: 500;
+    color: #e2e8f0;
+}
+
+.item-quantity {
+    background: #4a5568;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-weight: bold;
+    min-width: 2rem;
+    text-align: center;
+}
+
+.order-notes {
+    background: #1a202c;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: #a0aec0;
+    margin-bottom: 1rem;
+    border-left: 3px solid #4a5568;
+}
+
+.order-timer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.timer-display {
+    font-size: 1.5rem;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+}
+
+.timer-normal { color: #48bb78; }
+.timer-warning { color: #ed8936; }
+.timer-overdue { color: #f56565; animation: pulse 1s infinite; }
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.order-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 0.5rem;
+}
+
+.btn-kitchen {
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    font-size: 0.875rem;
+}
+
+.btn-start {
+    background: #38a169;
+    color: white;
+}
+
+.btn-start:hover { background: #2f855a; }
+
+.btn-ready {
+    background: #3182ce;
+    color: white;
+}
+
+.btn-ready:hover { background: #2c5282; }
+
+.btn-served {
+    background: #48bb78;
+    color: white;
+}
+
+.btn-served:hover { background: #38a169; }
+
+.btn-cancel {
+    background: #e53e3e;
+    color: white;
+}
+
+.btn-cancel:hover { background: #c53030; }
+
+.status-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.status-pending {
+    background: #ed8936;
+    color: white;
+}
+
+.status-preparing {
+    background: #3182ce;
+    color: white;
+}
+
+.status-ready {
+    background: #48bb78;
+    color: white;
+    animation: pulse 2s infinite;
+}
+
+.status-served {
+    background: #718096;
+    color: white;
+}
+
+.status-cancelled {
+    background: #e53e3e;
+    color: white;
+}
+
+.overdue-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #f56565, #ed8936, #f56565);
+    animation: slide 2s linear infinite;
+}
+
+@keyframes slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.filter-select {
+    background: #2d3748;
+    color: #e2e8f0;
+    border: 1px solid #4a5568;
+    padding: 0.5rem;
+    border-radius: 6px;
+    min-width: 150px;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #63b3ed;
+    box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.1);
+}
+
+.real-time-indicator {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    background: #38a169;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.real-time-dot {
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@media (max-width: 768px) {
+    .kitchen-orders {
+        grid-template-columns: 1fr;
+        padding: 0.5rem;
+    }
+    
+    .kds-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .order-actions {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="kds-container">
+    <div class="kds-header">
+        <h1 class="text-2xl font-bold text-white mb-4">Kitchen Display System</h1>
+        
+        <div class="kds-filters">
+            <select class="filter-select" id="stationFilter" onchange="filterOrders()">
+                <option value="">All Stations</option>
+                {% for station in stations %}
+                <option value="{{ station.station.value }}" {% if station_filter == station.station.value %}selected{% endif %}>
+                    {{ station.name }}
+                </option>
+                {% endfor %}
+            </select>
+            
+            <select class="filter-select" id="priorityFilter" onchange="filterOrders()">
+                <option value="">All Priorities</option>
+                <option value="4" {% if priority_filter == '4' %}selected{% endif %}>Urgent</option>
+                <option value="3" {% if priority_filter == '3' %}selected{% endif %}>High</option>
+                <option value="2" {% if priority_filter == '2' %}selected{% endif %}>Normal</option>
+                <option value="1" {% if priority_filter == '1' %}selected{% endif %}>Low</option>
+            </select>
+            
+            <button class="btn-kitchen btn-start" onclick="refreshOrders()">
+                Refresh
+            </button>
+        </div>
+        
+        <div class="kds-stats" id="kdsStats">
+            <div class="stat-card">
+                <div class="stat-value" id="pendingCount">0</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="preparingCount">0</div>
+                <div class="stat-label">Preparing</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="readyCount">0</div>
+                <div class="stat-label">Ready</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="overdueCount">0</div>
+                <div class="stat-label">Overdue</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="kitchen-orders" id="kitchenOrders">
+        {% for kitchen_order in kitchen_orders %}
+        <div class="order-card priority-{{ kitchen_order.priority_level.value.lower() }}" 
+             data-order-id="{{ kitchen_order.id }}"
+             data-station="{{ kitchen_order.station.value }}"
+             data-priority="{{ kitchen_order.priority_level.value }}"
+             data-status="{{ kitchen_order.status.value }}">
+            
+            {% if kitchen_order.is_overdue() %}
+            <div class="overdue-indicator"></div>
+            {% endif %}
+            
+            <div class="status-badge status-{{ kitchen_order.status.value }}">
+                {{ kitchen_order.status.value.title() }}
+            </div>
+            
+            <div class="order-header">
+                <div class="order-number">
+                    #{{ kitchen_order.order.order_number if kitchen_order.order else 'N/A' }}
+                </div>
+                <div class="order-time">
+                    {{ kitchen_order.created_at.strftime('%H:%M') }}
+                </div>
+            </div>
+            
+            <div class="order-info">
+                <div class="station-badge station-{{ kitchen_order.station.value }}">
+                    {{ kitchen_order.station.value.title() }}
+                </div>
+                <div>
+                    Table: {{ kitchen_order.order.table.number if kitchen_order.order and kitchen_order.order.table else 'N/A' }}
+                </div>
+            </div>
+            
+            <div class="order-items">
+                <div class="item-row">
+                    <div class="item-name">{{ kitchen_order.item_name }}</div>
+                    <div class="item-quantity">{{ kitchen_order.item_quantity or 1 }}x</div>
+                </div>
+                {% if kitchen_order.special_instructions %}
+                <div class="item-row">
+                    <div class="item-name" style="font-style: italic; color: #a0aec0;">
+                        {{ kitchen_order.special_instructions }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            {% if kitchen_order.notes %}
+            <div class="order-notes">
+                <strong>Notes:</strong> {{ kitchen_order.notes }}
+            </div>
+            {% endif %}
+            
+            <div class="order-timer">
+                <div class="timer-display timer-{{ 'overdue' if kitchen_order.is_overdue() else 'warning' if kitchen_order.get_preparation_time_remaining() < 300 else 'normal' }}">
+                    {{ kitchen_order.get_preparation_time_remaining() // 60 }}:{{ "%02d"|format(kitchen_order.get_preparation_time_remaining() % 60) }}
+                </div>
+                <div class="text-sm text-gray-400">
+                    {% if kitchen_order.is_overdue() %}
+                    Overdue by {{ kitchen_order.get_time_overdue() // 60 }} min
+                    {% else %}
+                    Est. {{ kitchen_order.estimated_completion_time.strftime('%H:%M') if kitchen_order.estimated_completion_time else 'N/A' }}
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="order-actions">
+                {% if kitchen_order.status.value == 'pending' %}
+                <button class="btn-kitchen btn-start" onclick="startPreparation({{ kitchen_order.id }})">
+                    Start
+                </button>
+                {% endif %}
+                
+                {% if kitchen_order.status.value == 'preparing' %}
+                <button class="btn-kitchen btn-ready" onclick="markReady({{ kitchen_order.id }})">
+                    Ready
+                </button>
+                {% endif %}
+                
+                {% if kitchen_order.status.value == 'ready' %}
+                <button class="btn-kitchen btn-served" onclick="markServed({{ kitchen_order.id }})">
+                    Served
+                </button>
+                {% endif %}
+                
+                {% if kitchen_order.status.value in ['pending', 'preparing'] %}
+                <button class="btn-kitchen btn-cancel" onclick="cancelOrder({{ kitchen_order.id }})">
+                    Cancel
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="real-time-indicator">
+        <div class="real-time-dot"></div>
+        Live Updates
+    </div>
+</div>
+
+<script>
+let socket;
+let updateTimer;
+
+function initSocket() {
+    socket = io();
+    
+    socket.on('kitchen_order_update', function(data) {
+        updateOrderCard(data.kitchen_order);
+        updateStats();
+    });
+    
+    socket.on('kitchen_stats_update', function(data) {
+        updateStatsDisplay(data);
+    });
+    
+    socket.on('connect', function() {
+        console.log('Connected to kitchen display');
+        loadKitchenOrders();
+    });
+}
+
+function loadKitchenOrders() {
+    fetch('/kitchen/kds/api/orders')
+        .then(response => response.json())
+        .then(data => {
+            renderOrders(data);
+            updateStats();
+        })
+        .catch(error => console.error('Error loading orders:', error));
+}
+
+function renderOrders(orders) {
+    const container = document.getElementById('kitchenOrders');
+    container.innerHTML = '';
+    
+    orders.forEach(order => {
+        const orderCard = createOrderCard(order);
+        container.appendChild(orderCard);
+    });
+}
+
+function createOrderCard(order) {
+    const div = document.createElement('div');
+    div.className = `order-card priority-${order.priority_level.toLowerCase()}`;
+    div.dataset.orderId = order.id;
+    div.dataset.station = order.station;
+    div.dataset.priority = order.priority_level;
+    div.dataset.status = order.status;
+    
+    // Build the card HTML (simplified version)
+    div.innerHTML = `
+        ${order.is_overdue ? '<div class="overdue-indicator"></div>' : ''}
+        <div class="status-badge status-${order.status}">${order.status.charAt(0).toUpperCase() + order.status.slice(1)}</div>
+        <div class="order-header">
+            <div class="order-number">#${order.order_number || 'N/A'}</div>
+            <div class="order-time">${new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+        </div>
+        <div class="order-info">
+            <div class="station-badge station-${order.station}">${order.station.charAt(0).toUpperCase() + order.station.slice(1)}</div>
+            <div>Table: ${order.table_number || 'N/A'}</div>
+        </div>
+        <div class="order-items">
+            <div class="item-row">
+                <div class="item-name">${order.item_name}</div>
+                <div class="item-quantity">${order.item_quantity || 1}x</div>
+            </div>
+        </div>
+        <div class="order-timer">
+            <div class="timer-display timer-${order.is_overdue ? 'overdue' : order.preparation_time_remaining < 300 ? 'warning' : 'normal'}">
+                ${Math.floor(order.preparation_time_remaining / 60)}:${String(order.preparation_time_remaining % 60).padStart(2, '0')}
+            </div>
+        </div>
+        <div class="order-actions">
+            ${getActionButtons(order)}
+        </div>
+    `;
+    
+    return div;
+}
+
+function getActionButtons(order) {
+    let buttons = '';
+    
+    if (order.status === 'pending') {
+        buttons += `<button class="btn-kitchen btn-start" onclick="startPreparation(${order.id})">Start</button>`;
+    }
+    
+    if (order.status === 'preparing') {
+        buttons += `<button class="btn-kitchen btn-ready" onclick="markReady(${order.id})">Ready</button>`;
+    }
+    
+    if (order.status === 'ready') {
+        buttons += `<button class="btn-kitchen btn-served" onclick="markServed(${order.id})">Served</button>`;
+    }
+    
+    if (['pending', 'preparing'].includes(order.status)) {
+        buttons += `<button class="btn-kitchen btn-cancel" onclick="cancelOrder(${order.id})">Cancel</button>`;
+    }
+    
+    return buttons;
+}
+
+function startPreparation(orderId) {
+    fetch(`/kitchen/kds/orders/${orderId}/start-preparation`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Preparation started', 'success');
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error starting preparation:', error);
+        showNotification('Error starting preparation', 'error');
+    });
+}
+
+function markReady(orderId) {
+    fetch(`/kitchen/kds/orders/${orderId}/mark-ready`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Order marked as ready', 'success');
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error marking ready:', error);
+        showNotification('Error marking ready', 'error');
+    });
+}
+
+function markServed(orderId) {
+    fetch(`/kitchen/kds/orders/${orderId}/mark-served`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Order marked as served', 'success');
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error marking served:', error);
+        showNotification('Error marking served', 'error');
+    });
+}
+
+function cancelOrder(orderId) {
+    const reason = prompt('Reason for cancellation:');
+    if (!reason) return;
+    
+    fetch(`/kitchen/kds/orders/${orderId}/update-status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: `status=cancelled&notes=${encodeURIComponent(reason)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Order cancelled', 'success');
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error cancelling order:', error);
+        showNotification('Error cancelling order', 'error');
+    });
+}
+
+function filterOrders() {
+    const station = document.getElementById('stationFilter').value;
+    const priority = document.getElementById('priorityFilter').value;
+    
+    const url = new URL(window.location);
+    if (station) url.searchParams.set('station', station);
+    else url.searchParams.delete('station');
+    
+    if (priority) url.searchParams.set('priority', priority);
+    else url.searchParams.delete('priority');
+    
+    window.location.href = url.toString();
+}
+
+function refreshOrders() {
+    loadKitchenOrders();
+    showNotification('Orders refreshed', 'info');
+}
+
+function updateStats() {
+    fetch('/kitchen/kds/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            updateStatsDisplay(data);
+        })
+        .catch(error => console.error('Error loading stats:', error));
+}
+
+function updateStatsDisplay(stats) {
+    document.getElementById('pendingCount').textContent = stats.pending_orders || 0;
+    document.getElementById('preparingCount').textContent = stats.preparing_orders || 0;
+    document.getElementById('readyCount').textContent = stats.ready_orders || 0;
+    document.getElementById('overdueCount').textContent = stats.overdue_orders || 0;
+}
+
+function updateOrderCard(kitchenOrder) {
+    const card = document.querySelector(`[data-order-id="${kitchenOrder.id}"]`);
+    if (card) {
+        const newCard = createOrderCard(kitchenOrder);
+        card.replaceWith(newCard);
+    }
+}
+
+function getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+function showNotification(message, type) {
+    // Simple notification system
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 ${
+        type === 'success' ? 'bg-green-500' : 
+        type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+    }`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initSocket();
+    
+    // Update timers every second
+    updateTimer = setInterval(() => {
+        document.querySelectorAll('.timer-display').forEach(timer => {
+            const card = timer.closest('.order-card');
+            const orderId = card.dataset.orderId;
+            // Update timer display based on current time
+            // This would need more sophisticated logic to track actual times
+        });
+    }, 1000);
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (socket) socket.disconnect();
+    if (updateTimer) clearInterval(updateTimer);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,20 @@
+Invoice #{{ invoice_number }}
+
+Hello {{ customer_name }},
+
+Thank you for your business. Please find your invoice details below.
+
+Invoice Details:
+Invoice Number: #{{ invoice_number }}
+Amount Due: ₹{{ "%.2f"|format(amount) }}
+Due Date: {{ due_date.strftime('%d %B %Y') if due_date else 'Due on receipt' }}
+
+To view your complete invoice and make payment, please visit:
+{{ invoice_url }}
+
+If you have any questions, please don't hesitate to contact us.
+
+Best regards,
+{{ company_name }} Team
+
+This is an automated message. Please do not reply to this email.

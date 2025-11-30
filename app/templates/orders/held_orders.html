@@ -53,24 +53,14 @@
                                         </td>
                                         <td>
                                             {% if held_order.customer_id %}
-                                                {% set customer = get_customer_by_id(held_order.customer_id) %}
-                                                {% if customer %}
-                                                    {{ customer.get_full_name() }}
-                                                {% else %}
-                                                    <span class="text-muted">Customer not found</span>
-                                                {% endif %}
+                                                <span class="text-muted">Customer ID: {{ held_order.customer_id }}</span>
                                             {% else %}
                                                 <span class="text-muted">No customer</span>
                                             {% endif %}
                                         </td>
                                         <td>
                                             {% if held_order.table_id %}
-                                                {% set table = get_table_by_id(held_order.table_id) %}
-                                                {% if table %}
-                                                    Table {{ table.number }}
-                                                {% else %}
-                                                    <span class="text-muted">Table not found</span>
-                                                {% endif %}
+                                                <span class="text-muted">Table ID: {{ held_order.table_id }}</span>
                                             {% else %}
                                                 <span class="text-muted">No table</span>
                                             {% endif %}

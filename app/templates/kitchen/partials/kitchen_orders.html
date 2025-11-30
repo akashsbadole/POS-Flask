@@ -1,0 +1,93 @@
+{% for kitchen_order in kitchen_orders %}
+<div class="order-card priority-{{ kitchen_order.priority_level.value.lower() }}" 
+     data-order-id="{{ kitchen_order.id }}"
+     data-station="{{ kitchen_order.station.value }}"
+     data-priority="{{ kitchen_order.priority_level.value }}"
+     data-status="{{ kitchen_order.status.value }}">
+    
+    {% if kitchen_order.is_overdue() %}
+    <div class="overdue-indicator"></div>
+    {% endif %}
+    
+    <div class="status-badge status-{{ kitchen_order.status.value }}">
+        {{ kitchen_order.status.value.title() }}
+    </div>
+    
+    <div class="order-header">
+        <div class="order-number">
+            #{{ kitchen_order.order.order_number if kitchen_order.order else 'N/A' }}
+        </div>
+        <div class="order-time">
+            {{ kitchen_order.created_at.strftime('%H:%M') }}
+        </div>
+    </div>
+    
+    <div class="order-info">
+        <div class="station-badge station-{{ kitchen_order.station.value }}">
+            {{ kitchen_order.station.value.title() }}
+        </div>
+        <div>
+            Table: {{ kitchen_order.order.table.number if kitchen_order.order and kitchen_order.order.table else 'N/A' }}
+        </div>
+    </div>
+    
+    <div class="order-items">
+        <div class="item-row">
+            <div class="item-name">{{ kitchen_order.item_name }}</div>
+            <div class="item-quantity">{{ kitchen_order.item_quantity or 1 }}x</div>
+        </div>
+        {% if kitchen_order.special_instructions %}
+        <div class="item-row">
+            <div class="item-name" style="font-style: italic; color: #a0aec0;">
+                {{ kitchen_order.special_instructions }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    {% if kitchen_order.notes %}
+    <div class="order-notes">
+        <strong>Notes:</strong> {{ kitchen_order.notes }}
+    </div>
+    {% endif %}
+    
+    <div class="order-timer">
+        <div class="timer-display timer-{{ 'overdue' if kitchen_order.is_overdue() else 'warning' if kitchen_order.get_preparation_time_remaining() < 300 else 'normal' }}">
+            {{ kitchen_order.get_preparation_time_remaining() // 60 }}:{{ "%02d"|format(kitchen_order.get_preparation_time_remaining() % 60) }}
+        </div>
+        <div class="text-sm text-gray-400">
+            {% if kitchen_order.is_overdue() %}
+            Overdue by {{ kitchen_order.get_time_overdue() // 60 }} min
+            {% else %}
+            Est. {{ kitchen_order.estimated_completion_time.strftime('%H:%M') if kitchen_order.estimated_completion_time else 'N/A' }}
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="order-actions">
+        {% if kitchen_order.status.value == 'pending' %}
+        <button class="btn-kitchen btn-start" onclick="startPreparation({{ kitchen_order.id }})">
+            Start
+        </button>
+        {% endif %}
+        
+        {% if kitchen_order.status.value == 'preparing' %}
+        <button class="btn-kitchen btn-ready" onclick="markReady({{ kitchen_order.id }})">
+            Ready
+        </button>
+        {% endif %}
+        
+        {% if kitchen_order.status.value == 'ready' %}
+        <button class="btn-kitchen btn-served" onclick="markServed({{ kitchen_order.id }})">
+            Served
+        </button>
+        {% endif %}
+        
+        {% if kitchen_order.status.value in ['pending', 'preparing'] %}
+        <button class="btn-kitchen btn-cancel" onclick="cancelOrder({{ kitchen_order.id }})">
+            Cancel
+        </button>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}

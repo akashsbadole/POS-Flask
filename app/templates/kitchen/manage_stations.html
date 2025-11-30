@@ -1,0 +1,465 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Kitchen Stations{% endblock %}
+
+{% block extra_css %}
+<style>
+.stations-container {
+    background: #1a1a1a;
+    color: #ffffff;
+    min-height: 100vh;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    padding: 2rem;
+}
+
+.stations-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.stations-title {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #63b3ed;
+}
+
+.stations-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+.station-card {
+    background: #2d3748;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 2px solid #4a5568;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.station-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.station-card.inactive {
+    opacity: 0.6;
+    border-color: #718096;
+}
+
+.station-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #4a5568;
+}
+
+.station-name {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #e2e8f0;
+}
+
+.station-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.status-active {
+    background: #48bb78;
+    color: white;
+}
+
+.status-inactive {
+    background: #718096;
+    color: white;
+}
+
+.station-info {
+    margin-bottom: 1rem;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.info-label {
+    color: #a0aec0;
+}
+
+.info-value {
+    color: #e2e8f0;
+    font-weight: 500;
+}
+
+.station-color {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1px solid #4a5568;
+    vertical-align: middle;
+    margin-left: 0.5rem;
+}
+
+.station-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.btn-station {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    font-size: 0.875rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-edit {
+    background: #3182ce;
+    color: white;
+}
+
+.btn-edit:hover { background: #2c5282; }
+
+.btn-toggle {
+    background: #ed8936;
+    color: white;
+}
+
+.btn-toggle:hover { background: #dd6b20; }
+
+.btn-delete {
+    background: #e53e3e;
+    color: white;
+}
+
+.btn-delete:hover { background: #c53030; }
+
+.btn-create {
+    background: #38a169;
+    color: white;
+}
+
+.btn-create:hover { background: #2f855a; }
+
+.workload-indicator {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: #1a202c;
+    border-radius: 8px;
+    border-left: 4px solid #4a5568;
+}
+
+.worklow-bar {
+    height: 8px;
+    background: #4a5568;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    overflow: hidden;
+}
+
+.worklow-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #48bb78, #38a169);
+    transition: width 0.3s ease;
+}
+
+.workload-text {
+    font-size: 0.75rem;
+    color: #a0aec0;
+    margin-top: 0.25rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #a0aec0;
+}
+
+.empty-state-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.back-button {
+    background: #4a5568;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background 0.2s ease;
+}
+
+.back-button:hover {
+    background: #2d3748;
+}
+
+@media (max-width: 768px) {
+    .stations-grid {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+    }
+    
+    .stations-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="stations-container">
+    <div class="stations-header">
+        <h1 class="stations-title">Kitchen Stations</h1>
+        <div>
+            <a href="{{ url_for('kitchen.create_station') }}" class="btn-station btn-create">
+                ➕ Create Station
+            </a>
+            <a href="{{ url_for('kitchen.station_workload') }}" class="btn-station btn-edit">
+                📊 View Workload
+            </a>
+            <a href="{{ url_for('kitchen.kds_display') }}" class="back-button">
+                ← Back to KDS
+            </a>
+        </div>
+    </div>
+    
+    {% if stations %}
+    <div class="stations-grid">
+        {% for station in stations %}
+        <div class="station-card {% if not station.is_active %}inactive{% endif %}">
+            <div class="station-header">
+                <div class="station-name">
+                    {{ station.name }}
+                    <span class="station-color" style="background-color: {{ station.color_code }};"></span>
+                </div>
+                <div class="station-status {{ 'status-active' if station.is_active else 'status-inactive' }}">
+                    {{ 'Active' if station.is_active else 'Inactive' }}
+                </div>
+            </div>
+            
+            <div class="station-info">
+                <div class="info-row">
+                    <span class="info-label">Station Type:</span>
+                    <span class="info-value">{{ station.station.value.title() }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Default Prep Time:</span>
+                    <span class="info-value">{{ "%.1f"|format(station.default_preparation_time / 60) }} minutes</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Max Concurrent:</span>
+                    <span class="info-value">{{ station.max_concurrent_items }} items</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Notification Sound:</span>
+                    <span class="info-value">{{ station.notification_sound }}</span>
+                </div>
+                {% if station.description %}
+                <div class="info-row">
+                    <span class="info-label">Description:</span>
+                    <span class="info-value">{{ station.description }}</span>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="workload-indicator">
+                <div class="worklow-bar">
+                    <div class="worklow-fill" style="width: 0%;"></div>
+                </div>
+                <div class="workload-text">Loading workload...</div>
+            </div>
+            
+            <div class="station-actions">
+                <a href="{{ url_for('kitchen.edit_station', station_id=station.id) }}" class="btn-station btn-edit">
+                    ✏️ Edit
+                </a>
+                <a href="#" class="btn-station btn-toggle" onclick="toggleStation({{ station.id }}, this)">
+                    {{ '🔇 Deactivate' if station.is_active else '🔘 Activate' }}
+                </a>
+                <a href="#" class="btn-station btn-delete" onclick="deleteStation({{ station.id }}, '{{ station.name }}')">
+                    🗑️ Delete
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">🏪</div>
+        <h3>No kitchen stations configured</h3>
+        <p>Create your first kitchen station to get started with the KDS system.</p>
+        <a href="{{ url_for('kitchen.create_station') }}" class="btn-station btn-create">
+            Create First Station
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function toggleStation(stationId, element) {
+    fetch(`/kitchen/stations/${stationId}/toggle-status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            
+            // Update UI
+            const card = element.closest('.station-card');
+            const statusBadge = card.querySelector('.station-status');
+            const isActive = data.is_active;
+            
+            if (isActive) {
+                card.classList.remove('inactive');
+                statusBadge.className = 'station-status status-active';
+                statusBadge.textContent = 'Active';
+                element.innerHTML = '🔇 Deactivate';
+            } else {
+                card.classList.add('inactive');
+                statusBadge.className = 'station-status status-inactive';
+                statusBadge.textContent = 'Inactive';
+                element.innerHTML = '🔘 Activate';
+            }
+        } else {
+            showNotification(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling station:', error);
+        showNotification('Error toggling station', 'error');
+    });
+}
+
+function deleteStation(stationId, stationName) {
+    if (!confirm(`Are you sure you want to delete the "${stationName}" station? This action cannot be undone.`)) {
+        return;
+    }
+    
+    fetch(`/kitchen/stations/${stationId}/delete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            // Remove the station card from DOM
+            const card = document.querySelector(`[data-station-id="${stationId}"]`);
+            if (card) {
+                card.remove();
+            }
+        } else {
+            showNotification(data.error, 'error');
+            if (data.active_orders) {
+                alert(`Cannot delete station. It has ${data.active_orders} active orders.`);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting station:', error);
+        showNotification('Error deleting station', 'error');
+    });
+}
+
+function loadStationWorkloads() {
+    // Load workload data for each station
+    document.querySelectorAll('.station-card').forEach(card => {
+        const stationId = card.querySelector('.btn-toggle').getAttribute('onclick').match(/\d+/)[0];
+        
+        fetch(`/kitchen/kds/api/stats`)
+            .then(response => response.json())
+            .then(data => {
+                const workloadBar = card.querySelector('.worklow-fill');
+                const workloadText = card.querySelector('.workload-text');
+                
+                if (data.stations && data.stations[stationId]) {
+                    const activeOrders = data.stations[stationId];
+                    const maxConcurrent = parseInt(card.querySelector('.info-value').textContent.match(/\d+/)[0]);
+                    const workloadPercentage = Math.min((activeOrders / maxConcurrent) * 100, 100);
+                    
+                    workloadBar.style.width = `${workloadPercentage}%`;
+                    workloadText.textContent = `${activeOrders}/${maxConcurrent} active orders (${workloadPercentage.toFixed(0)}%)`;
+                    
+                    // Change color based on workload
+                    if (workloadPercentage >= 90) {
+                        workloadBar.style.background = 'linear-gradient(90deg, #f56565, #e53e3e)';
+                    } else if (workloadPercentage >= 70) {
+                        workloadBar.style.background = 'linear-gradient(90deg, #ed8936, #dd6b20)';
+                    } else {
+                        workloadBar.style.background = 'linear-gradient(90deg, #48bb78, #38a169)';
+                    }
+                } else {
+                    workloadBar.style.width = '0%';
+                    workloadText.textContent = 'No active orders';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading workload:', error);
+            });
+    });
+}
+
+function getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 ${
+        type === 'success' ? 'bg-green-500' : 
+        type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+    }`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Load workloads when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadStationWorkloads();
+    
+    // Auto-refresh workloads every 30 seconds
+    setInterval(loadStationWorkloads, 30000);
+});
+</script>
+{% endblock %}

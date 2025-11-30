@@ -48,6 +48,7 @@ class MenuItem(db.Model):
     hsn_code_id = db.Column(db.Integer, db.ForeignKey('hsn_codes.id'), nullable=True)
     image_url = db.Column(db.String(255))
     is_available = db.Column(db.Boolean, default=True)
+    is_featured = db.Column(db.Boolean, default=False)
     display_order = db.Column(db.Integer, default=0)
     preparation_time = db.Column(db.Integer)  # minutes
     allergens = db.Column(db.Text)  # JSON string of allergen information
@@ -77,7 +78,7 @@ class MenuItem(db.Model):
         """Get only available add-ons"""
         return self.add_ons.filter_by(is_active=True).all()
     
-    def to_dict(self, include_variants=True, include_add_ons=True):
+    def to_dict(self, include_variants=False, include_add_ons=False):
         """Convert menu item to dictionary for API responses"""
         result = {
             'id': self.id,

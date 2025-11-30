@@ -1,5 +1,5 @@
 <!-- HTMX Live Polling Component -->
-<div x-data="livePollManager('{{ endpoint }}', {{ interval|default(10) }}, '{{ target_id }}')" 
+<div x-data='livePollManager("{{ endpoint }}", {{ interval|default(10) }}, "{{ target_id }}")'
      x-init="initPolling()"
      class="live-poll-container">
     

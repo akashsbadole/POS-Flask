@@ -33,23 +33,61 @@ def view_cart():
 @login_required
 def add_to_cart():
     """Add item to cart"""
+    # Check if item_id is provided
+    if not request.is_json and not request.form.get('item_id'):
+        return jsonify({'success': False, 'message': 'Item ID is required'}), 400
+    
     # Handle both form data and JSON data
     if request.is_json:
         data = request.get_json()
-        item_id = data.get('item_id', type=int)
-        quantity = data.get('quantity', 1, type=int)
-        variant_id = data.get('variant_id', type=int)
+        item_id = data.get('item_id')
+        quantity = data.get('quantity', 1)
+        variant_id = data.get('variant_id')
         add_on_ids = data.get('add_ons', [])
         notes = data.get('notes', '')
+        
+        # Convert to proper types with error handling
+        try:
+            item_id = int(item_id) if item_id else None
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'message': 'Invalid item ID'}), 400
+        
+        try:
+            quantity = int(quantity) if quantity else 1
+        except (ValueError, TypeError):
+            quantity = 1
+        
+        try:
+            variant_id = int(variant_id) if variant_id else None
+        except (ValueError, TypeError):
+            variant_id = None
+        
+        # Ensure add_ons is a list of integers
+        if add_on_ids and not isinstance(add_on_ids, list):
+            add_on_ids = []
+        else:
+            try:
+                add_on_ids = [int(aid) for aid in add_on_ids if aid]
+            except (ValueError, TypeError):
+                add_on_ids = []
     else:
-        item_id = request.form.get('item_id', type=int)
+        try:
+            item_id = request.form.get('item_id', type=int)
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'message': 'Invalid item ID'}), 400
+        
         quantity = request.form.get('quantity', type=int, default=1)
-        variant_id = request.form.get('variant_id', type=int)
+        try:
+            variant_id = request.form.get('variant_id', type=int)
+        except (ValueError, TypeError):
+            variant_id = None
         add_on_ids = request.form.getlist('add_ons')
         notes = request.form.get('notes', '')
     
     # Get menu item
-    menu_item = MenuItem.query.get_or_404(item_id)
+    menu_item = MenuItem.query.get(item_id)
+    if not menu_item:
+        return jsonify({'success': False, 'message': 'Menu item not found'}), 404
     
     # Get cart from session
     cart = session.get('cart', {})
@@ -681,7 +719,7 @@ def finalize_split_payment(order, payments_created, split_bill):
         try:
             notification_service.send_order_confirmation(order)
         except Exception as e:
-            # Log error but don't fail payment
+            # Log error but don't fail the payment
             print(f"Error sending order confirmation: {e}")
         
         response_data = {
@@ -1056,24 +1094,46 @@ def print_receipt(order_id):
         flash('Order must be fully paid before printing receipt', 'error')
         return redirect(url_for('orders.checkout', order_id=order_id))
     
-    try:
-        # Print receipt using thermal printer
-        printer = ReceiptPrinter()
-        printer.print_receipt(order)
-        
-        # Open cash drawer if cash payment was made
-        cash_payment = next((p for p in order.payments if p.method == PaymentMethod.CASH and p.is_successful()), None)
-        if cash_payment:
-            open_cash_drawer()
-        
-        flash('Receipt printed successfully', 'success')
-        
-    except Exception as e:
-        flash(f'Error printing receipt: {str(e)}', 'error')
-        # Fallback to browser print
-        return render_template('orders/receipt_print.html', order=order)
+    # Always use browser print for better compatibility
+    # This ensures the print dialog opens properly in all browsers
+    return render_template('orders/receipt_print.html', order=order)
+
+@bp.route('/download/receipt/<int:order_id>')
+@login_required
+def download_receipt(order_id):
+    """Download receipt as PDF for an order"""
+    order = Order.query.get_or_404(order_id)
     
-    return redirect(url_for('orders.order_details', order_id=order_id))
+    if not order.is_fully_paid():
+        flash('Order must be fully paid before downloading receipt', 'error')
+        return redirect(url_for('orders.checkout', order_id=order_id))
+    
+    try:
+        # Generate HTML receipt
+        printer = ReceiptPrinter()
+        receipt_html = printer._get_receipt_html(order)
+        
+        # Convert to PDF using WeasyPrint if available, otherwise serve HTML
+        try:
+            from weasyprint import HTML, CSS
+            pdf_file = HTML(string=receipt_html).write_pdf()
+            
+            from flask import Response
+            response = Response(pdf_file, content_type='application/pdf')
+            response.headers['Content-Disposition'] = f'attachment; filename=receipt_{order.order_number}.pdf'
+            return response
+            
+        except ImportError:
+            # Fallback to HTML if WeasyPrint is not available
+            from flask import Response
+            response = Response(receipt_html, content_type='text/html')
+            response.headers['Content-Disposition'] = f'attachment; filename=receipt_{order.order_number}.html'
+            return response
+            
+    except Exception as e:
+        print(f"Error generating receipt PDF: {e}")
+        flash(f'Error generating receipt: {str(e)}', 'error')
+        return redirect(url_for('orders.order_details', order_id=order_id))
 
 @bp.route('/email/receipt/<int:order_id>', methods=['POST'])
 @login_required
@@ -1282,7 +1342,7 @@ def print_split_bill_receipt(order_id):
         flash('Order must be fully paid before printing split bill receipt', 'error')
         return redirect(url_for('orders.checkout', order_id=order_id))
     
-    # Get the most recent split bill for this order
+    # Get most recent split bill for this order
     split_bill = SplitBill.query.filter_by(order_id=order_id).order_by(SplitBill.created_at.desc()).first()
     
     if not split_bill:
@@ -1724,7 +1784,7 @@ def kot_print(order_id):
 @bp.route('/set-order-type', methods=['POST'])
 @login_required
 def set_order_type():
-    """Set the order type (table, takeaway, delivery)"""
+    """Set order type (table, takeaway, delivery)"""
     order_type = request.form.get('order_type')
     
     if order_type not in ['table', 'takeaway', 'delivery']:
@@ -1937,7 +1997,7 @@ def api_payment_methods():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@bp.route('/customers/api/search')
+@bp.route('/api/search-customers')
 @login_required
 def api_search_customers():
     """API endpoint to search customers"""
@@ -2361,3 +2421,36 @@ def remove_cart_discount():
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@bp.route('/select-customer', methods=['POST'])
+@login_required
+def select_customer():
+    """Select customer for cart (alternative endpoint name)"""
+    if request.is_json:
+        data = request.get_json()
+        customer_id = data.get('customer_id')
+    else:
+        customer_id = request.form.get('customer_id', type=int)
+    
+    if not customer_id:
+        return jsonify({'success': False, 'message': 'Customer ID is required'}), 400
+    
+    customer = Customer.query.get(customer_id)
+    if not customer:
+        return jsonify({'success': False, 'message': 'Customer not found'}), 404
+    
+    # Store customer ID in session
+    session['selected_customer_id'] = customer_id
+    
+    return jsonify({
+        'success': True,
+        'message': f'Customer {customer.get_full_name()} selected',
+        'customer': customer.to_dict()
+    })
+
+@bp.route('/process-split-bill', methods=['POST'])
+@login_required
+def process_split_bill_alt():
+    """Process split bill from cart (alternative endpoint name)"""
+    return process_split_bill()

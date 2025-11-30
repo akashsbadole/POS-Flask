@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Invoice #{{ invoice_number }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { border-bottom: 2px solid #007bff; padding-bottom: 20px; margin-bottom: 20px; }
+        .invoice-details { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .btn { display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Invoice #{{ invoice_number }}</h1>
+            <p>Hello {{ customer_name }},</p>
+            <p>Thank you for your business. Please find your invoice details below.</p>
+        </div>
+        
+        <div class="invoice-details">
+            <h3>Invoice Details</h3>
+            <p><strong>Invoice Number:</strong> #{{ invoice_number }}</p>
+            <p><strong>Amount Due:</strong> ₹{{ "%.2f"|format(amount) }}</p>
+            <p><strong>Due Date:</strong> {{ due_date.strftime('%d %B %Y') if due_date else 'Due on receipt' }}</p>
+        </div>
+        
+        <p>To view your complete invoice and make payment, please click the button below:</p>
+        
+        <a href="{{ invoice_url }}" class="btn">View Invoice</a>
+        
+        <p>If you have any questions, please don't hesitate to contact us.</p>
+        
+        <div class="footer">
+            <p>Best regards,<br>{{ company_name }} Team</p>
+            <p>This is an automated message. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>

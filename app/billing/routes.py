@@ -249,8 +249,41 @@ def send_invoice(invoice_id):
     invoice.mark_as_sent()
     db.session.commit()
     
-    # TODO: Implement email sending
-    flash('Invoice marked as sent', 'success')
+    # Send invoice email
+    try:
+        from app.services.email_service import EmailService
+        email_service = EmailService()
+        
+        # Get invoice details
+        invoice_url = url_for('billing.view_invoice', invoice_id=invoice.id, _external=True)
+        
+        # Send email
+        result = email_service.send_invoice_email(
+            recipient_email=invoice.customer_email,
+            invoice_number=invoice.invoice_number,
+            amount=invoice.total_amount,
+            due_date=invoice.due_date,
+            invoice_url=invoice_url,
+            customer_name=invoice.customer_name
+        )
+        
+        if result['success']:
+            # Update invoice status
+            invoice.status = 'sent'
+            invoice.sent_at = datetime.utcnow()
+            db.session.commit()
+            
+            flash(f'Invoice #{invoice.invoice_number} sent successfully to {invoice.customer_email}', 'success')
+        else:
+            flash(f'Failed to send invoice: {result["error"]}', 'error')
+            
+    except ImportError:
+        flash('Email service not configured. Please set up email settings.', 'warning')
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.error(f"Error sending invoice email: {str(e)}")
+        flash(f'Error sending invoice: {str(e)}', 'error')
+    
     return redirect(url_for('billing.view_invoice', invoice_id=invoice_id))
 
 @bp.route('/invoices/<int:invoice_id>/print')
@@ -362,7 +395,7 @@ def create_recurring():
         db.session.commit()
         
         flash('Recurring invoice created successfully', 'success')
-        return redirect(url_for('billing.recurring'))
+        return redirect(url_for('billing.recurring_invoices'))
     
     return render_template('billing/recurring_form.html', recurring_invoice=None)
 

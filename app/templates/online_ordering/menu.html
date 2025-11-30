@@ -65,15 +65,16 @@
             <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all group">
                 <!-- Item Image -->
                 <div class="h-48 bg-gray-200 relative">
-                    {% if item.image_url %}
-                    <img :src="item.image_url || '/static/images/placeholder-food.jpg'" 
-                         :alt="item.name" 
-                         class="w-full h-full object-cover">
-                    {% else %}
-                    <div class="w-full h-full bg-gray-200 flex items-center justify-center">
-                        <i class="fas fa-utensils text-4xl text-gray-400"></i>
-                    </div>
-                    {% endif %}
+                    <template x-if="item.image_url">
+                        <img :src="item.image_url"
+                             :alt="item.name"
+                             class="w-full h-full object-cover">
+                    </template>
+                    <template x-if="!item.image_url">
+                        <div class="w-full h-full bg-gray-200 flex items-center justify-center">
+                            <i class="fas fa-utensils text-4xl text-gray-400"></i>
+                        </div>
+                    </template>
                     
                     <!-- Featured Badge -->
                     <div x-show="item.is_featured" 
@@ -100,25 +101,22 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <span class="text-2xl font-bold text-blue-600" x-text="'$' + item.price.toFixed(2)"></span>
-                            {% if item.has_variants %}
-                            <span class="text-sm text-gray-500">from</span>
-                            {% endif %}
+                            <span x-show="item.variants && item.variants.length > 0" class="text-sm text-gray-500">from</span>
                         </div>
                         
                         <div class="flex space-x-2">
-                            {% if item.has_variants or item.has_add_ons %}
-                            <button @click="showCustomization(item)" 
+                            <button x-show="(item.variants && item.variants.length > 0) || (item.add_ons && item.add_ons.length > 0)"
+                                    @click="showCustomization(item)"
                                     class="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm">
                                 <i class="fas fa-cog mr-1"></i>
                                 Customize
                             </button>
-                            {% else %}
-                            <button @click="addToCart(item)" 
+                            <button x-show="!item.variants && !item.add_ons"
+                                    @click="addToCart(item)"
                                     class="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm">
                                 <i class="fas fa-plus mr-1"></i>
                                 Add
                             </button>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
